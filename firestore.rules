@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function me() {
+      return /databases/$(database)/documents/admins/$(request.auth.token.email.lower());
+    }
+    // 팀원 여부 (마스터·매니저·뷰어 모두)
+    function isAdmin() {
+      return signedIn() && exists(me());
+    }
+    // 권한: 기록이 없으면 뷰어로 취급
+    function role() {
+      return get(me()).data.get('role', 'viewer');
+    }
+    // 수정 가능: 마스터·매니저
+    function canEdit() {
+      return isAdmin() && role() in ['master', 'manager'];
+    }
+    function isMaster() {
+      return isAdmin() && role() == 'master';
+    }
+    // 팀원 목록: 팀원 모두 읽기 / 추가는 마스터·매니저(매니저는 매니저·뷰어로만) / 권한 변경·삭제는 마스터만
+    match /admins/{email} {
+      allow read: if isAdmin();
+      allow create: if canEdit() && (isMaster() || request.resource.data.role in ['manager', 'viewer']);
+      allow update: if isMaster();
+      allow delete: if isMaster() && email != request.auth.token.email.lower();
+    }
+    // 캠페인·진행관리·인플루언서 풀: 팀원 모두 읽기, 마스터·매니저만 수정
+    match /campaigns/{id} {
+      allow read: if isAdmin();
+      allow write: if canEdit();
+    }
+    match /rows/{id} {
+      allow read: if isAdmin();
+      allow write: if canEdit();
+    }
+    match /pool/{id} {
+      allow read: if isAdmin();
+      allow write: if canEdit();
+    }
+    // 썸네일(직접 넣은 이미지): 팀원 읽기, 마스터·매니저 수정
+    match /thumbs/{id} {
+      allow read: if isAdmin();
+      allow write: if canEdit();
+    }
+    // 광고주 공유용 썸네일: 링크를 아는 사람만 한 건씩 읽기
+    match /sharethumbs/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if canEdit();
+    }
+    // 광고주 공유본: 링크(토큰)를 아는 사람만 한 건씩 읽기 가능, 목록 조회 불가
+    match /shares/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if canEdit();
+    }
+    // 연동 설정(유튜브 API 키 등): 팀원 모두 읽기, 마스터만 수정
+    match /settings/{id} {
+      allow read: if isAdmin();
+      allow write: if isMaster();
+    }
+  }
+}

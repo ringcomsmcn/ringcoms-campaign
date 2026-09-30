@@ -1,0 +1,7 @@
+{
+  "name": "ringcoms-campaign",
+  "private": true,
+  "type": "module",
+  "description": "RINGCOMS MCN 광고콘텐츠팀 인플루언서 캠페인 관리",
+  "engines": { "node": ">=18" }
+}
