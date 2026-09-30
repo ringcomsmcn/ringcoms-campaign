@@ -432,7 +432,7 @@ const ROLES={master:'마스터',manager:'매니저',viewer:'뷰어'};
 const ROLE_DESC={master:'모든 기능 + 팀원 삭제·권한 변경',manager:'캠페인·인플루언서 풀 등 모든 수정 가능, 팀원 추가(매니저·뷰어) 가능, 팀원 삭제 불가',viewer:'모든 화면을 볼 수만 있고 수정 불가'};
 function canEdit(){return A.role==='master'||A.role==='manager'}
 function isMaster(){return A.role==='master'}
-const WRITE_ACTS=new Set(['ytFetch','saveYtKey','delYtKey','draftCreate','setTheme','setThemeCustom','thumbDel','advLogoDel','newCampaign','duplicate','delCampaign','addGroup','delGroup','shareToggle','shareRegen','syncNow','costLevel','shareFee','objective','addRow','import','impGo','impParse','bulkStage','bulkContract','bulkDel','delRow','rename','poolNew','poolCreate','poolImport','poolImpParse','poolImpGo','poolToCamp','poolToCamp1','poolDel','poolResync','addAdmin','delAdmin','tplDl','demoReset']);
+const WRITE_ACTS=new Set(['ctGo','ctStep','ytFetch','saveYtKey','delYtKey','draftCreate','setTheme','setThemeCustom','thumbDel','advLogoDel','newCampaign','duplicate','delCampaign','addGroup','delGroup','shareToggle','shareRegen','syncNow','costLevel','shareFee','objective','addRow','import','impGo','impParse','bulkStage','bulkContract','bulkDel','delRow','rename','poolNew','poolCreate','poolImport','poolImpParse','poolImpGo','poolToCamp','poolToCamp1','poolDel','poolResync','addAdmin','delAdmin','tplDl','demoReset']);
 /* 광고주 화면에서 숨길 수 있는 지표 [키, 이름, 조건] */
 const SHARE_METRICS=[['views','조회 수'],['likes','좋아요 수'],['cmts','댓글 수'],['shares','공유 수'],['saves','저장 수'],['part','총 참여 수'],['eng','인게이지먼트'],['er','ER'],['reach','도달 수'],
  ['cpv','CPV','cost'],['cpe','CPE','cost'],['cpm','CPM','cost'],['clicks','링크 클릭','clicks'],['ctr','CTR','clicks'],['cpc','CPC','cost,clicks'],['conv','전환 수','conv'],['cvr','CVR','conv,clicks'],['cpa','CPA','cost,conv'],['rev','매출','revenue'],['roas','ROAS','cost,revenue'],
@@ -1037,7 +1037,7 @@ function tabStatus(c,rows){
   </div>
   <div class="grid2"><section class="panel"><div class="panel-h"><h2>단계별 누적 도달</h2><span class="sub">각 단계 이상까지 진행된 인원 · 크게 줄어드는 구간이 병목</span></div>
    <div class="bars">${STAGES.map((st,i)=>`<div class="bar" title="${st} 이상 ${cum[i]}명 · 현재 ${s.stages[st]}명"><span class="nm">${st}</span><div class="t"><i style="width:${(cum[i]/mx*100).toFixed(1)}%;background:${stageColor(i)}"></i></div><span class="v">${cum[i]}명 <span class="muted">(현재 ${s.stages[st]})</span></span></div>`).join('')}</div></section>
-   <section class="panel"><div class="panel-h"><h2>확인 필요</h2><span class="sub">${al.length}건</span></div>${al.length?`<div class="alerts">${al.map(r=>`<div class="alert"><span class="lv">확인</span><div><b>${esc(r.name)}</b> · ${esc(alertOf(r,c))}<br><span class="small muted">${esc(r.stage||'-')}${r.owner?' · '+esc(r.owner):''}${r.due?' · 예정 '+md(r.due):''}</span></div><button class="btn sm ghost" data-act="rowMenu" data-r="${r.id}">열기</button></div>`).join('')}</div>`:'<div class="empty">처리할 항목이 없습니다.</div>'}</section></div>
+   <section class="panel"><div class="panel-h"><h2>확인 필요</h2><span class="sub">${al.length}건</span></div>${al.length?`<div class="alerts">${al.map(r=>`<div class="alert"><span class="lv">확인</span><div><b>${esc(r.name)}</b> · ${esc(alertOf(r,c))}<br><span class="small muted">${esc(r.stage||'-')}${r.owner?' · '+esc(r.owner):''}${r.due?' · 예정 '+md(r.due):''}</span></div>${alertOf(r,c)==='계약 미완료'?`<span class="stack" style="gap:4px;align-items:flex-end">${ctPill(ctOf(r))}<button class="btn sm primary" data-act="ctOpen" data-r="${r.id}">계약하기</button></span>`:`<button class="btn sm ghost" data-act="rowMenu" data-r="${r.id}">열기</button>`}</div>`).join('')}</div>`:'<div class="empty">처리할 항목이 없습니다.</div>'}</section></div>
   <p class="small muted" style="margin:0">확인 기준: ${isTrial(c)?'제품 발송 미완료(집행 이후)':'계약 미완료(기획안제작중 이후)'} · 업로드 예정일 경과 · 업로드완료인데 링크·성과·광고 표기${settings(c).M.conv?'·전환':''} 누락</p></div>`;
 }
 function tile(l,v,s,prog,cls){return `<div class="tile ${cls||''}"><span class="l">${esc(l)}</span><span class="v">${v}</span><span class="s">${s||''}</span>${prog?`<div class="tg"><i class="${prog.hit?'hit':''}" style="width:${Math.min(100,prog.p*100).toFixed(0)}%"></i></div>`:''}</div>`}
@@ -1266,6 +1266,7 @@ function connectionPanel(){const st=A.intStatus;const on=!!(((A.settings||{}).yt
    <div class="tblwrap"><table class="tbl"><thead><tr><th>서비스</th><th>상태</th><th>하는 일</th><th>관리 위치</th></tr></thead><tbody>
    ${row('YouTube Data API',`<span class="pill ${on?'ok':'warn'}">${on?'연결됨':'미연결'}</span>`,'유튜브 조회수·좋아요·댓글 수 (「성과 불러오기」)','아래 YouTube 연결 · Google Cloud 콘솔')}
    ${row('Apify',apPill,'인스타그램 조회수·좋아요·댓글·썸네일, 틱톡 수집 실패분 재시도'+apUse,'Netlify 환경변수 <code>APIFY_TOKEN</code> (보안상 사이트에서 입력하지 않음)')}
+   ${row('모두싸인','<span class="pill accent">링크 연결</span>','진행관리의 「계약하기」로 모두싸인을 열고, 계약 진행 상태·계약서 링크를 기록 (서명 완료 자동 반영은 API 연동 시)','모두싸인 팀 계정 · API는 미연결')}
    ${row('틱톡 공개 페이지','<span class="pill ok">키 불필요</span>','틱톡 조회수·좋아요·댓글·공유·저장 수를 직접 읽음','설정 없음')}
    ${row('Firebase',`<span class="pill ok">연결됨</span>`,'Google 로그인, 캠페인·진행관리·인플루언서 풀 데이터 저장, 권한 규칙','Firebase 콘솔 (ringcoms-campaign)')}
    ${row('Netlify',`<span class="pill ok">연결됨</span>`,`사이트 호스팅(${esc(location.host)}), 성과 수집 서버 함수, GitHub 자동 배포`,'Netlify 사이트 설정')}
@@ -1368,12 +1369,38 @@ function viewTeam(){if(A.settingsErr&&!viewTeam.busy){viewTeam.busy=true;loadSet
   ${!isMaster()?'<p class="small muted" style="margin:0">팀원 삭제와 권한 변경은 마스터만 할 수 있습니다.</p>':''}</div>`;
 }
 
+/* ============ 계약 (모두싸인 1단계: 링크 연결) ============ */
+const MODUSIGN_URL='https://app.modusign.co.kr';
+const CT_STEPS=['미진행','작성 중','서명 대기','완료'];
+function ctOf(r){if(r.contract==='완료')return '완료';if(r.ctStep&&r.ctStep!=='완료')return r.ctStep;return '미진행'}
+function ctPill(st){const cls=st==='완료'?'ok':st==='서명 대기'?'accent':st==='작성 중'?'warn':st==='반려·취소'?'crit':'';return `<span class="pill ${cls}">${esc(st)}</span>`}
+function ctInfo(c,r){const L=[['캠페인',c.name],['광고주',c.advertiser],['인플루언서명',r.name],['실명',r.realname],['연락처',r.contact],['이메일',r.email],['채널',[r.ch,r.acct].filter(Boolean).join(' ')],['채널 링크',r.chlink],['콘텐츠 유형',r.ctype],['업로드 예정일',r.due],['원고료',has(r.fee)?fmt(r.fee)+'원 (VAT 별도)':''],['2차 활용비',has(r.use)?fmt(r.use)+'원 (VAT 별도)':''],['2차 활용 기간',c.usageMonths?c.usageMonths+'개월':'']];return L.filter(x=>x[1]!=null&&String(x[1]).trim()!=='')}
+async function ctSetStep(rid,st){if(!canEdit())return toast('수정 권한이 없습니다.','crit');const r=((A.rowsDoc||{}).rows||{})[rid];if(!r)return;
+  const now=new Date().toISOString();const log=[...(Array.isArray(r.ctLog)?r.ctLog:[]),{at:now,step:st,by:(A.user&&A.user.email)||''}].slice(-20);const b=`rows.${rid}.`;
+  const up={[b+'ctStep']:st,[b+'ctLog']:log,[b+'contract']:st==='완료'?'완료':'미완료'};if(st==='완료')up[b+'ctDoneAt']=now;
+  try{await DB.update('rows/'+A.cid,up);scheduleSync(A.cid);toast(st==='완료'?'계약 완료로 표시했습니다.':`계약 상태: ${st}`)}catch(e){saveErr(e)}}
+function ctDrawer(d){const c=curC();const r=((A.rowsDoc||{}).rows||{})[d.rid];if(!c||!r)return null;const st=ctOf(r);const ed=canEdit();const info=ctInfo(c,r);const si=CT_STEPS.indexOf(st);
+  const h=`<h2 style="font-size:16px">계약 진행 · ${esc(r.name||'이름 없음')}</h2>`;
+  const b=`<div class="banner info" style="margin:0">「모두싸인에서 계약하기」를 누르면 계약 정보가 복사되고 모두싸인이 새 탭으로 열립니다. 모두싸인에서 계약서를 만들어 서명을 요청한 뒤, 이 창에서 진행 상태와 문서 링크를 기록하세요. 계약서 최종본은 문서 링크로 바로 열 수 있습니다.</div>
+   <section class="stack" style="gap:8px"><div class="row" style="justify-content:space-between"><b>진행 상태</b>${ctPill(st)}</div>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${CT_STEPS.map((x,i)=>`<button class="btn sm ${x===st?'primary':''}" ${ed?`data-act="ctStep" data-r="${d.rid}" data-s="${x}"`:'disabled'} title="${x}로 표시">${i<si||x===st?'✓ ':''}${x}</button>${i<CT_STEPS.length-1?'<span class="muted">→</span>':''}`).join('')}<span class="grow"></span><button class="btn sm ${st==='반려·취소'?'danger':'ghost'}" ${ed?`data-act="ctStep" data-r="${d.rid}" data-s="반려·취소"`:'disabled'}>반려·취소</button></div>
+    ${st==='반려·취소'?'<div class="small" style="color:var(--crit)">반려·취소 상태입니다. 다시 진행하면 「작성 중」부터 눌러 주세요.</div>':''}</section>
+   <section class="stack" style="gap:6px"><div class="row" style="justify-content:space-between"><b>계약 정보</b><button class="btn sm" data-act="ctCopy" data-r="${d.rid}">복사</button></div>
+    ${info.length?`<dl class="kv" style="grid-template-columns:auto 1fr;margin:0">${info.map(([k,v])=>`<dt>${esc(k)}</dt><dd style="text-align:left;font-weight:400;word-break:break-all">${esc(v)}</dd>`).join('')}</dl>`:'<div class="small muted">입력된 정보가 없습니다.</div>'}
+    ${!r.email&&!r.contact?'<div class="small" style="color:var(--crit)">연락처·이메일이 비어 있습니다. 모두싸인 서명 요청에 필요하니 진행관리에서 먼저 채워 주세요.</div>':''}</section>
+   <label class="f wide">모두싸인 문서 링크<input type="url" data-ctf="ctLink" data-ctr="${d.rid}" value="${esc(r.ctLink||'')}" placeholder="모두싸인 문서 화면의 주소를 붙여넣기" ${ed?'':'disabled'}></label>
+   ${r.ctLink?`<div class="row"><a class="btn sm" href="${esc(r.ctLink)}" target="_blank" rel="noopener">계약서 열기 ↗</a><span class="small muted">모두싸인 팀 계정으로 로그인되어 있어야 열립니다.</span></div>`:''}
+   <label class="f wide">계약 메모<input type="text" data-ctf="ctMemo" data-ctr="${d.rid}" value="${esc(r.ctMemo||'')}" placeholder="예: 2차 활용 6개월 조항 추가 요청" ${ed?'':'disabled'}></label>
+   ${Array.isArray(r.ctLog)&&r.ctLog.length?`<section class="stack" style="gap:4px"><b>기록</b><ul class="small" style="margin:0;padding-left:18px">${r.ctLog.slice().reverse().map(x=>`<li>${fmtDT(x.at)} · ${esc(x.step)}${x.by?` · <span class="muted">${esc(x.by)}</span>`:''}</li>`).join('')}</ul></section>`:''}`;
+  const f=`${ed&&st!=='완료'?`<button class="btn primary" data-act="ctGo" data-r="${d.rid}">모두싸인에서 계약하기 ↗</button>`:''}<span class="grow"></span><button class="btn" data-act="rowMenu" data-r="${d.rid}">행 상세</button><button class="btn" data-act="close">닫기</button>`;
+  return {h,b,f}}
+
 /* ============ 서랍 (행 상세 / 붙여넣기) ============ */
 function drawer(){
   const d=A.drawer;if(!d)return '';let h='',b='',f='';
   if(d.type==='row'){const c=curC();const r=((A.rowsDoc||{}).rows||{})[d.rid];if(!c||!r)return '';const k=rowCalc(r,c);
     h=`<h2 style="font-size:16px">${esc(r.name||'이름 없음')}</h2>`;
-    b=`${k.alert?`<div class="banner" style="margin:0">확인 필요: ${esc(k.alert)}</div>`:''}<div class="fgrid">${visibleCols(c).concat(COLS.filter(x=>colOk(c,x)&&A.hide.has(x.g)&&(!x.need||settings(c).M[x.need])&&(x.k!=='group'||groupsOf(c).length))).filter(x=>x.t!=='calc'&&x.t!=='thumb').map(col=>{const id=`d_${d.rid}_${col.k}`;const v=r[col.k];
+    b=`${k.alert?`<div class="banner" style="margin:0">확인 필요: ${esc(k.alert)}</div>`:''}${!isTrial(c)?`<div class="row" style="gap:8px"><b style="font-size:13px">계약</b>${ctPill(ctOf(r))}${r.ctLink?`<a class="small" href="${esc(r.ctLink)}" target="_blank" rel="noopener">계약서 열기 ↗</a>`:''}<span class="grow"></span><button class="btn sm" data-act="ctOpen" data-r="${d.rid}">계약 진행 관리</button></div>`:''}<div class="fgrid">${visibleCols(c).concat(COLS.filter(x=>colOk(c,x)&&A.hide.has(x.g)&&(!x.need||settings(c).M[x.need])&&(x.k!=='group'||groupsOf(c).length))).filter(x=>x.t!=='calc'&&x.t!=='thumb').map(col=>{const id=`d_${d.rid}_${col.k}`;const v=r[col.k];
       if(col.t==='chk')return `<label class="f">${col.l}<span class="row" style="min-height:34px"><input type="checkbox" id="${id}" data-row="${d.rid}" data-f="${col.k}" ${v==='완료'?'checked':''}> <span class="small">${v==='완료'?'완료':'미완료'}</span></span></label>`;
       if(col.t==='grp')return `<label class="f">그룹<select id="${id}" data-row="${d.rid}" data-f="group"><option value="">미지정</option>${groupsOf(c).map(g=>`<option value="${g.id}" ${g.id===v?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label>`;
       const ctl=col.t==='sel'?`<select id="${id}" data-row="${d.rid}" data-f="${col.k}"><option value=""></option>${col.o.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`:`<input id="${id}" type="${col.t==='date'?'date':col.t==='url'?'url':'text'}" ${col.t==='num'?'inputmode="decimal"':''} data-row="${d.rid}" data-f="${col.k}" data-t="${col.t}" value="${esc(col.t==='num'&&has(v)?Number(v).toLocaleString('ko-KR'):v??'')}">`;
@@ -1383,6 +1410,7 @@ function drawer(){
         <div class="row"><label class="btn sm" style="cursor:pointer">이미지 선택<input type="file" accept="image/*" data-thumb="${d.rid}" hidden></label>${A.thumbs[d.rid]?`<button class="btn sm danger" data-act="thumbDel" data-r="${d.rid}">직접 넣은 썸네일 삭제</button>`:''}</div></div></div>
       <div class="small muted">자동 계산 · 티어 ${k.tier||'-'} · 집행 비용 ${fmt(k.cost0)}원 · 대행수수료 ${fmt(k.agf)}원 · 광고비(${feeMode(c)==='incl'?'수수료 포함':'수수료 미포함'}) ${fmt(k.cost)}원 · 인게이지먼트 ${fmt(k.eng)} · ER ${pct(k.er)} · CPV ${fmt1(k.cpv)}</div>`;
     f=`<button class="btn danger" data-act="delRow" data-r="${d.rid}">${A.confirm==='dr'+d.rid?'한 번 더 누르면 삭제':'행 삭제'}</button><span class="grow"></span><button class="btn primary" data-act="close">완료</button>`;
+  } else if(d.type==='ct'){const x=ctDrawer(d);if(!x)return '';h=x.h;b=x.b;f=x.f;
   } else if(d.type==='pool'||d.type==='poolNew'||d.type==='poolImport'){const x=d.type==='pool'?poolDrawer(d):d.type==='poolNew'?poolNewDrawer():poolImportDrawer(d);if(!x)return '';h=x.h;b=x.b;f=x.f;
   } else if(d.type==='thumbs'){const c=curC();if(!c)return '';const list=curRows().filter(r=>r.name&&r.stage!==DROP&&r.clink).sort((a,b)=>(!!(A.thumbs[a.id]||thumbSrc(a.clink)))-(!!(A.thumbs[b.id]||thumbSrc(b.clink))));
     if(!d.rid||!list.some(r=>r.id===d.rid)){const f0=list.find(r=>!A.thumbs[r.id]&&!thumbSrc(r.clink))||list[0];d.rid=f0?f0.id:''}
@@ -1617,6 +1645,11 @@ const ACT={
     cUpdate(up).catch(saveErr);scheduleSync(A.cid)},
   addRow(){const cur=curRows();const id=uid();const order=cur.reduce((t,r)=>Math.max(t,r.order||0),0)+1;DB.update('rows/'+A.cid,{[`rows.${id}`]:{order,createdAt:today(),name:'',stage:'컨택',contract:'미완료',disc:'미완료',...(A.gf&&A.gf!=='__none'?{group:A.gf}:{})}}).then(()=>{setTimeout(()=>{const el=document.getElementById(`g_${id}_name`);if(el)el.focus()},80)}).catch(saveErr)},
   rowMenu(a){A.drawer={type:'row',rid:a.dataset.r};A.confirm=null;render()},
+  ctOpen(a){A.drawer={type:'ct',rid:a.dataset.r};A.confirm=null;render()},
+  ctCopy(a){const c=curC();const r=((A.rowsDoc||{}).rows||{})[a.dataset.r];if(!c||!r)return;copyText(ctInfo(c,r).map(([k,v])=>k+': '+v).join('\n'))},
+  ctGo(a){const c=curC();const rid=a.dataset.r;const r=((A.rowsDoc||{}).rows||{})[rid];if(!c||!r)return;window.open(MODUSIGN_URL,'_blank','noopener');
+    copyText(ctInfo(c,r).map(([k,v])=>k+': '+v).join('\n'));const st=ctOf(r);if(st==='미진행'||st==='반려·취소')ctSetStep(rid,'작성 중')},
+  ctStep(a){const r=((A.rowsDoc||{}).rows||{})[a.dataset.r];if(!r)return;if(ctOf(r)===a.dataset.s)return;ctSetStep(a.dataset.r,a.dataset.s)},
   ytFetch(){ytFetch()},
   async saveYtKey(){if(!isMaster())return toast('키 연결은 마스터만 할 수 있습니다.','crit');const el=$('#yt-key');const v=((el&&el.value)||'').trim();if(!/^[A-Za-z0-9_\-]{30,60}$/.test(v))return toast('API 키 형식이 아닙니다. Google Cloud에서 복사한 키를 그대로 붙여넣으세요.','crit');
     try{const nd={...(A.settings||{}),ytKey:v,ytBy:A.user.email,ytAt:new Date().toISOString()};await DB.set('settings/app',nd);A.settings=nd;el.value='';watchSettings();render();toast('YouTube API 키를 연결했습니다.')}catch(e){saveErr(e)}},
@@ -1682,6 +1715,9 @@ document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset)return;
   if(t.dataset.thumb&&t.files&&t.files[0]){saveThumb(t.dataset.thumb,t.files[0]);t.value=''}
   else if(t.dataset.advlogo!==undefined&&t.files&&t.files[0]){const f=t.files[0];t.value='';fileToDataUrl(f,360,120,'image/png').then(d=>{if(d.length>160000)return toast('로고 이미지가 너무 큽니다. 더 작은 이미지를 써 주세요.','crit');patchC('advLogo',d);toast('광고주 로고를 저장했습니다.')}).catch(()=>toast('이미지를 읽지 못했습니다.','crit'))}});
+document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.dataset.ctf||!t.dataset.ctr)return;if(!canEdit())return;let v=String(t.value||'').trim();
+  if(t.dataset.ctf==='ctLink'&&v&&!/^https:\/\//i.test(v)){toast('https:// 로 시작하는 모두싸인 문서 주소를 붙여넣어 주세요.','crit');return}
+  patchRow(t.dataset.ctr,t.dataset.ctf,v||null);if(t.dataset.ctf==='ctLink'&&v){const r=((A.rowsDoc||{}).rows||{})[t.dataset.ctr];if(r&&ctOf(r)==='미진행')ctSetStep(t.dataset.ctr,'작성 중')}toast('저장했습니다.');setTimeout(render,300)});
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='th-custom'){const h=$('#th-hex');if(h)h.value=e.target.value.toUpperCase()}});
 document.addEventListener('paste',e=>{if(!A.drawer||!['row','thumbs'].includes(A.drawer.type)||A.view!=='campaign'||!A.drawer.rid)return;const it=[...((e.clipboardData&&e.clipboardData.items)||[])].find(x=>x.type&&x.type.startsWith('image/'));if(!it)return;e.preventDefault();const f=it.getAsFile();if(f)saveThumb(A.drawer.rid,f)});
 async function saveRename(v){const E=A.editName;if(!E)return;v=String(v||'').trim();A.editName=null;
