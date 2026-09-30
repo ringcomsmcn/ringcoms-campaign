@@ -62,6 +62,7 @@ async function apify(path, opts = {}) {
   if (!r.ok) { const msg = (d.error && (d.error.message || d.error.type)) || ('HTTP ' + r.status); throw new Error(msg); }
   return d;
 }
+async function apifyGet(path) { return apify(path); }
 async function startRun(actor, input) { const d = await apify(`/acts/${actor}/runs`, { method: 'POST', body: JSON.stringify(input) }); return { runId: d.data.id }; }
 
 export function mapIg(it) {
@@ -102,6 +103,19 @@ export default async (req) => {
       [...ig, ...ttFail].forEach(u => { if (!results[u]) results[u] = { error: msg }; });
     }
     return json({ results, jobs, warnings, done: jobs.length === 0 });
+  }
+
+  if (body.action === 'status') {
+    const apify = { token: !!process.env.APIFY_TOKEN };
+    if (apify.token) {
+      try {
+        const d = (await apifyGet('/users/me/limits')).data || {};
+        const cur = d.current || {}, lim = d.limits || {}, cyc = d.monthlyUsageCycle || {};
+        apify.ok = true;
+        if (lim.maxMonthlyUsageUsd != null) apify.usage = { used: +(cur.monthlyUsageUsd || 0), limit: +lim.maxMonthlyUsageUsd, resetAt: cyc.endAt || null };
+      } catch (e) { apify.ok = !/401|403|token|auth/i.test(e.message); apify.error = e.message; }
+    }
+    return json({ apify });
   }
 
   if (body.action === 'poll') {

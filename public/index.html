@@ -847,7 +847,7 @@ function renderSetup(){
   <section class="panel"><h2>2. 첫 관리자 등록</h2><ol class="steps" style="margin-top:10px">
    <li>Firestore <b>데이터</b> 탭 → <b>컬렉션 시작</b> → 컬렉션 ID: <code>admins</code></li>
    <li>문서 ID: 로그인할 본인 Gmail 주소를 <b>소문자</b>로 (예: <code>jcj602@gmail.com</code>) → 필드 <code>addedAt</code> (string) 값은 오늘 날짜 → 저장.</li>
-   <li>다른 팀원은 사이트에 로그인한 뒤 <b>팀원 관리</b> 메뉴에서 추가하면 됩니다.</li>
+   <li>다른 팀원은 사이트에 로그인한 뒤 <b>권한 관리 → 팀원 관리</b>에서 추가하면 됩니다.</li>
   </ol></section>
   <section class="panel"><h2>3. 이 파일에 Firebase 설정값 넣기</h2><ol class="steps" style="margin-top:10px">
    <li>Firebase <b>프로젝트 설정(톱니바퀴) → 일반 → 내 앱</b>에서 웹 앱 아이콘 <code>&lt;/&gt;</code> 클릭 → 앱 이름 입력 → 등록 (호스팅 체크는 안 해도 됩니다).</li>
@@ -869,7 +869,7 @@ function shell(){
   const ck=A.view==='campaign'||A.view==='create'?kindOf(curC()):'';
   const nb=(v,l)=>`<button class="${A.view===v||(v==='list'&&ck==='seed')||(v==='trial'&&ck==='trial')?'on':''}" data-act="nav" data-v="${v}">${IC[v]||IC.list}${l}</button>`;
   let body=A.view==='team'?viewTeam():A.view==='pool'?viewPool():A.view==='campaign'?viewCampaign():A.view==='create'?viewCreate():viewList();
-  return `<div class="top noprint"><div class="wrap">${brandLink}<nav class="nav">${nb('list','시딩 캠페인')}${nb('trial','체험단 캠페인')}${nb('pool','인플루언서 풀')}${nb('team','팀원 관리')}</nav><div class="who">${DB.mode==='demo'?'<span class="pill warn">데모 모드</span><button class="btn sm ghost" data-act="demoReset">데모 초기화</button>':''}${A.role&&A.role!=='master'?`<span class="pill role-pill ${A.role==='viewer'?'warn':'accent'}" title="${A.role==='viewer'?'보기만 가능한 권한입니다':'팀원 삭제를 뺀 모든 수정이 가능합니다'}">${ROLES[A.role]}</span>`:''}<span class="email">${esc(A.user.email)}</span><button class="btn sm" data-act="signOut">${DB.mode==='demo'?'데모 종료':'로그아웃'}</button></div></div></div>
+  return `<div class="top noprint"><div class="wrap">${brandLink}<nav class="nav">${nb('list','시딩 캠페인')}${nb('trial','체험단 캠페인')}${nb('pool','인플루언서 풀')}${nb('team','권한 관리')}</nav><div class="who">${DB.mode==='demo'?'<span class="pill warn">데모 모드</span><button class="btn sm ghost" data-act="demoReset">데모 초기화</button>':''}${A.role&&A.role!=='master'?`<span class="pill role-pill ${A.role==='viewer'?'warn':'accent'}" title="${A.role==='viewer'?'보기만 가능한 권한입니다':'팀원 삭제를 뺀 모든 수정이 가능합니다'}">${ROLES[A.role]}</span>`:''}<span class="email">${esc(A.user.email)}</span><button class="btn sm" data-act="signOut">${DB.mode==='demo'?'데모 종료':'로그아웃'}</button></div></div></div>
   <main><div class="wrap">${A.err?`<div class="banner">${esc(A.err)}</div>`:''}${body}</div></main>${drawer()}`;
 }
 
@@ -1194,11 +1194,11 @@ function socialInfo(rows){const s=socialRows(rows);if(!s.length)return '';const 
 function ytBtn(rows,cls){const k=ytRows(rows).length+socialRows(rows).length;if(!k||!canEdit())return '';return `<button class="btn ${cls||''}" data-act="ytFetch" title="유튜브·인스타그램·틱톡 성과를 지금 불러옵니다 (인스타그램은 30초~1분)">${A.ytBusy?esc(typeof A.ytBusy==='string'?A.ytBusy:'불러오는 중…'):'성과 불러오기'}</button>`}
 /* 유튜브: YouTube Data API로 바로 */
 async function ytUpdate(cid,rows){let key=((A.settings||{}).ytKey||'').trim();if(!key)key=(((await loadSettings())||{}).ytKey||'').trim();
-  if(!key)throw new Error('YouTube API 키가 연결되지 않았습니다. 팀원 관리 → 연동 설정에서 마스터가 키를 넣어 주세요.');
+  if(!key)throw new Error('YouTube API 키가 연결되지 않았습니다. 권한 관리 → 연동 관리에서 마스터가 키를 넣어 주세요.');
   const ids=[...new Set(rows.map(r=>ytId(r.clink)))];const stat={};
   for(let i=0;i<ids.length;i+=50){const u='https://www.googleapis.com/youtube/v3/videos?part=statistics&id='+ids.slice(i,i+50).join(',')+'&key='+encodeURIComponent(key);
     const res=await fetch(u);const j=await res.json().catch(()=>({}));
-    if(!res.ok||j.error){const rs=((j.error&&j.error.errors)||[])[0]||{};const why=rs.reason||'';throw new Error(/quota/i.test(why)?'오늘 사용할 수 있는 YouTube API 한도를 다 썼습니다. 내일 다시 시도하세요.':/keyInvalid|badRequest/i.test(why)||/API key not valid/i.test((j.error||{}).message||'')?'API 키가 올바르지 않습니다. 팀원 관리 → 연동 설정에서 키를 확인하세요.':/referer|blocked|forbidden/i.test(why+' '+((j.error||{}).message||''))?'API 키의 웹사이트 제한에 이 사이트 주소가 없습니다. Google Cloud의 키 설정을 확인하세요.':/accessNotConfigured|disabled/i.test(why)?'Google Cloud 프로젝트에서 YouTube Data API v3를 사용 설정해 주세요.':'YouTube에서 데이터를 받지 못했습니다. ('+(why||res.status)+')')}
+    if(!res.ok||j.error){const rs=((j.error&&j.error.errors)||[])[0]||{};const why=rs.reason||'';throw new Error(/quota/i.test(why)?'오늘 사용할 수 있는 YouTube API 한도를 다 썼습니다. 내일 다시 시도하세요.':/keyInvalid|badRequest/i.test(why)||/API key not valid/i.test((j.error||{}).message||'')?'API 키가 올바르지 않습니다. 권한 관리 → 연동 관리에서 키를 확인하세요.':/referer|blocked|forbidden/i.test(why+' '+((j.error||{}).message||''))?'API 키의 웹사이트 제한에 이 사이트 주소('+location.host+'/*)가 없습니다. Google Cloud의 키 설정에 추가해 주세요.':/accessNotConfigured|disabled/i.test(why)?'Google Cloud 프로젝트에서 YouTube Data API v3를 사용 설정해 주세요.':'YouTube에서 데이터를 받지 못했습니다. ('+(why||res.status)+')')}
     (j.items||[]).forEach(it=>stat[it.id]=it.statistics||{})}
   const up={};let ok=0;const miss=[];const now=new Date().toISOString();
   rows.forEach(r=>{const s=stat[ytId(r.clink)];if(!s){miss.push(r.name);return}const b=`rows.${r.id}.`;if(s.viewCount!=null)up[b+'views']=+s.viewCount;if(s.likeCount!=null)up[b+'likes']=+s.likeCount;if(s.commentCount!=null)up[b+'cmts']=+s.commentCount;up[b+'upd']=today();up[b+'ytAt']=now;ok++});
@@ -1241,14 +1241,36 @@ async function importSocial(cid,items){if(!canEdit())throw new Error('수정 권
   await syncNow(cid);return {rows:n,thumbs:th}}
 window.importSocial=importSocial;
 function integrationPanel(){const key=((A.settings||{}).ytKey||'').trim();const on=!!key;
-  return `<section class="panel"><div class="panel-h"><div><h2>연동 설정</h2><div class="sub">진행관리·성과 리포트의 「YouTube 성과 불러오기」 버튼에 쓰입니다</div></div><span class="pill ${on?'ok':'warn'}">YouTube ${on?'연결됨':'미연결'}</span></div>
-   ${isMaster()?`<div class="row"><input type="password" id="yt-key" placeholder="${on?'새 키로 바꾸려면 입력':'YouTube Data API v3 키 붙여넣기'}" autocomplete="off" style="max-width:360px"><button class="btn primary" data-act="saveYtKey">저장</button>${on?'<button class="btn danger" data-act="delYtKey">연결 해제</button>':''}${on?`<span class="small muted">현재 키 끝자리 …${esc(key.slice(-4))}</span>`:''}</div>
+  return `<section class="panel"><div class="panel-h"><div><h2>YouTube 연결</h2><div class="sub">진행관리·성과 리포트의 「성과 불러오기」 버튼을 누르면 이 키로 유튜브 조회수·좋아요·댓글 수를 가져옵니다</div></div><span class="pill ${on?'ok':'warn'}">YouTube ${on?'연결됨':'미연결'}</span></div>
+   ${isMaster()?`<div class="row"><input type="password" id="yt-key" placeholder="${on?'새 키로 바꾸려면 입력':'YouTube Data API v3 키 붙여넣기'}" autocomplete="off" style="width:100%;max-width:360px"><button class="btn primary" data-act="saveYtKey">저장</button>${on?'<button class="btn danger" data-act="delYtKey">연결 해제</button>':''}${on?`<span class="small muted">현재 키 끝자리 …${esc(key.slice(-4))}</span>`:''}</div>
    <details style="margin-top:10px"><summary class="small bold" style="cursor:pointer">API 키 발급 방법 (무료, 5분)</summary><ol class="steps small" style="margin-top:8px">
     <li><a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud 콘솔</a>에서 새 프로젝트를 만듭니다 (예: ringcoms-campaign).</li>
     <li><a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">YouTube Data API v3</a> 화면에서 <b>사용</b>을 누릅니다.</li>
     <li><b>API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → API 키</b>를 만듭니다.</li>
     <li>만든 키의 <b>키 수정</b>에서 애플리케이션 제한을 <b>웹사이트</b>로 하고 <code>${esc(location.host)}/*</code> 를 추가, API 제한은 <b>YouTube Data API v3</b>만 선택 후 저장합니다.</li>
-    <li>키를 복사해 위 칸에 붙여넣고 <b>저장</b>을 누릅니다. 하루 무료 한도(1만)로 버튼을 수천 번 누를 수 있습니다.</li></ol></details>`:`<p class="small muted" style="margin:0">키 연결·변경은 마스터만 할 수 있습니다.</p>`}</section>`}
+    <li>키를 복사해 위 칸에 붙여넣고 <b>저장</b>을 누릅니다. 하루 무료 한도(1만)로 「성과 불러오기」를 수천 번 누를 수 있습니다.</li></ol></details>`:`<p class="small muted" style="margin:0">키 연결·변경은 마스터만 할 수 있습니다.</p>`}</section>`}
+/* 연동 현황: 사이트가 쓰는 외부 서비스와 상태 */
+async function loadIntStatus(){if(A.intBusy||!canEdit())return;A.intBusy=true;scheduleRender();
+  try{let tok='';try{tok=await DB.idToken()}catch(e){}
+    const r=await fetch('/api/social-stats',{method:'POST',headers:{'content-type':'application/json',...(tok?{authorization:'Bearer '+tok}:{})},body:JSON.stringify({action:'status'})});
+    const j=await r.json().catch(()=>({}));A.intStatus=r.ok?{...j,at:new Date().toISOString()}:{error:r.status===404?'성과 수집 서버에 연결하지 못했습니다.':(j.error||('서버 오류 '+r.status)),at:new Date().toISOString()}}
+  catch(e){A.intStatus={error:'성과 수집 서버에 연결하지 못했습니다.',at:new Date().toISOString()}}
+  finally{A.intBusy=false;scheduleRender()}}
+function connectionPanel(){const st=A.intStatus;const on=!!(((A.settings||{}).ytKey||'').trim());
+  if(!st&&!A.intBusy&&canEdit()&&DB.mode!=='demo')setTimeout(loadIntStatus,0);
+  const ap=st&&!st.error?st.apify||{}:null;
+  const apPill=!canEdit()?'<span class="pill">확인 권한 없음</span>':A.intBusy?'<span class="pill">확인 중…</span>':st&&st.error?'<span class="pill crit">확인 실패</span>':ap?(ap.token?(ap.ok===false?'<span class="pill warn">토큰 오류</span>':'<span class="pill ok">연결됨</span>'):'<span class="pill warn">미연결</span>'):'<span class="pill">–</span>';
+  let apUse='';if(ap&&ap.usage&&ap.usage.limit){const u=ap.usage,p=Math.min(100,Math.round(u.used/u.limit*100));apUse=`<div class="small" style="margin-top:6px">이번 달 사용량 <b>$${(+u.used).toFixed(2)}</b> / $${(+u.limit).toFixed(2)} (${p}%)${u.resetAt?` · ${md(String(u.resetAt).slice(0,10))} 초기화`:''}</div><div style="height:6px;background:var(--line);border-radius:3px;margin-top:4px;max-width:360px"><div style="height:6px;width:${p}%;background:${p>=80?'var(--crit,#d33)':'var(--accent,#2a6)'};border-radius:3px"></div></div>`}
+  const row=(name,pill,what,how)=>`<tr><td class="bold" style="white-space:nowrap">${name}</td><td>${pill}</td><td>${what}</td><td class="small muted">${how}</td></tr>`;
+  return `<section class="panel"><div class="panel-h"><div><h2>연결 현황</h2><div class="sub">이 사이트가 사용하는 외부 서비스입니다. 변경은 마스터만 할 수 있습니다.</div></div>${canEdit()&&DB.mode!=='demo'?`<button class="btn sm" data-act="intCheck">${A.intBusy?'확인 중…':'상태 다시 확인'}</button>`:''}</div>
+   <div class="tblwrap"><table class="tbl"><thead><tr><th>서비스</th><th>상태</th><th>하는 일</th><th>관리 위치</th></tr></thead><tbody>
+   ${row('YouTube Data API',`<span class="pill ${on?'ok':'warn'}">${on?'연결됨':'미연결'}</span>`,'유튜브 조회수·좋아요·댓글 수 (「성과 불러오기」)','아래 YouTube 연결 · Google Cloud 콘솔')}
+   ${row('Apify',apPill,'인스타그램 조회수·좋아요·댓글·썸네일, 틱톡 수집 실패분 재시도'+apUse,'Netlify 환경변수 <code>APIFY_TOKEN</code> (보안상 사이트에서 입력하지 않음)')}
+   ${row('틱톡 공개 페이지','<span class="pill ok">키 불필요</span>','틱톡 조회수·좋아요·댓글·공유·저장 수를 직접 읽음','설정 없음')}
+   ${row('Firebase',`<span class="pill ok">연결됨</span>`,'Google 로그인, 캠페인·진행관리·인플루언서 풀 데이터 저장, 권한 규칙','Firebase 콘솔 (ringcoms-campaign)')}
+   ${row('Netlify',`<span class="pill ok">연결됨</span>`,`사이트 호스팅(${esc(location.host)}), 성과 수집 서버 함수, GitHub 자동 배포`,'Netlify 사이트 설정')}
+   </tbody></table></div>
+   ${st&&st.error?`<p class="small" style="margin:8px 0 0;color:var(--crit,#d33)">${esc(st.error)}</p>`:''}${st&&st.at?`<p class="small muted" style="margin:8px 0 0">마지막 확인 ${fmtDT(st.at)}</p>`:''}</section>`}
 function trialSettings(c,fld){const tr=c.trial||{};const tc=trialCalc(c,summaryOf(c,curRows()).n);
   return `<section class="panel"><div class="panel-h"><div><h2>체험단 제품·모집 정보</h2><div class="sub">무상으로 제공하는 제품 정보와 모집 결과입니다. 광고주 리포트의 「체험단 모집 성과」와 체험단 목록의 카테고리별 신청 분석에 쓰입니다.</div></div></div>
    <div class="fgrid">${fld('trial.product','제공 제품명',tr.product)}${fld('trial.cat','제품 카테고리',tr.cat,null,'카테고리별 신청 경쟁률 분석 기준',TRIAL_CATS)}${fld('trial.price','제품 판매단가 (원)',tr.price,'num','소비자 판매가 기준')}${fld('trial.qty','1인당 제공 수량',has(tr.qty)?tr.qty:1,'num')}
@@ -1327,15 +1349,17 @@ function viewShare(){
   <main><div class="wrap"><div class="panel rp-panel" style="padding:28px">${renderReport(R,{admin:false,lang:A.lang,thumbs:A.shareThumbs})}</div><p class="small muted" style="text-align:center;margin-top:18px">${t('RINGCOMS 광고콘텐츠팀 · 이 페이지는 실시간으로 업데이트됩니다','RINGCOMS Ad Content Team · This page updates in real time')}</p></div></main>`;
 }
 
-/* ============ 팀원 관리 ============ */
+/* ============ 권한 관리 (팀원 관리 / 연동 관리) ============ */
 function viewTeam(){if(A.settingsErr&&!viewTeam.busy){viewTeam.busy=true;loadSettings().finally(()=>{viewTeam.busy=false;scheduleRender()})}
   const me=A.user.email;const rk={master:0,manager:1,viewer:2};
   const list=Object.entries(A.admins).sort((a,b)=>(rk[a[1].role||'viewer']-rk[b[1].role||'viewer'])||a[0].localeCompare(b[0]));
   const opts=isMaster()?['master','manager','viewer']:['manager','viewer'];
-  return `<div class="page-h"><div><div class="eyebrow">Team</div><h1>팀원 관리</h1><div class="sub">여기 등록된 Google 계정만 로그인할 수 있고, 권한에 따라 할 수 있는 일이 나뉩니다.</div></div></div>
-  <div class="stack" style="max-width:860px">
+  const tt=A.teamTab==='int'?'int':'members';
+  const head=`<div class="page-h"><div><div class="eyebrow">Settings</div><h1>권한 관리</h1><div class="sub">${tt==='int'?'성과 수집 등에 쓰는 외부 서비스 연결을 관리합니다. 연결 변경은 마스터만 할 수 있습니다.':'여기 등록된 Google 계정만 로그인할 수 있고, 권한에 따라 할 수 있는 일이 나뉩니다.'}</div></div></div>
+  <div class="tabs noprint" role="tablist" style="max-width:860px">${[['members','팀원 관리',list.length],['int','연동 관리','']].map(([k,l,x])=>`<button role="tab" class="${tt===k?'on':''}" data-act="teamTab" data-t="${k}">${l}${x?`<em>${x}</em>`:''}</button>`).join('')}</div>`;
+  if(tt==='int')return head+`<div class="stack" style="max-width:860px">${integrationPanel()}${connectionPanel()}</div>`;
+  return head+`<div class="stack" style="max-width:860px">
   ${canEdit()?`<section class="panel"><div class="panel-h"><h2>팀원 추가</h2></div><div class="row"><input type="email" id="new-admin" placeholder="teammate@gmail.com" style="max-width:300px"><select id="new-admin-role" style="width:auto">${opts.map(r=>`<option value="${r}" ${r==='manager'?'selected':''}>${ROLES[r]}</option>`).join('')}</select><button class="btn primary" data-act="addAdmin">팀원 추가</button></div>${!isMaster()?'<p class="small muted" style="margin:8px 0 0">매니저는 매니저·뷰어 권한으로만 추가할 수 있습니다. 마스터 권한은 마스터가 부여합니다.</p>':''}</section>`:''}
-  ${integrationPanel()}
   <section class="panel"><div class="panel-h"><h2>권한 안내</h2></div><dl class="kv" style="grid-template-columns:auto 1fr">${['master','manager','viewer'].map(r=>`<dt><span class="pill ${r==='master'?'ok':r==='manager'?'accent':'warn'}">${ROLES[r]}</span></dt><dd style="text-align:left;font-weight:400">${ROLE_DESC[r]}</dd>`).join('')}</dl></section>
   <div class="tblwrap"><table class="tbl"><thead><tr><th>이메일</th><th>권한</th><th>등록일시</th><th>등록한 사람</th><th></th></tr></thead><tbody>${list.map(([e,a])=>{const r=a.role||'viewer';return `<tr><td class="bold">${esc(e)}${e===me?' <span class="pill">나</span>':''}</td>
    <td>${isMaster()&&e!==me?`<select data-role-e="${esc(e)}" style="width:auto;padding:4px 8px">${['master','manager','viewer'].map(x=>`<option value="${x}" ${x===r?'selected':''}>${ROLES[x]}</option>`).join('')}</select>`:`<span class="pill ${r==='master'?'ok':r==='manager'?'accent':'warn'}">${ROLES[r]||r}</span>`}</td>
@@ -1578,6 +1602,8 @@ const ACT={
   openGroup(a){const cid=a.dataset.id,g=a.dataset.g;openCampaign(cid,'grid');A.gf=g;render()},
   rename(a){A.editName={type:a.dataset.type,cid:a.dataset.c,gid:a.dataset.g||''};render();setTimeout(()=>{const el=[...document.querySelectorAll('#rename,#rename_m')].find(x=>x.offsetParent);if(el){el.focus();el.select()}},0)},
   tab(a){A.tab=a.dataset.t;A.drawer=null;render()},
+  teamTab(a){A.teamTab=a.dataset.t;A.confirm=null;render()},
+  intCheck(){A.intStatus=null;loadIntStatus()},
   statusF(a){A.statusF=a.dataset.k;render()},
   newCampaign(){startDraft(newCampaignData(listKind()))},
   draftCancel(){const k=kindOf(A.draft);A.draft=null;A.view=k==='trial'?'trial':'list';A.confirm=null;render();window.scrollTo(0,0)},
