@@ -1190,8 +1190,8 @@ function tabSettings(c){
 /* ============ 유튜브 성과 불러오기 (YouTube Data API v3) ============ */
 function ytRows(rows){return rows.filter(r=>r.name&&r.stage!==DROP&&ytId(r.clink))}
 function socialRows(rows){return rows.filter(r=>r.name&&r.stage!==DROP&&/instagram\.com|tiktok\.com/.test(r.clink||''))}
-function socialInfo(rows){const s=socialRows(rows);if(!s.length)return '';const last=s.map(r=>r.socialAt||'').sort().pop();return `인스타그램·틱톡 ${s.length}개는 매일 오전 Claude가 게시물을 확인해 자동 업데이트합니다${last?` (최근 ${fmtDT(last).replace(/<[^>]+>/g,'')})`:' (아직 수집 전)'}.`}
-function ytBtn(rows,cls){const k=ytRows(rows).length+socialRows(rows).length;if(!k||!canEdit())return '';return `<button class="btn ${cls||''}" data-act="ytFetch" title="유튜브는 지금 바로, 인스타그램·틱톡은 매일 오전 자동으로 업데이트됩니다">${A.ytBusy?esc(typeof A.ytBusy==='string'?A.ytBusy:'불러오는 중…'):'성과 불러오기'}</button>`}
+function socialInfo(rows){const s=socialRows(rows);if(!s.length)return '';const last=s.map(r=>r.socialAt||'').sort().pop();return `인스타그램·틱톡 ${s.length}개${last?` · 최근 업데이트 ${fmtDT(last).replace(/<[^>]+>/g,'')}`:' · 아직 불러오기 전'}`}
+function ytBtn(rows,cls){const k=ytRows(rows).length+socialRows(rows).length;if(!k||!canEdit())return '';return `<button class="btn ${cls||''}" data-act="ytFetch" title="유튜브·인스타그램·틱톡 성과를 지금 불러옵니다 (인스타그램은 30초~1분)">${A.ytBusy?esc(typeof A.ytBusy==='string'?A.ytBusy:'불러오는 중…'):'성과 불러오기'}</button>`}
 /* 유튜브: YouTube Data API로 바로 */
 async function ytUpdate(cid,rows){let key=((A.settings||{}).ytKey||'').trim();if(!key)key=(((await loadSettings())||{}).ytKey||'').trim();
   if(!key)throw new Error('YouTube API 키가 연결되지 않았습니다. 팀원 관리 → 연동 설정에서 마스터가 키를 넣어 주세요.');
@@ -1226,7 +1226,7 @@ async function ytFetch(){const c=curC(),cid=A.cid;if(!c||!cid||A.ytBusy)return;c
   A.ytBusy='불러오는 중…';render();const out={yt:null,so:null};
   try{if(yt.length)out.yt=await ytUpdate(cid,yt).catch(e=>({err:e.message}));
     if(so.length){A.ytBusy=`인스타·틱톡 ${so.length}개 수집 중…`;render();
-      out.so=await socialUpdate(cid,rows,s=>{A.ytBusy=`인스타·틱톡 수집 중… ${s}초`;scheduleRender()}).catch(e=>({err:e.message==='NOFN'?'서버 함수가 아직 연결되지 않았습니다. GitHub 배포가 끝나면 사용할 수 있고, 그 전까지는 매일 오전 자동 업데이트로 반영됩니다.':e.message}))}
+      out.so=await socialUpdate(cid,rows,s=>{A.ytBusy=`인스타·틱톡 수집 중… ${s}초`;scheduleRender()}).catch(e=>({err:e.message==='NOFN'?'성과 수집 서버에 연결하지 못했습니다. 잠시 후 다시 시도하고, 계속되면 관리자에게 알려 주세요.':e.message}))}
     A.drawer={type:'perf',out,at:new Date().toISOString()}}
   finally{A.ytBusy=false;render()}}
 function watchSettings(){if(A.unsubSettings){try{A.unsubSettings()}catch(e){}}A.unsubSettings=DB.watchDoc('settings/app',d=>{A.settings=d||{};A.settingsErr=false;scheduleRender()},()=>{A.settingsErr=true;clearTimeout(watchSettings.t);watchSettings.t=setTimeout(watchSettings,10000)})}

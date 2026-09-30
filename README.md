@@ -29,5 +29,5 @@
 - 게시자 계정이 진행관리의 계정 ID와 다르면 반영하지 않고 결과 창에 표시
 
 ## 도메인
-`ad.ringcoms.com` → Netlify (DNS: 카페24에서 CNAME `ad` → `<사이트>.netlify.app`)
+`ad.ringcoms.com` → Netlify (카페24 DNS CNAME `ad` → `cheery-conkies-713ddb.netlify.app`). 기존 주소도 계속 열림.
 도메인을 바꾸면 Firebase 승인된 도메인, YouTube API 키 웹사이트 제한에도 추가해야 합니다.
