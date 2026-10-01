@@ -2,6 +2,7 @@
 // POST /api/social-stats
 //   { action: 'start', urls: [...] }  → 틱톡은 바로 수집, 인스타그램(및 틱톡 실패분)은 Apify 실행 시작
 //   { action: 'poll',  jobs: [...] }  → Apify 실행이 끝났으면 결과 반환
+//   { action: 'profile', urls: [...] } → 채널(프로필) 링크로 계정·팔로워·카테고리·소개글 (틱톡은 바로, 인스타그램은 Apify)
 // 호출 권한: Firebase에 로그인한 팀원(마스터·매니저)만. Apify 토큰은 Netlify 환경변수 APIFY_TOKEN에만 보관.
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'ringcoms-campaign';
@@ -16,6 +17,9 @@ const num = v => (v == null || v === '' || !isFinite(+v) || +v < 0) ? null : Mat
 export const platformOf = u => /instagram\.com/i.test(u) ? 'ig' : /tiktok\.com/i.test(u) ? 'tt' : null;
 export const igCode = u => (String(u).match(/instagram\.com\/(?:[^/]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i) || [])[1] || null;
 export const ttId = u => (String(u).match(/\/video\/(\d+)/) || [])[1] || null;
+const IG_RESERVED = new Set(['p', 'reel', 'reels', 'tv', 'stories', 'explore', 'accounts', 'direct', 'about', 'legal', 'developer']);
+export const igUser = u => { const m = String(u).match(/instagram\.com\/([A-Za-z0-9._]+)/i); return m && !IG_RESERVED.has(m[1].toLowerCase()) ? m[1] : null; };
+export const ttUser = u => (String(u).match(/tiktok\.com\/@([A-Za-z0-9._-]+)/i) || [])[1] || null;
 
 /* 1) 호출한 사람이 팀원인지 확인: 그 사람의 로그인 토큰으로 Firestore 팀원 문서를 직접 읽어 봄 (보안 규칙이 판정) */
 async function checkMember(req) {
@@ -43,6 +47,24 @@ export function parseTikTokHtml(html) {
   const s = it.statsV2 || it.stats || {};
   return { owner: (it.author && it.author.uniqueId) || null, views: num(s.playCount), likes: num(s.diggCount), cmts: num(s.commentCount), shares: num(s.shareCount), saves: num(s.collectCount), thumbUrl: (it.video && (it.video.cover || it.video.originCover)) || null };
 }
+/* 틱톡 프로필 공개 페이지 */
+export function parseTikTokProfile(html) {
+  const m = String(html).match(/<script[^>]+id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) return null;
+  const ui = (((JSON.parse(m[1]).__DEFAULT_SCOPE__ || {})['webapp.user-detail']) || {}).userInfo;
+  if (!ui || !ui.user || !ui.user.uniqueId) return null;
+  const st = ui.statsV2 || ui.stats || {};
+  return { acct: ui.user.uniqueId, name: ui.user.nickname || '', bio: ui.user.signature || '', followers: num(st.followerCount), category: '' };
+}
+async function tiktokProfileDirect(user) {
+  try {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 6000);
+    const r = await fetch('https://www.tiktok.com/@' + encodeURIComponent(user), { headers: { 'user-agent': UA, 'accept-language': 'ko-KR,ko;q=0.9' }, redirect: 'follow', signal: ctl.signal });
+    clearTimeout(t);
+    if (!r.ok) return null;
+    return parseTikTokProfile(await r.text());
+  } catch (e) { return null; }
+}
 async function tiktokDirect(url) {
   try {
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 6000);
@@ -68,13 +90,23 @@ async function startRun(actor, input) { const d = await apify(`/acts/${actor}/ru
 export function mapIg(it) {
   const code = it.shortCode || igCode(it.url || it.inputUrl || '');
   const likes = num(it.likesCount);
-  return { key: 'ig:' + code, owner: it.ownerUsername || null, views: num(it.videoPlayCount) ?? num(it.videoViewCount), likes, cmts: num(it.commentsCount), shares: null, saves: null, thumbUrl: it.displayUrl || null, likesHidden: likes == null };
+  const kind = it.productType === 'clips' || it.type === 'Video' ? 'reel' : (it.type === 'Image' || it.type === 'Sidecar') ? 'feed' : null;
+  return { key: 'ig:' + code, owner: it.ownerUsername || null, views: num(it.videoPlayCount) ?? num(it.videoViewCount), likes, cmts: num(it.commentsCount), shares: null, saves: null, thumbUrl: it.displayUrl || null, likesHidden: likes == null, kind };
+}
+export function mapIgProfile(it) {
+  return { key: 'igp:' + String(it.username || '').toLowerCase(), acct: it.username || null, name: it.fullName || '', bio: it.biography || '', followers: num(it.followersCount), category: it.businessCategoryName || '', private: !!it.private };
+}
+export function mapTtProfile(it) {
+  const a = it.authorMeta || {};
+  return { key: 'ttp:' + String(a.name || '').toLowerCase(), acct: a.name || null, name: a.nickName || '', bio: a.signature || '', followers: num(a.fans), category: '' };
 }
 export function mapTt(it) {
   const id = String(it.id || ttId(it.webVideoUrl || it.submittedVideoUrl || '') || '');
   return { key: 'tt:' + id, owner: (it.authorMeta && it.authorMeta.name) || null, views: num(it.playCount), likes: num(it.diggCount), cmts: num(it.commentCount), shares: num(it.shareCount), saves: num(it.collectCount), thumbUrl: (it.videoMeta && (it.videoMeta.coverUrl || it.videoMeta.originalCoverUrl)) || null };
 }
-const keyOf = u => platformOf(u) === 'ig' ? 'ig:' + igCode(u) : 'tt:' + ttId(u);
+const keyOf = (u, platform) => platform === 'igp' ? 'igp:' + String(igUser(u) || '').toLowerCase() : platform === 'ttp' ? 'ttp:' + String(ttUser(u) || '').toLowerCase() : platformOf(u) === 'ig' ? 'ig:' + igCode(u) : 'tt:' + ttId(u);
+const MAPPERS = { ig: mapIg, tt: mapTt, igp: mapIgProfile, ttp: mapTtProfile };
+const apifyErr = e => e.message === 'NO_TOKEN' ? 'Apify 토큰이 설정되지 않았습니다 (Netlify 환경변수 APIFY_TOKEN).' : /limit|credit|usage|payment/i.test(e.message) ? 'Apify 이번 달 무료 사용량을 다 썼습니다. 다음 달에 초기화됩니다.' : 'Apify 실행을 시작하지 못했습니다: ' + e.message;
 
 export default async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST만 지원합니다.' }, 405);
@@ -98,8 +130,28 @@ export default async (req) => {
       if (ig.length) jobs.push({ platform: 'ig', urls: ig, ...(await startRun(IG_ACTOR, { directUrls: ig, resultsType: 'posts', resultsLimit: 1, addParentData: false })) });
       if (ttFail.length) jobs.push({ platform: 'tt', urls: ttFail, ...(await startRun(TT_ACTOR, { postURLs: ttFail, resultsPerPage: 1, shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadSubtitles: false })) });
     } catch (e) {
-      const msg = e.message === 'NO_TOKEN' ? 'Apify 토큰이 설정되지 않았습니다 (Netlify 환경변수 APIFY_TOKEN).' : /limit|credit|usage|payment/i.test(e.message) ? 'Apify 이번 달 무료 사용량을 다 썼습니다. 다음 달에 초기화됩니다.' : 'Apify 실행을 시작하지 못했습니다: ' + e.message;
+      const msg = apifyErr(e);
       warnings.push(msg);
+      [...ig, ...ttFail].forEach(u => { if (!results[u]) results[u] = { error: msg }; });
+    }
+    return json({ results, jobs, warnings, done: jobs.length === 0 });
+  }
+
+  if (body.action === 'profile') {
+    const urls = [...new Set((body.urls || []).map(String))].slice(0, MAX_URLS);
+    const results = {}; const ig = [], ttFail = [];
+    await Promise.all(urls.map(async u => {
+      const iu = /instagram\.com/i.test(u) ? igUser(u) : null, tu = /tiktok\.com/i.test(u) ? ttUser(u) : null;
+      if (iu) { ig.push(u); return; }
+      if (tu) { const d = await tiktokProfileDirect(tu); if (d) results[u] = { ...d, via: 'direct' }; else ttFail.push(u); return; }
+      results[u] = { error: '인스타그램·틱톡 채널 주소 형식이 아닙니다.' };
+    }));
+    const jobs = []; const warnings = [];
+    try {
+      if (ig.length) jobs.push({ platform: 'igp', urls: ig, ...(await startRun(IG_ACTOR, { directUrls: [...new Set(ig.map(u => 'https://www.instagram.com/' + igUser(u) + '/'))], resultsType: 'details', resultsLimit: 1, addParentData: false })) });
+      if (ttFail.length) jobs.push({ platform: 'ttp', urls: ttFail, ...(await startRun(TT_ACTOR, { profiles: [...new Set(ttFail.map(ttUser))], resultsPerPage: 1, shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadSubtitles: false })) });
+    } catch (e) {
+      const msg = apifyErr(e); warnings.push(msg);
       [...ig, ...ttFail].forEach(u => { if (!results[u]) results[u] = { error: msg }; });
     }
     return json({ results, jobs, warnings, done: jobs.length === 0 });
@@ -125,17 +177,18 @@ export default async (req) => {
       try {
         const run = (await apify(`/actor-runs/${encodeURIComponent(job.runId)}`)).data;
         if (['READY', 'RUNNING'].includes(run.status)) { done = false; continue; }
-        if (run.status !== 'SUCCEEDED') { warnings.push(`${job.platform === 'ig' ? '인스타그램' : '틱톡'} 수집이 실패했습니다 (${run.status}).`); (job.urls || []).forEach(u => results[u] = { error: '수집 실패 (' + run.status + ')' }); continue; }
+        if (run.status !== 'SUCCEEDED') { warnings.push(`${/^ig/.test(job.platform) ? '인스타그램' : '틱톡'} 수집이 실패했습니다 (${run.status}).`); (job.urls || []).forEach(u => results[u] = { error: '수집 실패 (' + run.status + ')' }); continue; }
         const items = await apify(`/datasets/${run.defaultDatasetId}/items?clean=true&format=json`);
         const byKey = {};
-        (Array.isArray(items) ? items : []).forEach(it => { const m = job.platform === 'ig' ? mapIg(it) : mapTt(it); if (m.key && !byKey[m.key]) byKey[m.key] = m; });
-        (job.urls || []).forEach(u => { const m = byKey[keyOf(u)]; results[u] = m ? { ...m, via: 'apify' } : { error: '게시물을 찾지 못했습니다 (삭제·비공개일 수 있음).' }; });
+        const map = MAPPERS[job.platform] || mapTt; const prof = job.platform === 'igp' || job.platform === 'ttp';
+        (Array.isArray(items) ? items : []).forEach(it => { const m = map(it); if (m.key && !byKey[m.key]) byKey[m.key] = m; });
+        (job.urls || []).forEach(u => { const m = byKey[keyOf(u, job.platform)]; results[u] = m ? { ...m, via: 'apify' } : { error: prof ? '채널을 찾지 못했습니다 (주소 오류·비공개일 수 있음).' : '게시물을 찾지 못했습니다 (삭제·비공개일 수 있음).' }; });
       } catch (e) { done = false; warnings.push('상태 확인 중 오류: ' + e.message); }
     }
     return json({ results, done, warnings });
   }
 
-  return json({ error: 'action은 start 또는 poll이어야 합니다.' }, 400);
+  return json({ error: 'action은 start·poll·profile·status 중 하나여야 합니다.' }, 400);
 };
 
 export const config = { path: '/api/social-stats' };
