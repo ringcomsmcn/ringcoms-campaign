@@ -441,7 +441,7 @@ const ROLES={master:'마스터',manager:'매니저',viewer:'뷰어'};
 const ROLE_DESC={master:'모든 기능 + 팀원 삭제·권한 변경',manager:'캠페인·인플루언서 풀 등 모든 수정 가능, 팀원 추가(매니저·뷰어) 가능, 팀원 삭제 불가',viewer:'모든 화면을 볼 수만 있고 수정 불가'};
 function canEdit(){return A.role==='master'||A.role==='manager'}
 function isMaster(){return A.role==='master'}
-const WRITE_ACTS=new Set(['ctGo','ctStep','ytFetch','saveYtKey','delYtKey','draftCreate','setTheme','setThemeCustom','thumbDel','advLogoDel','newCampaign','duplicate','delCampaign','addGroup','delGroup','shareToggle','shareRegen','syncNow','costLevel','shareFee','objective','addRow','import','impGo','impParse','bulkStage','bulkContract','bulkDel','delRow','rename','poolNew','poolCreate','poolImport','poolImpParse','poolImpGo','poolToCamp','poolToCamp1','poolDel','poolResync','addAdmin','delAdmin','tplDl','demoReset']);
+const WRITE_ACTS=new Set(['shareGroup','tierSplit','ctGo','ctStep','ytFetch','saveYtKey','delYtKey','draftCreate','setTheme','setThemeCustom','thumbDel','advLogoDel','newCampaign','duplicate','delCampaign','addGroup','delGroup','shareToggle','shareRegen','syncNow','costLevel','shareFee','objective','addRow','import','impGo','impParse','bulkStage','bulkContract','bulkDel','delRow','rename','poolNew','poolCreate','poolImport','poolImpParse','poolImpGo','poolToCamp','poolToCamp1','poolDel','poolResync','addAdmin','delAdmin','tplDl','demoReset']);
 /* 광고주 화면에서 숨길 수 있는 지표 [키, 이름, 조건] */
 const SHARE_METRICS=[['views','조회 수'],['likes','좋아요 수'],['cmts','댓글 수'],['shares','공유 수'],['saves','저장 수'],['part','총 참여 수'],['eng','인게이지먼트'],['er','ER'],['reach','도달 수'],
  ['cpv','CPV','cost'],['cpe','CPE','cost'],['cpm','CPM','cost'],['clicks','링크 클릭','clicks'],['ctr','CTR','clicks'],['cpc','CPC','cost,clicks'],['conv','전환 수','conv'],['cvr','CVR','conv,clicks'],['cpa','CPA','cost,conv'],['rev','매출','revenue'],['roas','ROAS','cost,revenue'],
@@ -471,7 +471,9 @@ function compactEn(v){if(v==null||!isFinite(v))return '–';const a=Math.abs(v);
 function feeRate(c){const x=c&&c.agencyRate;return has(x)?n(x):20}
 function feeMode(c){return (c&&c.feeView)==='excl'?'excl':'incl'}
 const CTYPES=['인스타그램 피드','인스타그램 릴스','유튜브 영상(롱폼)','유튜브 쇼츠','틱톡 콘텐츠','네이버 블로그','엑스 콘텐츠'];
-const TIERS=['MEGA','MACRO','MICRO','NANO'];
+const TIERS=['MEGA','MACRO','MICRO','NANO'];const TIERS_M=['MEGA','MACRO','MICRO/NANO'];
+/* 리포트 티어 묶음: 기본은 MICRO·NANO를 MICRO/NANO로 합침 (캠페인별 「하위 티어 구분」으로 나눔) */
+function tierGroup(c,t){return !(c&&c.tierSplit)&&(t==='MICRO'||t==='NANO')?'MICRO/NANO':t}
 const OBJECTIVES=[
   {k:'브랜드 인지도',d:'도달·조회·참여로 브랜드를 알리는 캠페인'},
   {k:'조회수',d:'콘텐츠 조회수와 조회 단가(CPV) 중심'},
@@ -715,6 +717,7 @@ function summaryOf(c,rows){
 }
 /* 리포트 객체: 어드민 화면·광고주 공유·엑셀이 모두 이 결과를 사용 */
 function buildReport(c,rows,admin,groupLabel,mode){
+  {const s0=c.share||{};if(!admin&&has(s0.feeRate))c={...c,agencyRate:n(s0.feeRate)}}
   const sh=c.share||{};const trial=isTrial(c);mode=mode||(admin?feeMode(c):(sh.feeMode||'incl'));const costLevel=trial?'none':admin?'row':(sh.costLevel||'row');const showNames=admin||sh.showNames!==false;const showLinks=admin||sh.showLinks!==false;
   const {E,M}=settings(c);const convLabel=CONV_LABEL[c.convType]||'전환';
   const live=rows.filter(r=>r.name&&r.stage!==DROP);
@@ -752,7 +755,7 @@ function buildReport(c,rows,admin,groupLabel,mode){
   if(!trial)delete tg.applicants;
   const REP={v:2,updatedAt:new Date().toISOString(),meta:{theme:themeOf(c),advLogo:c.advLogo||'',name:c.name||'',advertiser:c.advertiser||'',brand:c.brand||'',ctype:c.ctype||'',status:c.status||'',objective:c.objective||'조회수',convType:c.convType||'',convLabel,start:c.start||'',end:c.end||'',asof:c.asof||'',usageMonths:c.usageMonths||'',
       kind:trial?'trial':'seed',trial:TR,targets:(admin||sh.showTargets!==false)?tg:{},metrics:M,eng:E,costLevel,showLinks,showProgress:admin||sh.progOn===true,insight:c.insight||'',groupLabel:groupLabel||'',fee:{mode,rate:!trial&&(admin||sh.feeToggle!==false)?feeRate(c):null,toggle:!trial&&!admin&&sh.feeToggle!==false}},
-    T,byGroup:groupsOf(c).length?grp(r=>groupName(c,r.group)||'그룹 미지정',groupsOf(c).map(g=>g.name)):[],byCh:grp(r=>r.ch,CHANNELS),byTier:grp(r=>calc.get(r).tier,TIERS),byType:grp(r=>r.ctype,CTYPES),stages,drop:rows.filter(r=>r.name&&r.stage===DROP).length,progress,rows:out};
+    T,byGroup:groupsOf(c).length?grp(r=>groupName(c,r.group)||'그룹 미지정',groupsOf(c).map(g=>g.name)):[],byCh:grp(r=>r.ch,CHANNELS),byTier:grp(r=>tierGroup(c,calc.get(r).tier),c.tierSplit?TIERS:TIERS_M),byType:grp(r=>r.ctype,CTYPES),stages,drop:rows.filter(r=>r.name&&r.stage===DROP).length,progress,rows:out};
   if(!admin){const hd=sh.hide||{};applyHide(REP,new Set(shareMetricsFor(c).map(x=>x[0]).filter(k=>hd[k])))}
   return REP;
 }
@@ -771,7 +774,7 @@ async function syncNow(cid,fromSeed){
   const rd=(A.cid===cid&&A.unsubRows&&A.rowsDoc&&!fromSeed)?A.rowsDoc:await DB.get('rows/'+cid);const rows=rowsArr(rd);
   try{
     await DB.update('campaigns/'+cid,{summary:summaryOf(c,rows),updatedAt:new Date().toISOString()});
-    const sh=c.share||{};if(sh.enabled&&sh.token){const fm=sh.feeMode||'incl';const snap=buildReport(c,rows,false,'',fm);if(!isTrial(c)&&sh.feeToggle!==false&&(sh.costLevel||'row')!=='none')snap.alt=buildReport(c,rows,false,'',fm==='incl'?'excl':'incl');await DB.set('shares/'+sh.token,snap);
+    const sh=c.share||{};if(sh.enabled&&sh.token){const fm=sh.feeMode||'incl';const sc=shareScope(c,rows);const snap=buildReport(c,sc.rows,false,sc.label,fm);if(!isTrial(c)&&sh.feeToggle!==false&&(sh.costLevel||'row')!=='none')snap.alt=buildReport(c,sc.rows,false,sc.label,fm==='incl'?'excl':'incl');await DB.set('shares/'+sh.token,snap);
       try{const tm=(A.cid===cid&&A.unsubThumbs)?A.thumbs:(((await DB.get('thumbs/'+cid))||{}).t||{});const pub={};rows.filter(r=>r.name&&r.stage!==DROP&&tm[r.id]).forEach(r=>pub[r.id]=tm[r.id]);await DB.set('sharethumbs/'+sh.token,{t:pub,updatedAt:new Date().toISOString()})}catch(e){console.warn('sharethumbs',e)}}
     await syncPool(cid,c,rows);
   }catch(e){console.error(e);if(!fromSeed)toast('광고주 공유 화면을 갱신하지 못했습니다. 권한을 확인하세요.','crit')}
@@ -1337,13 +1340,16 @@ function tabShare(c,rows){
    <p class="small muted" style="margin:6px 0 0">광고주는 화면 오른쪽 위 KR / EN 버튼으로 언제든 한글·영문 리포트를 바꿔 볼 수 있고, 영문 상태에서 받은 엑셀도 영문으로 내려받아집니다. 영문 링크는 처음부터 영문으로 열립니다.</p>
    <div class="row" style="margin-top:10px"><span class="small muted">내용을 수정하면 몇 초 안에 광고주 화면에도 반영됩니다.</span><span class="grow"></span><button class="btn sm" data-act="syncNow">지금 반영</button><button class="btn sm danger" data-act="shareRegen">${A.confirm==='regen'?'한 번 더 누르면 기존 링크 차단':'링크 재발급'}</button></div>`
    :`<div class="banner info" style="margin:0">공유가 꺼져 있습니다. 켜면 추측할 수 없는 비공개 링크가 발급됩니다. 끄면 기존 링크는 즉시 열리지 않습니다.</div>`}</section>
+  ${groupsOf(c).length?`<section class="panel"><div class="panel-h"><div><h2>공유 범위</h2><div class="sub">고른 범위의 콘텐츠만 광고주 리포트·PPT·PDF·엑셀에 담깁니다. 다른 그룹 데이터는 공유본에 들어가지 않습니다.</div></div></div>
+   <div class="chips">${[['','캠페인 전체'],...groupsOf(c).map(g=>[g.id,g.name+(g.start?` (${md(g.start)}~${md(g.end)})`:'')]),...(rows.some(r=>r.name&&!r.group)?[['__none','그룹 미지정']]:[])].map(([k,l])=>`<span class="chip ${(sh.group||'')===k?'on':''}" data-act="shareGroup" data-k="${k}" ${on?'':'style="opacity:.5;pointer-events:none"'}>${esc(l)}</span>`).join('')}</div></section>`:''}
   <section class="panel"><div class="panel-h"><div><h2>리포트에 보여줄 성과 지표</h2><div class="sub">체크를 해제한 지표는 광고주 화면과 광고주용 엑셀에서 빠지고, 공유 데이터에도 담기지 않습니다. 어드민 성과 리포트에는 그대로 보입니다.</div></div></div>
-   <div class="mchk">${shareMetricsFor(c).map(([k,l])=>`<label class="${(sh.hide||{})[k]?'off':''}"><input type="checkbox" id="shm_${k}" data-shm="${k}" ${(sh.hide||{})[k]?'':'checked'} ${on?'':'disabled'}>${l}</label>`).join('')}</div>${on?'':'<p class="small muted" style="margin:8px 0 0">공유를 켜면 선택할 수 있습니다.</p>'}</section>
+   <div class="row" style="margin:0 0 10px;gap:8px"><button class="btn sm ${c.tierSplit?'primary':''}" data-act="tierSplit" ${canEdit()?'':'disabled'} title="티어별 표·차트에서 MICRO와 NANO를 나눠 보거나 합쳐 봅니다">하위 티어 구분 ${c.tierSplit?'켜짐 · MICRO / NANO 따로':'꺼짐 · MICRO/NANO 합침'}</button><span class="small muted">티어별 ER·티어별 표에 적용 (성과 리포트에도 동일)</span></div><div class="mchk">${shareMetricsFor(c).map(([k,l])=>`<label class="${(sh.hide||{})[k]?'off':''}"><input type="checkbox" id="shm_${k}" data-shm="${k}" ${(sh.hide||{})[k]?'':'checked'} ${on?'':'disabled'}>${l}</label>`).join('')}</div>${on?'':'<p class="small muted" style="margin:8px 0 0">공유를 켜면 선택할 수 있습니다.</p>'}</section>
   <section class="panel"><div class="panel-h"><h2>광고주에게 보여줄 항목</h2></div>
    ${tg('showNames','인플루언서 이름·계정 공개','끄면 「인플루언서 1, 2…」로 표시')}${tg('showLinks','콘텐츠 링크 공개','콘텐츠별 게시물 링크')}${tg('progOn','진행 현황 함께 공유','기본은 꺼짐(성과 리포트만 공유). 켜면 인플루언서별 진행 단계와 업로드 예정일이 광고주 화면에 함께 보입니다. PPT·PDF에는 들어가지 않습니다.',true)}${tg('showTargets','목표 KPI·달성률 공개','설정한 목표 대비 달성률')}${isTrial(c)?tg('showTrial','체험단 모집 성과 공개','제공 제품·판매단가·모집 인원·신청자 수·경쟁률·제품 제공가치'):''}
    ${isTrial(c)?'<p class="small muted" style="margin:8px 0 0">체험단은 무상협찬이라 광고비·대행수수료 항목이 광고주 화면에 나오지 않습니다. 연락처·배송 주소·메모·담당자는 항상 비공개입니다.</p></section>':`<div class="toggle"><div style="width:16px"></div><div class="grow"><b>비용 공개 범위</b><span>「합계만 공개」를 고르면 광고주 화면과 광고주용 엑셀 모두 인플루언서별 비용이 빠집니다. 총 예산·제안 단가·연락처·메모·담당자는 항상 비공개입니다.</span>
    <div class="chips" style="margin-top:8px">${COST_LEVELS.map(([k,l])=>`<span class="chip ${(sh.costLevel||'row')===k?'on':''}" data-act="costLevel" data-k="${k}" ${on?'':'style="opacity:.5;pointer-events:none"'}>${l}</span>`).join('')}</div></div></div></section>
-  <section class="panel"><div class="panel-h"><div><h2>대행수수료 표시</h2><div class="sub">수수료율 ${feeRate(c)}% (캠페인 설정에서 변경) · 선택한 기준으로 광고비·CPV·CPE·CPC·CPA·ROAS가 모두 다시 계산됩니다</div></div></div>
+  <section class="panel"><div class="panel-h"><div><h2>대행수수료 조정반영</h2><div class="sub">광고주 리포트에 적용할 수수료율을 직접 입력할 수 있습니다. 입력한 수수료율과 아래 기준으로 광고비·CPV·CPE·CPC·CPA·ROAS가 모두 다시 계산됩니다.</div></div></div>
+   <div class="row" style="margin:0 0 10px;gap:8px;align-items:center"><label class="small bold" for="sh-feeRate">광고주 리포트 수수료율</label><input type="text" inputmode="decimal" id="sh-feeRate" value="${has(sh.feeRate)?esc(String(sh.feeRate)):''}" placeholder="${feeRate({agencyRate:c.agencyRate})}" style="width:90px" ${on&&canEdit()?'':'disabled'}><span class="small">%</span><span class="small muted">비워 두면 캠페인 설정값(${feeRate({agencyRate:c.agencyRate})}%) 사용${has(sh.feeRate)?` · 현재 ${esc(String(sh.feeRate))}% 적용 중`:''}</span></div>
    ${(sh.costLevel||'row')==='none'?'<div class="banner info" style="margin:0 0 10px">비용 공개 범위가 「비용 지표 숨김」이라 광고주 화면에는 비용 수치가 나오지 않습니다.</div>':''}
    <div class="chips">${[['incl','대행수수료 포함 광고비로 표시'],['excl','대행수수료 미포함 광고비로 표시']].map(([k,l])=>`<span class="chip ${(sh.feeMode||'incl')===k?'on':''}" data-act="shareFee" data-k="${k}" ${on?'':'style="opacity:.5;pointer-events:none"'}>${l}</span>`).join('')}</div>
    <label class="toggle" style="margin-top:10px"><input type="checkbox" id="sh_feeToggle" data-sh="feeToggle" ${sh.feeToggle!==false?'checked':''} ${on?'':'disabled'}><div><b>광고주가 포함 / 미포함을 직접 바꿔 볼 수 있게 허용</b><span>켜면 광고주 화면에 전환 버튼이 생기고 두 기준 수치와 수수료율이 모두 전달됩니다. 끄면 위에서 고른 기준 하나로만 보이고, 다른 기준 수치와 수수료율은 광고주에게 전달되지 않습니다.</span></div></label></section>`}
@@ -1353,6 +1359,8 @@ function tabShare(c,rows){
 
 /* ============ 광고주 화면 ============ */
 const TR_METRIC={views:'Views',likes:'Likes',cmts:'Comments',shares:'Shares',saves:'Saves',part:'Total Interactions',eng:'Engagement',er:'ER',reach:'Reach',cpv:'CPV',cpe:'CPE',cpm:'CPM',clicks:'Link Clicks',ctr:'CTR',cpc:'CPC',conv:'Conversions',cvr:'CVR',cpa:'CPA',rev:'Revenue',roas:'ROAS',lic:'Licensed Content',tr_price:'Retail Price',tr_recruit:'Recruited Slots',tr_apps:'Applicants',tr_compete:'Applicants per Slot',tr_applyRate:'Application Rate',tr_selected:'Selected Creators',tr_value:'Total Product Value',tr_vpv:'Product Value per View'};
+/* 광고주 공유 범위: 캠페인 전체 또는 특정 그룹 */
+function shareScope(c,rows){const g=(c.share||{}).group;if(!g)return {rows,label:''};if(g==='__none')return {rows:rows.filter(r=>!r.group),label:'그룹 미지정'};if(!(c.groups||{})[g])return {rows,label:''};return {rows:rows.filter(r=>r.group===g),label:groupName(c,g)}}
 /* VAT 포함 보기: 비용 관련 수치에 1.1을 곱함 (ROAS는 나눔) */
 function applyVat(R){if(!R||R.meta.costLevel==='none'||R.meta.kind==='trial')return R;const X=1.1;const mul=(o,ks)=>ks.forEach(k=>{if(o&&o[k]!=null&&isFinite(o[k]))o[k]=o[k]*X});const div=(o,ks)=>ks.forEach(k=>{if(o&&o[k]!=null&&isFinite(o[k]))o[k]=o[k]/X});
   mul(R.T,['costPosted','cpv','cpe','cpm','cpmReach','cpc','cpa','costAll','cost0All','agfAll','offer','budget']);div(R.T,['roas']);
@@ -1366,7 +1374,7 @@ function svStore(){try{return JSON.parse(localStorage.getItem('sv_'+(A.shareToke
 function svSave(){try{localStorage.setItem('sv_'+(A.shareToken||''),JSON.stringify({vat:A.svVat||'',hide:[...(A.svHide||[])]}))}catch(e){}}
 function shareRV(){const S=shareR();if(!S)return S;return viewR(S,A.svVat,A.svHide)}
 /* 광고주 공유 탭 미리보기와 같은 결과 */
-function previewR(){const c=curC();if(!c)return null;const sh=c.share||{};return viewR(buildReport(c,curRows(),false,'',sh.feeMode||'incl'),A.pvat,null)}
+function previewR(){const c=curC();if(!c)return null;const sh=c.share||{};const sc=shareScope(c,curRows());return viewR(buildReport(c,sc.rows,false,sc.label,sh.feeMode||'incl'),A.pvat,null)}
 /* 콘텐츠별 결과만 엑셀로 */
 async function exportContentXlsx(mode){
   try{if(!window.XLSX)await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')}catch(e){return toast('엑셀 모듈을 불러오지 못했습니다.','crit')}
@@ -1796,6 +1804,8 @@ const ACT={
   pvat(a){A.pvat=a.dataset.k;render()},
   cxlsx(a){exportContentXlsx(a.dataset.mode)},
   async syncNow(){await syncNow(A.cid);toast('광고주 화면에 반영했습니다.')},
+  shareGroup(a){DB.update('campaigns/'+A.cid,{'share.group':a.dataset.k||DB.DEL}).catch(saveErr);scheduleSync(A.cid)},
+  tierSplit(){const c=curC();if(!c)return;cUpdate({tierSplit:!c.tierSplit}).catch(saveErr);scheduleSync(A.cid)},
   costLevel(a){DB.update('campaigns/'+A.cid,{'share.costLevel':a.dataset.k}).catch(saveErr);scheduleSync(A.cid)},
   xlsx(a){exportXlsx(a.dataset.mode)},
   pptx(a){exportPptx(a.dataset.mode)},
@@ -1840,6 +1850,7 @@ document.addEventListener('change',e=>{const t=e.target;
   if(t.dataset.cb){patchC(t.dataset.cb,t.checked);return}
   if(t.dataset.gf){const [g,f]=t.dataset.gf.split('.');const v=t.value.trim();if(f==='name'&&!v){toast('그룹 이름은 비울 수 없습니다.','crit');return}patchC(`groups.${g}.${f}`,v||null);return}
   if(t.dataset.sh){DB.update('campaigns/'+A.cid,{['share.'+t.dataset.sh]:t.checked}).catch(saveErr);scheduleSync(A.cid);return}
+  if(t.id==='sh-feeRate'){const raw=String(t.value||'').trim();const v=raw===''?null:parseNum(raw);if(raw!==''&&(v==null||v<0||v>100)){toast('0~100 사이 숫자로 입력하세요.','crit');return}DB.update('campaigns/'+A.cid,{'share.feeRate':v==null?DB.DEL:v}).then(()=>toast(v==null?'캠페인 설정 수수료율로 되돌렸습니다.':`광고주 리포트 수수료율 ${v}%를 적용했습니다.`)).catch(saveErr);scheduleSync(A.cid);return}
   if(t.dataset.shm){DB.update('campaigns/'+A.cid,{['share.hide.'+t.dataset.shm]:t.checked?DB.DEL:true}).catch(saveErr);scheduleSync(A.cid);return}
 });
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset.upload||!t.files||!t.files[0])return;const f=t.files[0];
