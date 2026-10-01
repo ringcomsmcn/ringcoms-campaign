@@ -369,11 +369,13 @@ a.brand:hover b{color:var(--accent)}
  .gal{grid-template-columns:repeat(4,minmax(0,1fr))}
  .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
  .tblwrap{overflow:visible;border-color:#ddd}.tbl th{position:static}
- .rp .tbl{font-size:10px;width:100%}.rp .tbl th{font-size:9px;padding:5px 5px;white-space:normal;word-break:keep-all;line-height:1.25}
- .rp .tbl td{padding:5px 5px;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.3}.rp .tbl td.n,.rp .tbl th.n{white-space:nowrap}
- .rp .tblwrap.pfit{overflow:hidden}
+ .rp .tbl{font-size:calc(10px*var(--pk,1));width:100%}.rp .tbl th{font-size:calc(9px*var(--pk,1));padding:calc(5px*var(--pk,1)) calc(5px*var(--pk,1));white-space:normal;word-break:keep-all;line-height:1.25}.rp .tbl td{padding:calc(5px*var(--pk,1)) calc(5px*var(--pk,1));white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.3}.rp .tbl td.n,.rp .tbl th.n{white-space:nowrap}
+ .rp .tblwrap{max-height:none!important;overflow:visible!important}
+ .rp .rp-prog{display:none!important}
+ .rp section{break-inside:avoid}.rp section.rp-long{break-inside:auto}.rp .rp-desc{break-after:avoid}.rp .tiles,.rp .hcharts,.rp .gal,.rp .tblwrap>table>thead,.rp .tblwrap tr,.rp .ins,.rp section>.stack>div{break-inside:avoid}
+ .rp .rp-h2{break-after:avoid}
 }
-body.pm .rp .tbl{font-size:10px}body.pm .rp .tbl th{font-size:9px;padding:5px 5px;white-space:normal;word-break:keep-all;line-height:1.25}body.pm .rp .tbl td{padding:5px 5px;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.3}body.pm .rp .tbl td.n,body.pm .rp .tbl th.n{white-space:nowrap}body.pm .tblwrap{overflow:visible}
+body.pm .rp .tbl{font-size:calc(10px*var(--pk,1));width:100%} body.pm .rp .tbl th{font-size:calc(9px*var(--pk,1));padding:calc(5px*var(--pk,1)) calc(5px*var(--pk,1));white-space:normal;word-break:keep-all;line-height:1.25} body.pm .rp .tbl td{padding:calc(5px*var(--pk,1)) calc(5px*var(--pk,1));white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.3} body.pm .rp .tbl td.n,.rp .tbl th.n{white-space:nowrap}body.pm .tblwrap{overflow:visible;max-height:none}
 @media print{
  a{color:inherit}
 }
@@ -606,10 +608,10 @@ function numMatch(v,expr,scale){expr=String(expr||'').trim();if(!expr)return tru
 /* ============ 저장소 (Firebase / 데모) ============ */
 const CONFIGURED=!!(window.FIREBASE_CONFIG&&window.FIREBASE_CONFIG.apiKey&&window.FIREBASE_CONFIG.projectId);
 let DB=null;
-/* 인쇄(PDF): 줄바꿈해도 A4 가로 폭(약 1030px)보다 넓은 표만 비율에 맞춰 축소 */
-function fitPrint(){const PW=1030;const ws=[...document.querySelectorAll('.rp .tblwrap')];ws.forEach(w=>{w.style.zoom='';w.classList.remove('pfit')});
-  document.body.classList.add('pm');ws.forEach(w=>{const t=w.querySelector('table');if(!t)return;w.style.width=PW+'px';const need=t.scrollWidth;w.style.width='';if(need>PW+2){w.style.zoom=String(Math.max(.55,PW/need).toFixed(3));w.classList.add('pfit')}});document.body.classList.remove('pm')}
-window.addEventListener('beforeprint',fitPrint);window.addEventListener('afterprint',()=>document.querySelectorAll('.rp .tblwrap').forEach(w=>{w.style.zoom='';w.classList.remove('pfit')}));
+/* 인쇄(PDF): 줄바꿈해도 A4 가로 폭(약 1030px)보다 넓은 표는 글자 크기를 줄여 맞춤 (확대·축소 없이 레이아웃 유지) */
+function fitPrint(){const PW=1030;const ws=[...document.querySelectorAll('.rp .tblwrap')];ws.forEach(w=>{const t=w.querySelector('table');if(t)t.style.removeProperty('--pk')});
+  document.body.classList.add('pm');ws.forEach(w=>{const t=w.querySelector('table');if(!t||w.closest('.rp-prog,.show-m'))return;w.style.width=PW+'px';let k=1;for(let i=0;i<6&&t.scrollWidth>PW+2&&k>.6;i++){k=Math.max(.6,k*PW/t.scrollWidth*.98);t.style.setProperty('--pk',k.toFixed(3))}w.style.width=''});document.body.classList.remove('pm')}
+window.addEventListener('beforeprint',fitPrint);
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s)})}
 async function firebaseStore(){
   const V='10.12.2',B=`https://www.gstatic.com/firebasejs/${V}/`;
@@ -1086,12 +1088,12 @@ function renderReport(R,o){
   const prog=(v,tg,lower)=>tg&&v!=null?{p:lower?(v?tg/v:0):v/tg,hit:lower?v<=tg:v>=tg}:null;
   const sub=(tg,f,lower)=>tg?t(`목표 ${f(tg)}${lower?' 이하':''}`,`Target ${lower?'≤ ':''}${f(tg)}`):'';
   const T_=(l,v,f,tg,lower)=>({l,v,f,tg,lower});
-  const L={reach:t('총 도달 수','Total Reach'),views:t('총 조회 수','Total Views'),eng:t('총 인게이지먼트','Total Engagement'),er:t('전체 ER','Overall ER'),cpv:t('전체 CPV','Overall CPV'),clicks:t('링크 클릭','Link Clicks')};
+  const L={reach:t('총 도달 수','Total Reach'),views:t('총 조회 수','Total Views'),eng:t('총 인게이지먼트','Total Engagement'),er:t('전체 ER','Overall ER'),cpv:t('전체 CPV','Overall CPV'),cpe:t('전체 CPE','Overall CPE'),clicks:t('링크 클릭','Link Clicks')};
   const obj={
-   '브랜드 인지도':[T_(L.reach,T.reach,cp,tt.reach),T_(L.views,T.views,cp,tt.views),T_(L.eng,T.eng,cp),T_(L.er,T.er,pct,tt.er),hasCost&&T_(t('CPM (1,000 조회당)','CPM (per 1,000 views)'),T.cpm,won)],
+   '브랜드 인지도':[T_(L.views,T.views,cp,tt.views),T_(L.eng,T.eng,cp),T_(L.er,T.er,pct,tt.er),hasCost&&T_(L.cpv,T.cpv,won1,tt.cpv,true),hasCost&&T_(L.cpe,T.cpe,won1)],
    '조회수':[T_(L.views,T.views,cp,tt.views),T_(t('평균 조회 수','Avg. Views'),T.avgViews,cp),hasCost&&T_(L.cpv,T.cpv,won1,tt.cpv,true),T_(t('팔로워 대비 조회율','Views / Followers'),T.viewRate,v=>pct(v,1))],
    '홈페이지 유입':[T_(t('링크 클릭 (유입)','Link Clicks (Traffic)'),T.clicks,fmt,tt.clicks),T_(t('CTR (조회 대비 클릭)','CTR (clicks / views)'),T.ctr,pct),hasCost&&T_(t('CPC (클릭당 비용)','CPC (cost per click)'),T.cpc,won),T_(L.views,T.views,cp,tt.views)],
-   '도달':[T_(L.reach,T.reach,cp,tt.reach),T_(t('팔로워 대비 도달률','Reach / Followers'),T.reachRate,v=>pct(v,1)),hasCost&&T_(t('CPM (1,000 도달당)','CPM (per 1,000 reach)'),T.cpmReach,won),T_(L.views,T.views,cp,tt.views)],
+   '도달':[T_(L.reach,T.reach,cp,tt.reach),T_(t('팔로워 대비 도달률','Reach / Followers'),T.reachRate,v=>pct(v,1)),T_(L.views,T.views,cp,tt.views),hasCost&&T_(L.cpv,T.cpv,won1,tt.cpv,true),hasCost&&T_(L.cpe,T.cpe,won1)],
    '전환':[M.conv&&T_(t(`${cl} 수`,cl),T.conv,fmt,tt.conv),M.conv&&M.clicks&&T_(t('전환율 (CVR)','Conversion Rate (CVR)'),T.cvr,pct),hasCost&&M.conv&&T_(t(`CPA (${cl}당 비용)`,`CPA (cost per ${cl})`),T.cpa,won,tt.cpa,true),M.revenue&&T_(t('매출','Revenue'),T.rev,v=>en?'₩'+cp(v):cp(v)+'원',tt.revenue),hasCost&&M.revenue&&T_('ROAS',T.roas,v=>pct(v,0),tt.roas),M.clicks&&T_(L.clicks,T.clicks,fmt,tt.clicks)],
    '2차 라이선스 활용':[T_(t('2차 활용 확보 콘텐츠','Licensed Contents'),T.lic,fmt,tt.contents),T_(t('확보율','License Rate'),T.licRate,v=>pct(v,0)),m.usageMonths?T_(t('활용 기간','License Period'),n(m.usageMonths),v=>t(v+'개월',v+' months')):null,T_(L.views,T.views,cp,tt.views)],
   }[m.objective]||[];
@@ -1142,16 +1144,16 @@ function renderReport(R,o){
   ${objTiles?`<section><h3 class="rp-h2">${t('캠페인 목적 성과','Objective KPIs')} · ${esc(V(m.objective))}</h3><p class="rp-desc">${t('목표를 설정한 지표는 달성률을 함께 표시합니다.','Achievement rates are shown for metrics with a target.')}</p><div class="tiles">${objTiles}</div>${m.objective==='전환'&&!M.conv&&!M.revenue?`<p class="small muted">${t('전환 데이터 입력이 꺼져 있습니다. 캠페인 설정에서 켤 수 있습니다.','Conversion data is not being tracked for this campaign.')}</p>`:''}</section>`:''}
   <section><h3 class="rp-h2">${t('전체 성과 요약','Performance Summary')}</h3><p class="rp-desc">${t('캠페인에 참여한 인플루언서 및 콘텐츠의 성과 요약입니다. 콘텐츠 링크가 등록된 콘텐츠만 집계합니다.','Summary of participating influencers and their content. Only content with a registered link is counted.')}</p><div class="tiles">${sum.map(([l,v,s])=>tile(l,v,s)).join('')}</div></section>
   ${conv.length?`<section><h3 class="rp-h2">${t('유입·전환 성과','Traffic & Conversions')}</h3><p class="rp-desc">${t('트래킹 링크·프로모코드·광고주 데이터 기준으로 입력된 값입니다.','Based on tracking links, promo codes and advertiser data.')}</p><div class="tiles">${conv.map(([l,v,s])=>tile(l,v,s)).join('')}</div></section>`:''}
-  ${m.showProgress?`<section><h3 class="rp-h2">${t('진행 현황','Progress')}</h3><p class="rp-desc">${t('인플루언서별 현재 진행 단계입니다.','Current stage for each influencer.')}</p><div class="panel">${stageBar(R.stages,totalSC,true,en)}
+  ${m.showProgress?`<section class="rp-prog"><h3 class="rp-h2">${t('진행 현황','Progress')}</h3><p class="rp-desc">${t('인플루언서별 현재 진행 단계입니다.','Current stage for each influencer.')}</p><div class="panel">${stageBar(R.stages,totalSC,true,en)}
    ${R.progress.length?`<div class="mcards show-m" style="margin-top:12px">${R.progress.map(p=>`<div class="mcard"><div class="mh"><div class="grow"><div class="mt">${lk(p.chlink,esc(V(p.name)),t('채널로 이동','Open channel'))}</div><div class="ms">${esc([V(p.group),V(p.ch),V(p.ctype)].filter(Boolean).join(' · '))}</div></div><span class="pill ${p.stage===DONE?'ok':'accent'}">${esc(V(p.stage)||'-')}</span></div>
      <div class="row small"><span class="muted">${t('예정','Planned')} ${md(p.due)} · ${t('업로드','Posted')} ${md(p.up)}</span><span class="grow"></span>${m.showLinks!==false?upl(p.clink,26,p.rid):''}</div></div>`).join('')}</div><div class="tblwrap hide-m" style="margin-top:14px;max-height:420px"><table class="tbl"><thead><tr>${pg?`<th>${t('그룹','Group')}</th>`:''}<th>${t('인플루언서','Influencer')}</th><th>${t('채널','Channel')}</th><th>${t('콘텐츠 유형','Content Type')}</th><th>${t('진행 상황','Status')}</th><th>${t('업로드 예정일','Planned Date')}</th><th>${t('업로드일','Posted Date')}</th>${m.showLinks!==false?`<th>${t('업로드 콘텐츠','Posted Content')}</th>`:''}</tr></thead><tbody>${R.progress.map(p=>`<tr>${pg?`<td class="small">${esc(V(p.group)||'–')}</td>`:''}<td class="bold">${lk(p.chlink,esc(V(p.name)),t('채널로 이동','Open channel'))}</td><td>${lk(p.chlink,esc(V(p.ch)),t('채널로 이동','Open channel'))}</td><td>${esc(V(p.ctype))}</td><td><span class="pill ${p.stage===DONE?'ok':'accent'}">${esc(V(p.stage)||'-')}</span></td><td>${md(p.due)}</td><td>${md(p.up)}</td>${m.showLinks!==false?`<td>${upl(p.clink,28,p.rid)}</td>`:''}</tr>`).join('')}</tbody></table></div>`:''}</div></section>`:''}
-  <section><h3 class="rp-h2">${t('캠페인 구성','Campaign Breakdown')}</h3><p class="rp-desc">${R.byGroup&&R.byGroup.length?t('광고 그룹·','Performance by ad group, '):t('','Performance by ')}${t('채널·티어·콘텐츠 유형별 성과입니다.','channel, tier and content type.')}</p><div class="stack">${charts}${R.byGroup&&R.byGroup.length?gtable(t('광고 그룹별','By Ad Group'),R.byGroup):''}${gtable(t('채널별','By Channel'),R.byCh)}${gtable(t('티어별','By Tier'),R.byTier)}${gtable(t('콘텐츠 유형별','By Content Type'),R.byType)}</div></section>
+  <section class="rp-long"><h3 class="rp-h2">${t('캠페인 구성','Campaign Breakdown')}</h3><p class="rp-desc">${R.byGroup&&R.byGroup.length?t('광고 그룹·','Performance by ad group, '):t('','Performance by ')}${t('채널·티어·콘텐츠 유형별 성과입니다.','channel, tier and content type.')}</p><div class="stack">${charts}${R.byGroup&&R.byGroup.length?gtable(t('광고 그룹별','By Ad Group'),R.byGroup):''}${gtable(t('채널별','By Channel'),R.byCh)}${gtable(t('티어별','By Tier'),R.byTier)}${gtable(t('콘텐츠 유형별','By Content Type'),R.byType)}</div></section>
   <section><div class="row" style="justify-content:space-between"><div><h3 class="rp-h2">${t('지표별 상위 콘텐츠','Top Content by Metric')}</h3><p class="rp-desc">${t('선택한 지표 기준 상위 콘텐츠입니다. 썸네일을 누르면 원본 콘텐츠가 열립니다.','Top content for the selected metric. Tap a thumbnail to open the original post.')}</p></div><div class="chips noprint">${metricsSel.map(([k,l])=>`<span class="chip ${tm===k?'on':''}" data-act="topMetric" data-k="${k}">${l}</span>`).join('')}</div></div>
    ${top.length?`<div class="gal">${top.map((r,i)=>{const g=galSrc(r.clink,thm(r.rid));const pl=platOf(r.clink);const PL={YT:['YouTube','#FF0033'],IG:['Instagram','#D62976'],TT:['TikTok','#111'],N:['Blog','#03C75A'],X:['X','#111']}[pl]||[V(r.ch)||'Link','#394253'];const lab=(V(r.ctype)||PL[0]).replace(/^(유튜브|인스타그램|틱톡) /,'');
     const media=g?`<img class="${g.cls}" src="${esc(g.src)}" loading="lazy" referrerpolicy="no-referrer" alt="" onerror="this.outerHTML='<div class=&quot;ph etc&quot;><b>${PL[0]}</b></div>'">`:pl==='IG'?`<div class="ph ig"><b>Instagram</b></div>`:pl==='TT'?`<div class="ph tt"><b>TikTok</b></div>`:`<div class="ph etc"><b>${esc(PL[0])}</b></div>`;
     return `<div class="gc"><a class="gm" href="${esc(r.clink)}" target="_blank" rel="noopener" title="${t('콘텐츠 보기','View content')}">${media}<span class="rk">${i+1}</span><span class="pf" style="background:${PL[1]}">${esc(lab)}</span><span class="ov"><b>${tm==='er'?pct(r[tm]):cp(r[tm])}</b><span>${esc(tml)}</span></span></a>
      <div class="gi"><div class="gn">${lk(r.chlink,esc(V(r.name)),t('채널로 이동','Open channel'))}</div><div class="ga">${esc([r.acct,r.tier,md(r.up)].filter(Boolean).join(' · '))}</div><div class="gs">${tm!=='views'&&sv('views')?`<span>${t('조회','Views')} <b>${cp(r.views)}</b></span>`:''}${tm!=='eng'&&sv('eng')?`<span>${t('인게이지먼트','Eng.')} <b>${fmt(r.eng)}</b></span>`:''}${tm!=='er'&&sv('er')?`<span>ER <b>${pct(r.er)}</b></span>`:''}${m.costLevel==='row'&&r.cpv!=null?`<span>CPV <b>${fmt1(r.cpv)}</b></span>`:''}</div><a class="go" href="${esc(r.clink)}" target="_blank" rel="noopener">${t('콘텐츠 보기','View content')} ↗</a>${thBtn(r.clink,r.rid)}</div></div>`}).join('')}</div>`:`<div class="empty">${t('표시할 데이터가 없습니다.','No data to display yet.')}</div>`}${noV?`<p class="small muted" style="margin:8px 0 0">${t(`조회 수가 없는 콘텐츠 ${noV}개(인스타그램 등)는 이 기준에서 빠집니다. 「인게이지먼트」·「좋아요」 기준에서 함께 볼 수 있습니다.`,`${noV} posts without view counts (e.g. Instagram) are excluded here. Switch to Engagement or Likes to include them.`)}</p>`:''}</section>
-  <section><h3 class="rp-h2">${t('콘텐츠별 결과','Results by Content')}</h3>
+  <section class="rp-long"><h3 class="rp-h2">${t('콘텐츠별 결과','Results by Content')}</h3>
    <div class="mcards show-m" style="margin-top:8px">${R.rows.length?R.rows.map((r,i)=>`<div class="mcard"><div class="mh">${r.clink?thumbHtml(r.clink,40,thm(r.rid)):''}<div class="grow"><div class="mt">${i+1}. ${lk(r.chlink,esc(V(r.name)),t('채널로 이동','Open channel'))}</div><div class="ms">${esc([V(r.group),V(r.ch),r.tier,V(r.ctype)].filter(Boolean).join(' · '))} · ${md(r.up)}</div>${r.clink?`<a class="small" href="${esc(r.clink)}" target="_blank" rel="noopener" style="font-weight:600">${t('콘텐츠 보기','View content')} ↗</a>`:''}</div></div>
      <div class="mkv">${ccols.map(x=>`<div><span>${x[1]}</span><b>${cf(x[0])(r[x[0]])}</b></div>`).join('')}</div></div>`).join(''):`<div class="empty">${t('등록된 콘텐츠가 없습니다.','No content posted yet.')}</div>`}</div>
    <div class="tblwrap hide-m" style="margin-top:8px"><table class="tbl"><thead><tr><th class="n">No</th><th>${t('업로드 콘텐츠','Posted Content')}</th>${rg?`<th>${t('그룹','Group')}</th>`:''}<th>${t('인플루언서','Influencer')}</th><th>${t('채널','Channel')}</th><th>${t('티어','Tier')}</th><th>${t('콘텐츠 유형','Content Type')}</th><th>${t('업로드일','Posted')}</th>${ccols.map(x=>`<th class="n">${x[1]}</th>`).join('')}</tr></thead><tbody>
@@ -1527,64 +1529,110 @@ async function imgData(src){if(!src)return null;if(src.startsWith('data:'))retur
 async function exportPptx(mode){if(exportPptx.busy)return;exportPptx.busy=true;try{await exportPptxRun(mode)}catch(e){console.error(e);toast('PPT를 만들지 못했습니다: '+(e&&e.message||e),'crit')}finally{exportPptx.busy=false}}
 async function exportPptxRun(mode){
   const root=document.querySelector('.rp');if(!root)return toast('성과 리포트 화면에서 눌러 주세요.','crit');
-  try{if(!window.PptxGenJS)await loadScript('/vendor/pptxgen.bundle.js')}catch(e){return toast('PPT 모듈을 불러오지 못했습니다. 인터넷 연결을 확인하세요.','crit')}
+  if(!window.PptxGenJS)await loadScript('/vendor/pptxgen.bundle.js');
   const sh=mode==='share';let R;if(sh)R=shareR();else{const c=curC();const gl=A.gf?(A.gf==='__none'?'그룹 미지정':groupName(c,A.gf)):'';R=buildReport(c,curRows().filter(inGroup),true,gl)}
   const en=(sh?A.lang:A.rlang)==='en';const t=(k,e)=>en?e:k;const V=v=>en?trV(v):v;const m=R.meta;const th=m.theme||themeOf({});const TRL=m.kind==='trial';
   toast(t('PPT를 만드는 중입니다…','Building PPT…'));
-  const hx=x=>String(x||'').replace('#','').toUpperCase();const ACC=hx(th.acc),BG=hx(th.bg),INK=hx(th.ink);const F='Malgun Gothic',DARK='161B26',MUT='6B7280',LINE='E5E7EB',SOFT='F3F4F6';
+  const hx=x=>String(x||'').replace('#','').toUpperCase();const ACC=hx(th.acc),BG=hx(th.bg),INK=hx(th.ink);const F='Malgun Gothic',DARK='161B26',MUT='6B7280',LINE='E5E7EB',SOFT='F5F6F8';
   const txt=el=>{if(!el)return '';const c=el.cloneNode(true);c.querySelectorAll('.noprint,button,input').forEach(x=>x.remove());return c.innerText.replace(/\s+/g,' ').replace(/↗/g,'').trim()};
-  const pptx=new PptxGenJS();pptx.layout='LAYOUT_WIDE';pptx.title=m.name||'Report';const W=13.333;let page=1;
-  const slide=(title,sub)=>{const s=pptx.addSlide();page++;s.background={color:'FFFFFF'};s.addShape(pptx.ShapeType.rect,{x:0.5,y:0.42,w:0.07,h:0.46,fill:{color:ACC},line:{color:ACC,width:0}});
-    s.addText(title,{x:0.68,y:0.36,w:11.8,h:0.58,fontFace:F,fontSize:20,bold:true,color:DARK,valign:'middle',margin:0});if(sub)s.addText(sub,{x:0.68,y:0.92,w:11.8,h:0.34,fontFace:F,fontSize:10.5,color:MUT,margin:0});
-    s.addText(`RINGCOMS MCN · ${m.name||''}`,{x:0.5,y:7.02,w:9,h:0.28,fontFace:F,fontSize:8.5,color:'9CA3AF',margin:0});s.addText(String(page),{x:12.2,y:7.02,w:0.63,h:0.28,fontFace:F,fontSize:8.5,color:'9CA3AF',align:'right',margin:0});return s};
+  /* 이미지: 원본 비율 그대로 상자 안에 맞춤 (늘리지 않음) */
+  const dims=src=>new Promise(res=>{const im=new Image();im.onload=()=>res([im.naturalWidth||1,im.naturalHeight||1]);im.onerror=()=>res(null);im.src=src});
+  const putImg=async(s,data,x,y,w,h)=>{if(!data)return false;const d=await dims(data);if(!d)return false;const k=Math.min(w/d[0],h/d[1]);const iw=d[0]*k,ih=d[1]*k;try{s.addImage({data,x:x+(w-iw)/2,y:y+(h-ih)/2,w:iw,h:ih});return true}catch(e){return false}};
+  const pptx=new PptxGenJS();pptx.layout='LAYOUT_WIDE';pptx.title=m.name||'Report';const W=13.333,X0=0.5,CW=W-1,Y0=0.45,YMAX=6.95;let page=1;
   const dl=today().replace(/-/g,'.');
   // 표지
   {const s=pptx.addSlide();s.background={color:BG};s.addImage({data:LOGO_SRC,x:0.7,y:0.6,w:0.5,h:0.5,rounding:true});s.addText('RINGCOMS MCN',{x:1.3,y:0.6,w:5,h:0.5,fontFace:F,fontSize:14,bold:true,color:INK,valign:'middle',margin:0});
-    if(m.advLogo){try{s.addImage({data:m.advLogo,x:10.6,y:0.55,w:2.1,h:0.7,sizing:{type:'contain',w:2.1,h:0.7}})}catch(e){}}
+    if(m.advLogo)await putImg(s,m.advLogo,10.4,0.55,2.3,0.75);
     s.addText(TRL?'PRODUCT TRIAL CAMPAIGN REPORT':'INFLUENCER CAMPAIGN REPORT',{x:0.7,y:2.55,w:12,h:0.4,fontFace:F,fontSize:12,color:INK,transparency:25,margin:0});
-    s.addText(m.name||'',{x:0.7,y:3.0,w:12,h:1.3,fontFace:F,fontSize:38,bold:true,color:INK,valign:'top',margin:0,fit:'shrink'});
+    s.addText(m.name||'',{x:0.7,y:3.0,w:12,h:1.3,fontFace:F,fontSize:36,bold:true,color:INK,valign:'top',margin:0,fit:'shrink'});
     s.addText([m.advertiser+(m.brand&&m.brand!==m.advertiser?' · '+m.brand:''),m.start?`${t('기간','Period')} ${md(m.start)} ~ ${md(m.end)}`:'',`${t('목적','Objective')} ${V(m.objective)}`].filter(Boolean).join('   |   '),{x:0.7,y:4.45,w:12,h:0.4,fontFace:F,fontSize:13,color:INK,transparency:15,margin:0});
     s.addText(`${t('보고서 다운로드','Downloaded')} ${dl}`,{x:0.7,y:6.7,w:6,h:0.3,fontFace:F,fontSize:10,color:INK,transparency:35,margin:0})}
-  // 핵심 지표 (표지 KPI)
-  const kp=[...root.querySelectorAll('.rc-kpis > div')].map(d=>[txt(d.querySelector('span')),txt(d.querySelector('b'))]).filter(x=>x[0]);
-  const tileSlide=(title,sub,tiles)=>{for(let i=0;i<tiles.length;i+=8){const s=slide(title+(tiles.length>8?` (${i/8+1})`:''),sub);const part=tiles.slice(i,i+8);const cw=2.95,ch=2.35,gx=0.13,gy=0.2;
-    part.forEach((tl,j)=>{const x=0.5+(j%4)*(cw+gx),y=1.45+Math.floor(j/4)*(ch+gy);s.addShape(pptx.ShapeType.roundRect,{x,y,w:cw,h:ch,fill:{color:SOFT},line:{color:LINE,width:0.75},rectRadius:0.08});
-      s.addText(tl.l,{x:x+0.2,y:y+0.18,w:cw-0.4,h:0.4,fontFace:F,fontSize:11,color:MUT,margin:0});s.addText(tl.v,{x:x+0.2,y:y+0.65,w:cw-0.4,h:0.85,fontFace:F,fontSize:tl.v.length>12?20:26,bold:true,color:DARK,margin:0,fit:'shrink'});
-      if(tl.s)s.addText(tl.s,{x:x+0.2,y:y+1.55,w:cw-0.4,h:0.62,fontFace:F,fontSize:9,color:MUT,margin:0,valign:'top',fit:'shrink'})})}};
-  if(kp.length)tileSlide(t('핵심 성과','Key Results'),[m.advertiser,m.asof?`${t('데이터 기준일','Data as of')} ${md(m.asof)}`:''].filter(Boolean).join(' · '),kp.map(([l,v])=>({l,v,s:''})));
-  // 섹션별
-  const tRows=tbl=>{const head=[...tbl.querySelectorAll('thead th')].map(txt);const body=[...tbl.querySelectorAll('tbody tr')].filter(tr=>!tr.querySelector('.empty')).map(tr=>[...tr.children].map(td=>{const a=td.querySelector('a.go,a.rlink');const v=txt(td);return a&&/^(보기|View)$/.test(v)?{text:v,options:{hyperlink:{url:a.href},color:ACC}}:v}));
-    const foot=[...tbl.querySelectorAll('tfoot tr')].map(tr=>{const cells=[];[...tr.children].forEach(td=>{const n=+(td.getAttribute('colspan')||1);cells.push({text:txt(td),options:{bold:true,fill:{color:SOFT},colspan:n>1?n:undefined}})});return cells});
-    return {head:head.map(h=>({text:h,options:{bold:true,fill:{color:SOFT},color:MUT}})),body,foot}};
-  const tableSlides=(title,sub,tbl)=>{const head=[...tbl.querySelectorAll('thead th')].map(txt);const links=[];const body=[...tbl.querySelectorAll('tbody tr')].filter(tr=>!tr.querySelector('.empty')).map(tr=>[...tr.children].map(td=>{const a=td.querySelector('a.go,a.rlink');const v=txt(td);return a&&/^(보기|View)$/.test(v)?{text:v,options:{hyperlink:{url:a.href},color:ACC}}:v}));
-    const foot=[...tbl.querySelectorAll('tfoot tr')].map(tr=>{const cells=[];[...tr.children].forEach(td=>{const n=+(td.getAttribute('colspan')||1);cells.push({text:txt(td),options:{bold:true,fill:{color:SOFT},colspan:n>1?n:undefined}})});return cells});
-    if(!head.length||!body.length)return;const per=head.length>12?11:13;const fs=head.length>14?7.5:head.length>9?8.5:10;
-    for(let i=0;i<body.length;i+=per){const s=slide(title+(body.length>per?` (${i/per+1}/${Math.ceil(body.length/per)})`:''),sub);const rows=[head.map(h=>({text:h,options:{bold:true,fill:{color:SOFT},color:MUT}})),...body.slice(i,i+per)];if(i+per>=body.length)rows.push(...foot);
-      s.addTable(rows,{x:0.5,y:1.4,w:W-1,fontFace:F,fontSize:fs,color:DARK,border:{type:'solid',pt:0.5,color:LINE},valign:'middle',autoPage:false,rowH:0.36})}};
-  const secs=[...root.children].filter(e=>e.tagName==='SECTION');
-  for(const sec of secs){const h=txt(sec.querySelector('.rp-h2'));const d=txt(sec.querySelector(':scope > .rp-desc, :scope > div > div > .rp-desc, :scope .rp-desc'));
-    const tiles=[...sec.querySelectorAll('.tiles > .tile')].map(tl=>({l:txt(tl.querySelector('.l')),v:txt(tl.querySelector('.v')),s:txt(tl.querySelector('.s'))}));if(tiles.length)tileSlide(h,d,tiles);
-    // 캠페인 구성: 조회 수 차트
-    if(sec.querySelector('.hcharts')){const ch=[[t('채널별 조회 수','Views by Channel'),R.byCh],[t('콘텐츠 유형별 조회 수','Views by Content Type'),R.byType]].filter(([,a])=>(a||[]).some(o=>n(o.views)>0));
-      if(ch.length){const s=slide(h,t('게시 콘텐츠 기준 조회 수','Views of posted content'));ch.forEach(([lt,arr],k)=>{const L=arr.filter(o=>n(o.views)>0);s.addChart(pptx.ChartType.bar,[{name:lt,labels:L.map(o=>V(o.name)),values:L.map(o=>n(o.views))}],{x:0.5+k*6.2,y:1.4,w:6,h:5.3,barDir:'bar',chartColors:[ACC],showTitle:true,title:lt,titleFontFace:F,titleFontSize:12,catAxisLabelFontFace:F,catAxisLabelFontSize:10,valAxisLabelFontSize:9,valAxisLabelFormatCode:'#,##0',showValue:true,dataLabelFontSize:9,dataLabelFormatCode:'#,##0',valGridLine:{color:LINE,size:0.5}})})}}
-    // 상위 콘텐츠
-    const gcs=[...sec.querySelectorAll('.gal .gc')];if(gcs.length){for(let i=0;i<gcs.length;i+=4){const s=slide(h+(gcs.length>4?` (${i/4+1})`:''),d);const part=gcs.slice(i,i+4);
-        for(let j=0;j<part.length;j++){const g=part[j];const x=0.5+j*3.1,y=1.4,w=2.9;const im=g.querySelector('.gm img');const data=im?await imgData(im.currentSrc||im.src):null;
-          if(data)s.addImage({data,x,y,w,h:3.6,sizing:{type:'cover',w,h:3.6}});else{s.addShape(pptx.ShapeType.rect,{x,y,w,h:3.6,fill:{color:SOFT},line:{color:LINE,width:0.5}});s.addText(txt(g.querySelector('.pf'))||'Link',{x,y:y+1.5,w,h:0.5,align:'center',fontFace:F,fontSize:12,color:MUT})}
-          s.addText(`${j+i+1}`,{x:x+0.1,y:y+0.1,w:0.4,h:0.4,fontFace:F,fontSize:11,bold:true,color:'FFFFFF',fill:{color:DARK},align:'center',margin:0});
-          s.addText([{text:txt(g.querySelector('.ov b'))+' ',options:{bold:true,fontSize:16,color:DARK}},{text:txt(g.querySelector('.ov span')),options:{fontSize:10,color:MUT}}],{x,y:y+3.7,w,h:0.45,fontFace:F,margin:0});
-          const a=g.querySelector('a.gm');s.addText(txt(g.querySelector('.gn')),{x,y:y+4.15,w,h:0.35,fontFace:F,fontSize:11,bold:true,color:ACC,margin:0,hyperlink:a?{url:a.href}:undefined});
-          s.addText([txt(g.querySelector('.ga')),txt(g.querySelector('.gs'))].filter(Boolean).join('\n'),{x,y:y+4.5,w,h:0.75,fontFace:F,fontSize:8.5,color:MUT,margin:0,valign:'top',fit:'shrink'})}}}
-    // 표
-    /* 표: 행이 많은 표는 여러 장으로, 작은 표(채널별·티어별 등)는 한 장에 여러 개 */
-    const tbs=[...sec.querySelectorAll('table.tbl')].filter(tb=>!tb.closest('.show-m')).map(tb=>{const box=tb.closest('.tblwrap');const hh=box&&box.parentElement?txt(box.parentElement.querySelector(':scope > .rp-h2')):'';return {tb,sub:hh&&hh!==h?hh:''}});
-    const packs=[];let cur=null;
-    tbs.forEach(({tb,sub})=>{const T=tRows(tb);const nr=T.body.length+1+T.foot.length;if(!T.body.length)return;if(!sub||nr>11){cur=null;tableSlides(sub?`${h} · ${sub}`:h,sub?'':d,tb);return}
-      const hg=0.3*nr+0.42;if(!cur||cur.h+hg>5.45){cur={items:[],h:0};packs.push(cur)}cur.items.push({sub,T,nr});cur.h+=hg});
-    packs.forEach(pk=>{const s=slide(h,d);let y=1.4;pk.items.forEach(it=>{s.addText(it.sub,{x:0.5,y,w:6,h:0.3,fontFace:F,fontSize:11,bold:true,color:DARK,margin:0});y+=0.32;
-      s.addTable([it.T.head,...it.T.body,...it.T.foot],{x:0.5,y,w:W-1,fontFace:F,fontSize:9,color:DARK,border:{type:'solid',pt:0.5,color:LINE},valign:'middle',autoPage:false,rowH:0.3});y+=0.3*it.nr+0.1})});
-    // 인사이트
-    const ins=sec.querySelector('.ins');if(ins){const s=slide(h,'');s.addText(ins.innerText.trim(),{x:0.7,y:1.45,w:W-1.4,h:5.3,fontFace:F,fontSize:13,color:DARK,valign:'top',margin:0.1,fit:'shrink',paraSpaceAfter:6})}}
+  /* 슬라이드 채우기: 블록을 위에서부터 쌓고, 안 들어가면 다음 장 */
+  let S=null,y=0;
+  const newSlide=()=>{S=pptx.addSlide();page++;S.background={color:'FFFFFF'};S.addText(`RINGCOMS MCN · ${m.name||''}`,{x:X0,y:7.08,w:9,h:0.26,fontFace:F,fontSize:8,color:'9CA3AF',margin:0});S.addText(String(page),{x:12.2,y:7.08,w:0.63,h:0.26,fontFace:F,fontSize:8,color:'9CA3AF',align:'right',margin:0});y=Y0};
+  const room=()=>YMAX-y;const ensure=h=>{if(!S||h>room())newSlide()};
+  const heading=(title,desc)=>{S.addShape(pptx.ShapeType.rect,{x:X0,y:y+0.04,w:0.06,h:0.26,fill:{color:ACC},line:{color:ACC,width:0}});S.addText(title,{x:X0+0.14,y,w:CW-0.2,h:0.34,fontFace:F,fontSize:14,bold:true,color:DARK,margin:0,valign:'middle'});y+=0.36;
+    if(desc){S.addText(desc,{x:X0+0.14,y,w:CW-0.2,h:0.24,fontFace:F,fontSize:8.5,color:MUT,margin:0,valign:'top'});y+=0.26}y+=0.06};
+  const headH=desc=>0.42+(desc?0.26:0);
+  /* 블록 정의 */
+  const tilesBlock=tl=>{const n=tl.length;const cols=n<=4?Math.max(n,3):n<=8?4:n<=15?5:6;const rows=Math.ceil(n/cols);const gx=0.12,gy=0.09,th_=0.84;const cw=(CW-gx*(cols-1))/cols;
+    return {h:rows*th_+(rows-1)*gy,draw(){const y0=y;tl.forEach((x,j)=>{const cx=X0+(j%cols)*(cw+gx),cy=y0+Math.floor(j/cols)*(th_+gy);
+      S.addShape(pptx.ShapeType.roundRect,{x:cx,y:cy,w:cw,h:th_,fill:{color:x.hero?'FFFFFF':SOFT},line:{color:x.hero?ACC:LINE,width:x.hero?1:0.75},rectRadius:0.06});
+      S.addText(x.l,{x:cx+0.14,y:cy+0.08,w:cw-0.28,h:0.22,fontFace:F,fontSize:8.5,color:MUT,margin:0,fit:'shrink'});
+      S.addText(x.v,{x:cx+0.14,y:cy+0.3,w:cw-0.28,h:0.34,fontFace:F,fontSize:x.v.length>11?14:17,bold:true,color:DARK,margin:0,fit:'shrink'});
+      if(x.s)S.addText(x.s,{x:cx+0.14,y:cy+0.6,w:cw-0.28,h:0.2,fontFace:F,fontSize:7,color:MUT,margin:0,fit:'shrink'});
+      if(x.p!=null){S.addShape(pptx.ShapeType.rect,{x:cx+0.14,y:cy+th_-0.1,w:cw-0.28,h:0.04,fill:{color:LINE},line:{color:LINE,width:0}});S.addShape(pptx.ShapeType.rect,{x:cx+0.14,y:cy+th_-0.1,w:Math.max(0.02,(cw-0.28)*Math.min(1,x.p)),h:0.04,fill:{color:ACC},line:{color:ACC,width:0}})}});y+=rows*th_+(rows-1)*gy+0.12}}};
+  const chartsBlock=cs=>{const n=cs.length;const gx=0.15;const cw=(CW-gx*(n-1))/n;const mxItems=Math.max(...cs.map(c=>c.items.length));const h=0.55+mxItems*0.24;
+    return {h,draw(){const y0=y;cs.forEach((c,k)=>{const cx=X0+k*(cw+gx);S.addShape(pptx.ShapeType.roundRect,{x:cx,y:y0,w:cw,h,fill:{color:'FFFFFF'},line:{color:LINE,width:0.75},rectRadius:0.06});
+      S.addText(c.t,{x:cx+0.14,y:y0+0.08,w:cw-0.28,h:0.22,fontFace:F,fontSize:9.5,bold:true,color:DARK,margin:0});S.addText(c.d,{x:cx+0.14,y:y0+0.28,w:cw-0.28,h:0.18,fontFace:F,fontSize:7,color:MUT,margin:0});
+      const lw=cw*0.3,vw=cw*0.26,bw=cw-0.28-lw-vw-0.08;c.items.forEach((it,i)=>{const iy=y0+0.52+i*0.24;S.addText(it.l,{x:cx+0.14,y:iy,w:lw,h:0.2,fontFace:F,fontSize:8,color:DARK,margin:0,fit:'shrink'});
+        S.addShape(pptx.ShapeType.rect,{x:cx+0.14+lw,y:iy+0.05,w:Math.max(0.03,bw*it.p),h:0.1,fill:{color:ACC},line:{color:ACC,width:0}});
+        S.addText(it.v,{x:cx+cw-0.14-vw,y:iy,w:vw,h:0.2,fontFace:F,fontSize:8,bold:true,color:DARK,align:'right',margin:0,fit:'shrink'})})});y+=h+0.12}}};
+  const tblData=tbl=>{const head=[...tbl.querySelectorAll('thead th')].map(txt);const body=[...tbl.querySelectorAll('tbody tr')].filter(tr=>!tr.querySelector('.empty')).map(tr=>[...tr.children].map(td=>{const a=td.querySelector('a.go,a.rlink');const v=txt(td);return a&&/^(보기|View)$/.test(v)?{text:v,options:{hyperlink:{url:a.href},color:ACC}}:v}));
+    const foot=[...tbl.querySelectorAll('tfoot tr')].map(tr=>[...tr.children].map(td=>{const n=+(td.getAttribute('colspan')||1);return {text:txt(td),options:{bold:true,fill:{color:SOFT},colspan:n>1?n:undefined}}}));
+    const nAlign=[...tbl.querySelectorAll('thead th')].map(x=>x.classList.contains('n')?'right':'left');
+    const cell=(v,i)=>typeof v==='string'?{text:v,options:{align:nAlign[i]||'left'}}:{...v,options:{...v.options,align:nAlign[i]||'left'}};
+    return {head:head.map((h,i)=>({text:h,options:{bold:true,fill:{color:SOFT},color:MUT,align:nAlign[i]||'left'}})),body:body.map(r=>r.map(cell)),foot}};
+  /* 표 칸 너비·행 높이 계산: 숫자 칸은 한 줄 유지, 글자 칸이 나머지 폭을 나눔 */
+  const tw=(str,fs)=>[...String(str||'')].reduce((a,ch)=>a+(/[\u1100-\uFFDC]/.test(ch)?0.95:/[A-Z0-9%₩,.]/.test(ch)?0.62:0.52),0)*fs/72;
+  const ctext=c=>typeof c==='string'?c:(c&&c.text)||'';
+  const layoutTbl=(T,width,fs)=>{const rows=[T.head,...T.body];const nc=T.head.length;const pad=0.12;const isN=T.head.map(h=>(h.options||{}).align==='right');
+    const nat=[...Array(nc)].map((_,i)=>Math.max(...rows.map(r=>r[i]?tw(ctext(r[i]),fs)+pad:0),0.3));
+    let colW;const sum=nat.reduce((a,b)=>a+b,0);
+    if(sum<=width)colW=nat.map(x=>x*width/sum);else{const fixed=nat.reduce((a,x,i)=>a+(isN[i]?x:0),0);const textNat=sum-fixed;const left=width-fixed;
+      colW=fixed<width*0.8?nat.map((x,i)=>isN[i]?x:Math.max(0.45,x*left/textNat)):nat.map(x=>x*width/sum);const s2=colW.reduce((a,b)=>a+b,0);colW=colW.map(x=>x*width/s2)}
+    const lineH=fs*0.0175;const rh=r=>0.07+lineH*Math.max(1,...r.map((c,i)=>Math.ceil(tw(ctext(c),fs)/Math.max(0.2,colW[i]-pad))));
+    return {colW,headH:rh(T.head),rowH:T.body.map(rh),footH:T.foot.map(()=>0.07+lineH)}};
+  const smallTables=list=>{const per=2,gx=0.2,cw=(CW-gx)/per;const FS=7.5;const blocks=[];list.forEach(x=>{x.L=layoutTbl(x.T,cw,FS);x.H=0.27+x.L.headH+x.L.rowH.reduce((a,b)=>a+b,0)+x.L.footH.reduce((a,b)=>a+b,0)});for(let i=0;i<list.length;i+=per){const part=list.slice(i,i+per);const hh=Math.max(...part.map(x=>x.H));
+      blocks.push({h:hh,draw(){const y0=y;part.forEach((x,k)=>{const cx=X0+k*(cw+gx);S.addText(x.sub,{x:cx,y:y0,w:cw,h:0.24,fontFace:F,fontSize:9.5,bold:true,color:DARK,margin:0});
+        S.addTable([x.T.head,...x.T.body,...x.T.foot],{x:cx,y:y0+0.27,w:cw,colW:x.L.colW,fontFace:F,fontSize:FS,color:DARK,border:{type:'solid',pt:0.5,color:LINE},valign:'middle',autoPage:false,rowH:[x.L.headH,...x.L.rowH,...x.L.footH],margin:[0.02,0.05,0.02,0.05]})});y+=hh+0.12}})}return blocks};
+  /* 큰 표: 남은 공간에 맞춰 넣고, 넘치면 다음 장에 이어서 */
+  const bigTable=(T,sub)=>{const FS=T.head.length>16?6.5:T.head.length>12?7:7.5;const L=layoutTbl(T,CW,FS);const subH=sub?0.28:0;const bodyH=L.rowH.reduce((a,b)=>a+b,0),footH=L.footH.reduce((a,b)=>a+b,0);
+    return {big:true,minH:subH+L.headH+L.rowH.slice(0,3).reduce((a,b)=>a+b,0),fullH:subH+L.headH+bodyH+footH,
+    draw(){let i=0;while(i<T.body.length){let avail=room()-subH-L.headH-0.05;let take=0,used=0;while(i+take<T.body.length&&used+L.rowH[i+take]<=avail){used+=L.rowH[i+take];take++}
+        if(i+take>=T.body.length&&used+footH>avail&&take>1){take--;used-=L.rowH[i+take]}
+        if(take<1||(take<3&&T.body.length-i>=3&&y>Y0+0.01)){newSlide();continue}
+        if(sub){S.addText(sub,{x:X0,y,w:CW,h:0.24,fontFace:F,fontSize:9.5,bold:true,color:DARK,margin:0});y+=0.28}
+        const last=i+take>=T.body.length;const rows=[T.head,...T.body.slice(i,i+take),...(last?T.foot:[])];const rh=[L.headH,...L.rowH.slice(i,i+take),...(last?L.footH:[])];i+=take;
+        S.addTable(rows,{x:X0,y,w:CW,colW:L.colW,fontFace:F,fontSize:FS,color:DARK,border:{type:'solid',pt:0.5,color:LINE},valign:'middle',autoPage:false,rowH:rh,margin:[0.02,0.05,0.02,0.05]});y+=rh.reduce((a,b)=>a+b,0)+0.12;if(!last)newSlide()}}}};
+  const galleryBlock=async gcs=>{const n=gcs.length;const cols=n<=6?Math.max(n,4):4;const rows=Math.ceil(n/cols);const gx=0.15,cw=(CW-gx*(cols-1))/cols;const ih=rows>1?1.85:Math.min(3.1,cw*1.25);const ch=ih+0.78;
+    const items=[];for(const g of gcs){const im=g.querySelector('.gm img');items.push({data:im?await imgData(im.currentSrc||im.src):null,pf:txt(g.querySelector('.pf')),ovb:txt(g.querySelector('.ov b')),ovs:txt(g.querySelector('.ov span')),gn:txt(g.querySelector('.gn')),ga:txt(g.querySelector('.ga')),gs:txt(g.querySelector('.gs')),href:(g.querySelector('a.gm')||{}).href})}
+    return {h:rows*ch+(rows-1)*0.12,async draw(){const y0=y;for(let j=0;j<items.length;j++){const it=items[j];const cx=X0+(j%cols)*(cw+gx),cy=y0+Math.floor(j/cols)*(ch+0.12);
+      S.addShape(pptx.ShapeType.rect,{x:cx,y:cy,w:cw,h:ih,fill:{color:'1F2430'},line:{color:LINE,width:0.5}});
+      if(!(await putImg(S,it.data,cx,cy,cw,ih)))S.addText(it.pf||'Link',{x:cx,y:cy+ih/2-0.2,w:cw,h:0.4,align:'center',fontFace:F,fontSize:11,color:'FFFFFF',margin:0});
+      S.addText(String(j+1),{x:cx+0.08,y:cy+0.08,w:0.3,h:0.3,fontFace:F,fontSize:9,bold:true,color:'FFFFFF',fill:{color:DARK},align:'center',margin:0});
+      S.addText([{text:it.ovb+' ',options:{bold:true,fontSize:13,color:DARK}},{text:it.ovs,options:{fontSize:8,color:MUT}}],{x:cx,y:cy+ih+0.04,w:cw,h:0.28,fontFace:F,margin:0});
+      S.addText(it.gn,{x:cx,y:cy+ih+0.32,w:cw,h:0.2,fontFace:F,fontSize:8.5,bold:true,color:ACC,margin:0,fit:'shrink',hyperlink:it.href?{url:it.href}:undefined});
+      S.addText([it.ga,it.gs].filter(Boolean).join('  '),{x:cx,y:cy+ih+0.52,w:cw,h:0.24,fontFace:F,fontSize:7,color:MUT,margin:0,valign:'top',fit:'shrink'})}y+=rows*ch+(rows-1)*0.12+0.12}}};
+  const textBlock=(text,fs,boxed)=>{const lines=text.split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/(fs>9?120:170))),0);const h=Math.min(5.5,0.16+lines*fs*0.0185);
+    return {h,draw(){if(boxed)S.addShape(pptx.ShapeType.roundRect,{x:X0,y,w:CW,h,fill:{color:'EEF1FB'},line:{color:'EEF1FB',width:0},rectRadius:0.06});S.addText(text,{x:X0+0.12,y:y+0.04,w:CW-0.24,h:h-0.08,fontFace:F,fontSize:fs,color:boxed?DARK:MUT,margin:0,valign:'top',fit:'shrink'});y+=h+0.12}}};
+  /* 캠페인 요약 띠 (화면 상단 카드) */
+  const cover=root.querySelector('.rp-cover');const kp=[...root.querySelectorAll('.rc-kpis > div')].map(d=>[txt(d.querySelector('span')),txt(d.querySelector('b'))]).filter(x=>x[0]);
+  const band={h:1.55,draw(){S.addShape(pptx.ShapeType.roundRect,{x:X0,y,w:CW,h:1.55,fill:{color:BG},line:{color:BG,width:0},rectRadius:0.08});
+    S.addText(txt(cover&&cover.querySelector('.rc-title'))||m.name||'',{x:X0+0.25,y:y+0.14,w:CW-0.5,h:0.36,fontFace:F,fontSize:16,bold:true,color:INK,margin:0,fit:'shrink'});
+    S.addText([...(cover?cover.querySelectorAll('.rc-meta > span'):[])].map(txt).filter(Boolean).join('  ·  '),{x:X0+0.25,y:y+0.5,w:CW-0.5,h:0.24,fontFace:F,fontSize:8.5,color:INK,transparency:20,margin:0,fit:'shrink'});
+    const n=kp.length||1,gx=0.12,kw=(CW-0.5-gx*(n-1))/n;kp.forEach(([l,v],i)=>{const kx=X0+0.25+i*(kw+gx);S.addShape(pptx.ShapeType.roundRect,{x:kx,y:y+0.84,w:kw,h:0.58,fill:{color:INK,transparency:90},line:{color:INK,transparency:100,width:0},rectRadius:0.05});
+      S.addText(l,{x:kx+0.12,y:y+0.88,w:kw-0.24,h:0.18,fontFace:F,fontSize:7.5,color:INK,transparency:25,margin:0});S.addText(v,{x:kx+0.12,y:y+1.06,w:kw-0.24,h:0.3,fontFace:F,fontSize:14,bold:true,color:INK,margin:0,fit:'shrink'})});y+=1.55+0.18}};
+  /* 섹션 → 블록 목록 (진행 현황은 제외) */
+  const secs=[...root.children].filter(e=>e.tagName==='SECTION'&&!e.classList.contains('rp-prog'));const plan=[];
+  for(const sec of secs){const h=txt(sec.querySelector('.rp-h2'));const d=txt(sec.querySelector('.rp-desc'));const blocks=[];
+    const tiles=[...sec.querySelectorAll('.tiles > .tile')].map(tl=>{const bar=tl.querySelector('.tg i');return {l:txt(tl.querySelector('.l')),v:txt(tl.querySelector('.v')),s:txt(tl.querySelector('.s')),hero:tl.classList.contains('hero'),p:bar?(parseFloat(bar.style.width)||0)/100:null}});
+    if(tiles.length)blocks.push(tilesBlock(tiles));
+    const hc=[...sec.querySelectorAll('.hcharts .hchart')].map(c=>{const it=[...c.querySelectorAll('.hb')];return {t:txt(c.querySelector('h4')),d:txt(c.querySelector('p')),items:it.map(b=>{const i=b.querySelector('.t i');const v=b.querySelector('.v');const em=v&&v.querySelector('em');const vv=v?txt(v):'';return {l:txt(b.querySelector('.l')),v:vv,p:i?(parseFloat(i.style.width)||0)/100:0}})}});
+    if(hc.length)blocks.push(chartsBlock(hc));
+    const gcs=[...sec.querySelectorAll('.gal .gc')];if(gcs.length)blocks.push(await galleryBlock(gcs));
+    const tbs=[...sec.querySelectorAll('table.tbl')].filter(tb=>!tb.closest('.show-m')).map(tb=>{const box=tb.closest('.tblwrap');const hh=box&&box.parentElement?txt(box.parentElement.querySelector(':scope > .rp-h2')):'';return {T:tblData(tb),sub:hh&&hh!==h?hh:''}}).filter(x=>x.T.body.length);
+    const small=tbs.filter(x=>x.sub&&x.T.body.length<=8),big=tbs.filter(x=>!(x.sub&&x.T.body.length<=8));
+    blocks.push(...smallTables(small));big.forEach(x=>blocks.push(bigTable(x.T,x.sub)));
+    const ins=sec.querySelector('.ins');if(ins)blocks.push(textBlock(ins.innerText.trim(),10,true));
+    if(blocks.length)plan.push({h,d,blocks})}
+  /* 배치: 섹션 전체가 남은 공간에 들어가면 같은 장에, 아니면 새 장 */
+  const secH=p=>headH(p.d)+p.blocks.reduce((a,b)=>a+(b.big?b.fullH:b.h)+0.12,0);
+  newSlide();band.draw();
+  for(const p of plan){const need=secH(p);const firstNeed=headH(p.d)+(p.blocks[0]?(p.blocks[0].big?p.blocks[0].minH:p.blocks[0].h):0);
+    if(need>room()&&(need<=YMAX-Y0||firstNeed>room()))newSlide();
+    heading(p.h,p.d);for(const b of p.blocks){if(b.big){if(b.minH>room())newSlide();await b.draw()}else{if(b.h>room())newSlide();await b.draw()}}}
+  const foot=[...root.children].find(e=>e.tagName==='P'&&e.classList.contains('small'));if(foot){const tb=textBlock(txt(foot),7.5,false);if(tb.h>room())newSlide();tb.draw()}
   // E.O.D
   {const s=pptx.addSlide();s.background={color:BG};s.addText('E.O.D',{x:0,y:2.3,w:W,h:1.2,align:'center',fontFace:F,fontSize:64,bold:true,color:INK,charSpacing:8,margin:0});
     s.addText([{text:t('링컴즈 MCN 사업부 광고콘텐츠팀','RINGCOMS MCN Division · Ad Content Team'),options:{bold:true,fontSize:16,breakLine:true}},{text:'ac@ringcoms.com',options:{fontSize:13,breakLine:true}},{text:`${t('다운로드 일자','Downloaded')} ${dl}`,options:{fontSize:12}}],{x:0,y:3.8,w:W,h:1.4,align:'center',fontFace:F,color:INK,margin:0,paraSpaceAfter:6})}
