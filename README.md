@@ -58,7 +58,9 @@
 - 데모: `?demo=1&as=client` / `?demo=1&as=clientAdmin`
 
 ## 업데이트 관리
-- Claude 정기 실행(매일 09:47·18:47 KST)이 `ops` 브랜치의 `ops/suggestions.json`에 제안을 쓰고, 「업데이트 진행」으로 승인된 항목을 적용·테스트 후 `main` 배포, `public/changelog.json`에 기록
+- Claude 정기 실행(매주 일요일 09:47 KST)이 `ops` 브랜치의 `ops/suggestions.json`에 다음 주 제안을 쓰고, 그 주에 마스터가 「업데이트 진행」으로 승인한 항목을 한 번에 적용·테스트 후 `main`에 배포 1회, `public/changelog.json`에 기록 (승인 항목이 없으면 배포 없음)
+- 업데이트 진행·보류·제외는 마스터만, 요청 남기기는 마스터·매니저
+- `netlify.toml`의 `ignore` 설정으로 `main` 이외 브랜치(work·ops)는 빌드하지 않음
 - 사이트는 `/api/ops`로 읽고 승인 (`GITHUB_TOKEN` 필요)
 
 ## 주소

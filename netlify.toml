@@ -3,6 +3,8 @@
   publish = "public"
   functions = "netlify/functions"
   command = ""
+  # main 이외 브랜치(work·ops 등)는 빌드·배포하지 않음 — 크레딧 절약 (종료 코드 0 = 이번 빌드 건너뜀)
+  ignore = "if [ \"$BRANCH\" = \"main\" ]; then exit 1; else exit 0; fi"
 
 [functions]
   node_bundler = "esbuild"
