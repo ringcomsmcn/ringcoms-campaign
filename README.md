@@ -65,3 +65,9 @@
 
 ## 주소
 - 화면마다 주소(`#/c/캠페인id/report` 등)가 있어 브라우저 뒤로 가기로 직전 화면으로 돌아감
+
+## 롤백 (안정 버전으로 되돌리기)
+- 안정 버전 저장: 브랜치 `stable-v0.12` (2026-10-07 배포본, 커밋 69e0395). 버전을 올려 안정이 확인되면 `stable-vX.YY` 브랜치를 새로 만듦
+- 가장 빠른 방법: Netlify → Deploys → 안정 버전 배포(10/7 「업데이트 이력 v0.12 커밋 기록」)를 열고 **Publish deploy** (새 빌드 없이 즉시 되돌림)
+- 코드까지 되돌리기: `git revert`로 문제 커밋을 되돌려 main에 푸시 (강제 푸시 금지). `stable-v0.12`와 비교: `git diff stable-v0.12 main`
+- Firestore 규칙 되돌리기: 콘솔 → Firestore → 규칙 → 기록(History)에서 이전 버전 선택, 또는 `git show stable-v0.12:firestore.rules` 내용을 붙여넣고 게시
