@@ -3,7 +3,9 @@
 //   { action: 'start', urls: [...] }  → 틱톡은 바로 수집, 인스타그램(및 틱톡 실패분)은 Apify 실행 시작
 //   { action: 'poll',  jobs: [...] }  → Apify 실행이 끝났으면 결과 반환
 //   { action: 'profile', urls: [...] } → 채널(프로필) 링크로 계정·팔로워·카테고리·소개글 (틱톡은 바로, 인스타그램은 Apify)
-// 호출 권한: Firebase에 로그인한 팀원(마스터·매니저)만. Apify 토큰은 Netlify 환경변수 APIFY_TOKEN에만 보관.
+//   { action: 'thumb', url }            → 게시물 썸네일 이미지를 서버에서 받아 data URL로 반환 (인스타그램 CDN은 브라우저에서 직접 못 받음)
+// 성과 결과에는 게시일(posted, ISO)도 들어감 → 사이트가 업로드일로 사용
+// 호출 권한: Firebase에 로그인한 링컴즈 팀원(마스터·매니저)과 광고주 계정 관리자만. Apify 토큰은 Netlify 환경변수 APIFY_TOKEN에만 보관.
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'ringcoms-campaign';
 const APIFY = 'https://api.apify.com/v2';
@@ -14,6 +16,8 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const num = v => (v == null || v === '' || !isFinite(+v) || +v < 0) ? null : Math.round(+v);
+/* 게시 시각: ISO 문자열 또는 초 단위 유닉스 시각 → ISO */
+export const isoOf = v => { if (v == null || v === '') return null; const d = typeof v === 'number' || /^\d+$/.test(String(v)) ? new Date(+v * (String(v).length > 11 ? 1 : 1000)) : new Date(v); return isNaN(d) ? null : d.toISOString(); };
 export const platformOf = u => /instagram\.com/i.test(u) ? 'ig' : /tiktok\.com/i.test(u) ? 'tt' : null;
 export const igCode = u => (String(u).match(/instagram\.com\/(?:[^/]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i) || [])[1] || null;
 export const ttId = u => (String(u).match(/\/video\/(\d+)/) || [])[1] || null;
@@ -33,8 +37,10 @@ async function checkMember(req) {
   if (!r.ok) return { ok: false, status: 403, error: '팀원만 사용할 수 있습니다.' };
   const d = await r.json().catch(() => ({}));
   const role = (((d.fields || {}).role || {}).stringValue) || 'viewer';
-  if (!['master', 'manager'].includes(role)) return { ok: false, status: 403, error: '보기 전용(뷰어) 권한으로는 성과를 불러올 수 없습니다.' };
-  return { ok: true, email, role };
+  const acct = (((d.fields || {}).acct || {}).stringValue) || 'ringcoms';
+  const team = acct === 'ringcoms' && ['master', 'manager'].includes(role);
+  if (!team && role !== 'clientAdmin') return { ok: false, status: 403, error: '보기 전용 권한으로는 성과를 불러올 수 없습니다.' };
+  return { ok: true, email, role, acct, team };
 }
 
 /* 2) 틱톡: 공개 페이지의 데이터를 바로 읽기 */
@@ -45,7 +51,7 @@ export function parseTikTokHtml(html) {
   const it = (((j.__DEFAULT_SCOPE__ || {})['webapp.video-detail'] || {}).itemInfo || {}).itemStruct;
   if (!it) return null;
   const s = it.statsV2 || it.stats || {};
-  return { owner: (it.author && it.author.uniqueId) || null, views: num(s.playCount), likes: num(s.diggCount), cmts: num(s.commentCount), shares: num(s.shareCount), saves: num(s.collectCount), thumbUrl: (it.video && (it.video.cover || it.video.originCover)) || null };
+  return { owner: (it.author && it.author.uniqueId) || null, views: num(s.playCount), likes: num(s.diggCount), cmts: num(s.commentCount), shares: num(s.shareCount), saves: num(s.collectCount), thumbUrl: (it.video && (it.video.cover || it.video.originCover)) || null, posted: isoOf(it.createTime) };
 }
 /* 틱톡 프로필 공개 페이지 */
 export function parseTikTokProfile(html) {
@@ -91,7 +97,7 @@ export function mapIg(it) {
   const code = it.shortCode || igCode(it.url || it.inputUrl || '');
   const likes = num(it.likesCount);
   const kind = it.productType === 'clips' || it.type === 'Video' ? 'reel' : (it.type === 'Image' || it.type === 'Sidecar') ? 'feed' : null;
-  return { key: 'ig:' + code, owner: it.ownerUsername || null, views: num(it.videoPlayCount) ?? num(it.videoViewCount), likes, cmts: num(it.commentsCount), shares: null, saves: null, thumbUrl: it.displayUrl || null, likesHidden: likes == null, kind };
+  return { key: 'ig:' + code, owner: it.ownerUsername || null, views: num(it.videoPlayCount) ?? num(it.videoViewCount), likes, cmts: num(it.commentsCount), shares: null, saves: null, thumbUrl: it.displayUrl || (Array.isArray(it.images) && it.images[0]) || null, likesHidden: likes == null, kind, posted: isoOf(it.timestamp) };
 }
 export function mapIgProfile(it) {
   return { key: 'igp:' + String(it.username || '').toLowerCase(), acct: it.username || null, name: it.fullName || '', bio: it.biography || '', followers: num(it.followersCount), category: it.businessCategoryName || '', private: !!it.private };
@@ -102,7 +108,24 @@ export function mapTtProfile(it) {
 }
 export function mapTt(it) {
   const id = String(it.id || ttId(it.webVideoUrl || it.submittedVideoUrl || '') || '');
-  return { key: 'tt:' + id, owner: (it.authorMeta && it.authorMeta.name) || null, views: num(it.playCount), likes: num(it.diggCount), cmts: num(it.commentCount), shares: num(it.shareCount), saves: num(it.collectCount), thumbUrl: (it.videoMeta && (it.videoMeta.coverUrl || it.videoMeta.originalCoverUrl)) || null };
+  return { key: 'tt:' + id, owner: (it.authorMeta && it.authorMeta.name) || null, views: num(it.playCount), likes: num(it.diggCount), cmts: num(it.commentCount), shares: num(it.shareCount), saves: num(it.collectCount), thumbUrl: (it.videoMeta && (it.videoMeta.coverUrl || it.videoMeta.originalCoverUrl)) || null, posted: isoOf(it.createTimeISO || it.createTime) };
+}
+/* 썸네일 이미지 받기: 인스타그램·틱톡 CDN 주소만 허용 (다른 주소로 요청을 보내는 데 쓰이지 않도록) */
+const THUMB_HOSTS = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn\.com|tiktokcdn-us\.com|tiktokcdn-eu\.com|ibyteimg\.com|byteimg\.com|muscdn\.com)$/i;
+export function thumbHostOk(u) { try { const x = new URL(u); return x.protocol === 'https:' && THUMB_HOSTS.test(x.hostname); } catch (e) { return false; } }
+async function fetchThumb(u) {
+  if (!thumbHostOk(u)) return { error: '허용되지 않은 이미지 주소입니다.' };
+  try {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
+    const r = await fetch(u, { headers: { 'user-agent': UA, accept: 'image/avif,image/webp,image/*,*/*;q=0.8' }, redirect: 'follow', signal: ctl.signal });
+    clearTimeout(t);
+    if (!r.ok) return { error: '이미지를 받지 못했습니다 (' + r.status + '). 주소가 만료됐을 수 있어 「성과 불러오기」를 다시 눌러 주세요.' };
+    const type = (r.headers.get('content-type') || '').split(';')[0].trim();
+    if (!/^image\//.test(type)) return { error: '이미지가 아닙니다.' };
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > 4 * 1024 * 1024) return { error: '이미지가 너무 큽니다.' };
+    return { data: `data:${type};base64,${buf.toString('base64')}` };
+  } catch (e) { return { error: '이미지를 받지 못했습니다.' }; }
 }
 const keyOf = (u, platform) => platform === 'igp' ? 'igp:' + String(igUser(u) || '').toLowerCase() : platform === 'ttp' ? 'ttp:' + String(ttUser(u) || '').toLowerCase() : platformOf(u) === 'ig' ? 'ig:' + igCode(u) : 'tt:' + ttId(u);
 const MAPPERS = { ig: mapIg, tt: mapTt, igp: mapIgProfile, ttp: mapTtProfile };
@@ -157,6 +180,11 @@ export default async (req) => {
     return json({ results, jobs, warnings, done: jobs.length === 0 });
   }
 
+  if (body.action === 'thumb') {
+    const r = await fetchThumb(String(body.url || ''));
+    return r.error ? json({ error: r.error }, 400) : json({ data: r.data });
+  }
+
   if (body.action === 'status') {
     const apify = { token: !!process.env.APIFY_TOKEN };
     if (apify.token) {
@@ -188,7 +216,7 @@ export default async (req) => {
     return json({ results, done, warnings });
   }
 
-  return json({ error: 'action은 start·poll·profile·status 중 하나여야 합니다.' }, 400);
+  return json({ error: 'action은 start·poll·profile·thumb·status 중 하나여야 합니다.' }, 400);
 };
 
 export const config = { path: '/api/social-stats' };

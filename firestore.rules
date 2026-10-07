@@ -7,62 +7,123 @@ service cloud.firestore {
     function me() {
       return /databases/$(database)/documents/admins/$(request.auth.token.email.lower());
     }
-    // 팀원 여부 (마스터·매니저·뷰어 모두)
+    // 등록된 사람 (링컴즈 팀원 + 초대받은 광고주)
     function isAdmin() {
       return signedIn() && exists(me());
     }
-    // 권한: 기록이 없으면 뷰어로 취급
+    // 권한: 기록이 없으면 뷰어로 취급 / 계정: 기록이 없으면 링컴즈(ringcoms)
     function role() {
       return get(me()).data.get('role', 'viewer');
     }
-    // 수정 가능: 마스터·매니저
+    function acct() {
+      return get(me()).data.get('acct', 'ringcoms');
+    }
+    // 링컴즈 팀원 (마스터·매니저·뷰어)
+    function isTeam() {
+      return isAdmin() && acct() == 'ringcoms' && role() in ['master', 'manager', 'viewer'];
+    }
+    // 수정 가능: 링컴즈 마스터·매니저
     function canEdit() {
-      return isAdmin() && role() in ['master', 'manager'];
+      return isTeam() && role() in ['master', 'manager'];
     }
     function isMaster() {
-      return isAdmin() && role() == 'master';
+      return isTeam() && role() == 'master';
     }
-    // 팀원 목록: 팀원 모두 읽기 / 추가는 마스터·매니저(매니저는 매니저·뷰어로만) / 권한 변경·삭제는 마스터만
+    // 광고주 계정 사람 (클라이언트·클라이언트 관리자)
+    function isClient() {
+      return isAdmin() && acct() != 'ringcoms' && role() in ['client', 'clientAdmin'];
+    }
+    function isClientAdmin() {
+      return isClient() && role() == 'clientAdmin';
+    }
+    function camp(id) {
+      return get(/databases/$(database)/documents/campaigns/$(id)).data;
+    }
+    // 광고주 관리자가 자기 계정에서 직접 운영하는 캠페인 (링컴즈가 운영하는 캠페인은 제외)
+    function ownData(d) {
+      return d.acct == acct() && d.managed == '';
+    }
+    function ownsCamp(id) {
+      return isClientAdmin() && exists(/databases/$(database)/documents/campaigns/$(id))
+        && camp(id).get('acct', 'ringcoms') == acct() && camp(id).get('managed', 'ringcoms') == '';
+    }
+
+    // 사람 목록: 팀원은 전체, 광고주는 자기 문서(관리자는 같은 계정 멤버)만
+    // 추가는 마스터·매니저 (매니저는 마스터를 만들 수 없음) · 팀원 권한은 ringcoms 계정에만, 광고주 권한은 광고주 계정에만
     match /admins/{email} {
-      allow read: if isAdmin();
-      allow create: if canEdit() && (isMaster() || request.resource.data.role in ['manager', 'viewer']);
-      allow update: if isMaster();
-      allow delete: if isMaster() && email != request.auth.token.email.lower();
+      allow get: if isTeam() || (isAdmin() && email == request.auth.token.email.lower())
+        || (isClientAdmin() && resource.data.acct == acct());
+      allow list: if isTeam() || (isClientAdmin() && resource.data.acct == acct());
+      allow create: if canEdit()
+        && (isMaster() || request.resource.data.role in ['manager', 'viewer', 'client', 'clientAdmin'])
+        && ((request.resource.data.get('acct', 'ringcoms') == 'ringcoms') == (request.resource.data.role in ['master', 'manager', 'viewer']));
+      allow update: if isMaster()
+        && ((request.resource.data.get('acct', 'ringcoms') == 'ringcoms') == (request.resource.data.role in ['master', 'manager', 'viewer']));
+      allow delete: if (isMaster() && email != request.auth.token.email.lower())
+        || (canEdit() && resource.data.get('acct', 'ringcoms') != 'ringcoms');
     }
-    // 캠페인·진행관리·인플루언서 풀: 팀원 모두 읽기, 마스터·매니저만 수정
-    match /campaigns/{id} {
-      allow read: if isAdmin();
+    // 광고주 계정: 팀원 읽기·마스터·매니저 수정, 광고주는 자기 계정만 읽기
+    match /accounts/{aid} {
+      allow read: if isTeam() || (isClient() && aid == acct());
       allow write: if canEdit();
+    }
+    // 캠페인: 팀원 읽기·마스터·매니저 수정 / 광고주 관리자는 자기 계정에서 직접 운영하는 캠페인만
+    match /campaigns/{id} {
+      allow read: if isTeam() || (isClientAdmin() && ownData(resource.data));
+      allow create: if canEdit() || (isClientAdmin() && ownData(request.resource.data));
+      allow update: if canEdit() || (isClientAdmin() && ownData(resource.data) && ownData(request.resource.data));
+      allow delete: if canEdit() || (isClientAdmin() && ownData(resource.data));
     }
     match /rows/{id} {
-      allow read: if isAdmin();
-      allow write: if canEdit();
+      allow read: if isTeam() || ownsCamp(id);
+      allow write: if canEdit() || ownsCamp(id);
     }
-    match /pool/{id} {
-      allow read: if isAdmin();
-      allow write: if canEdit();
-    }
-    // 썸네일(직접 넣은 이미지): 팀원 읽기, 마스터·매니저 수정
+    // 썸네일(직접 넣은 이미지)
     match /thumbs/{id} {
-      allow read: if isAdmin();
+      allow read: if isTeam() || ownsCamp(id);
+      allow write: if canEdit() || ownsCamp(id);
+    }
+    // 인플루언서 풀: 링컴즈 팀원만
+    match /pool/{id} {
+      allow read: if isTeam();
       allow write: if canEdit();
     }
-    // 광고주 공유용 썸네일: 링크를 아는 사람만 한 건씩 읽기
+    // 광고주 공유용 썸네일·공유본: 링크(토큰)를 아는 사람만 한 건씩 읽기, 목록 조회 불가
     match /sharethumbs/{token} {
       allow get: if true;
       allow list: if false;
-      allow write: if canEdit();
+      allow create, update: if canEdit() || (isClientAdmin() && request.resource.data.get('acct', '') == acct() && (resource == null || resource.data.get('acct', '') == acct()));
+      allow delete: if canEdit() || (isClientAdmin() && resource.data.get('acct', '') == acct());
     }
-    // 광고주 공유본: 링크(토큰)를 아는 사람만 한 건씩 읽기 가능, 목록 조회 불가
     match /shares/{token} {
       allow get: if true;
       allow list: if false;
-      allow write: if canEdit();
+      allow create, update: if canEdit() || (isClientAdmin() && request.resource.data.get('acct', '') == acct() && (resource == null || resource.data.get('acct', '') == acct()));
+      allow delete: if canEdit() || (isClientAdmin() && resource.data.get('acct', '') == acct());
     }
-    // 연동 설정(유튜브 API 키 등): 팀원 모두 읽기, 마스터만 수정
+    // 클라이언트 공개용 진행 현황 (비용·연락처·주소 없음): 같은 계정 광고주만 읽기
+    match /cview/{cid} {
+      allow read: if isTeam() || (isClient() && resource.data.acct == acct());
+      allow write: if canEdit() || ownsCamp(cid);
+    }
+    // 광고주 컨펌 (인플루언서 진행 여부): 같은 계정 광고주가 쓰고, 팀원이 읽음
+    match /cconfirm/{cid} {
+      allow read: if isTeam() || (isClient() && resource.data.acct == acct());
+      allow create: if canEdit() || (isClient() && request.resource.data.get('acct', '') == acct()
+        && exists(/databases/$(database)/documents/campaigns/$(cid)) && camp(cid).get('acct', 'ringcoms') == acct());
+      allow update: if canEdit() || (isClient() && resource.data.get('acct', '') == acct() && request.resource.data.get('acct', '') == acct());
+      allow delete: if canEdit();
+    }
+    // 연동 설정(유튜브 API 키 등): 팀원·광고주 관리자 읽기, 마스터만 수정
     match /settings/{id} {
-      allow read: if isAdmin();
+      allow read: if isTeam() || isClientAdmin();
       allow write: if isMaster();
+    }
+    // 프로필 이미지 등 공개 정보: 누구나 한 건씩 읽기, 마스터·매니저만 수정
+    match /public/{id} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if canEdit();
     }
   }
 }

@@ -1,12 +1,14 @@
 # RINGCOMS 캠페인 관리 (광고콘텐츠팀)
 
-인플루언서 캠페인(시딩·체험단) 진행관리, 성과 리포트, 광고주 공유를 위한 사이트입니다.
+인플루언서 캠페인(시딩·체험단·공동구매·라이브커머스) 진행관리, 성과 리포트, 광고주 공유, 광고주 계정(클라이언트)을 위한 사이트입니다.
 
 ## 구성
 | 경로 | 내용 |
 |---|---|
 | `public/index.html` | 사이트 전체 (화면·로직). Firebase(로그인·데이터)와 연결 |
-| `netlify/functions/social-stats.mjs` | 인스타그램·틱톡 성과 수집 서버 함수 (`/api/social-stats`) |
+| `netlify/functions/social-stats.mjs` | 인스타그램·틱톡 성과·게시일·썸네일 수집 서버 함수 (`/api/social-stats`) |
+| `netlify/functions/ops.mjs` | 업데이트 제안 읽기·승인 서버 함수 (`/api/ops`, GitHub `ops` 브랜치의 `ops/suggestions.json`) |
+| `public/changelog.json` | 업데이트 이력 (버전별 변경 사항) — 배포할 때마다 맨 앞에 추가 |
 | `firestore.rules` | Firestore 보안 규칙 (Firebase 콘솔에 게시해야 적용) |
 | `netlify.toml` | Netlify 배포 설정 |
 
@@ -20,6 +22,7 @@
 | `APIFY_IG_ACTOR` | 아니오 | 기본 `apify~instagram-scraper` |
 | `APIFY_TT_ACTOR` | 아니오 | 기본 `clockworks~tiktok-scraper` |
 | `FIREBASE_PROJECT_ID` | 아니오 | 기본 `ringcoms-campaign` |
+| `GITHUB_TOKEN` | 업데이트 제안에 필요 | fine-grained 토큰, 이 저장소만 · Contents 읽기·쓰기 |
 
 ## 성과 불러오기 동작
 - 유튜브: 브라우저에서 YouTube Data API 직접 호출 (키는 팀원 관리 → 연동 설정)
@@ -42,3 +45,21 @@
 ## 도메인
 `ad.ringcoms.com` → Netlify (카페24 DNS CNAME `ad` → `cheery-conkies-713ddb.netlify.app`). 기존 주소도 계속 열림.
 도메인을 바꾸면 Firebase 승인된 도메인, YouTube API 키 웹사이트 제한에도 추가해야 합니다.
+
+## 캠페인 종류
+- 시딩 / 체험단(무상협찬) / 공동구매 / 라이브커머스 — `campaigns.kind` = `seed`·`trial`·`gb`·`live`
+- 공동구매·라이브: 단계 `컨택→…→정산완료`, 공구 기간·판매 링크·공구 코드 / 방송 일시·플랫폼·시청자, 주문(`conv`)·판매 수량(`qty`)·매출(`rev`), 판매수수료율(행 > 캠페인 기본값) → 판매수수료·정산액·ROAS 자동 계산
+- 일정이 지나면 단계 자동 이동(판매중·판매종료·방송완료), 진행관리 「정산서 엑셀」
+
+## 광고주 계정 (클라이언트)
+- `accounts/{id}` 광고주 계정, `admins/{email}.acct`·`role`(`client`·`clientAdmin`) — 초대한 Google 계정만 로그인
+- 캠페인 `acct`가 광고주 계정이면 `cview/{캠페인id}`(비용·연락처·주소 제외 진행 현황)가 만들어지고, 클라이언트 컨펌은 `cconfirm/{캠페인id}`
+- `managed: 'ringcoms'` = 링컴즈 운영 캠페인(클라이언트 관리자는 보기·컨펌만), 빈 값 = 광고주가 직접 운영
+- 데모: `?demo=1&as=client` / `?demo=1&as=clientAdmin`
+
+## 업데이트 관리
+- Claude 정기 실행(매일 09:47·18:47 KST)이 `ops` 브랜치의 `ops/suggestions.json`에 제안을 쓰고, 「업데이트 진행」으로 승인된 항목을 적용·테스트 후 `main` 배포, `public/changelog.json`에 기록
+- 사이트는 `/api/ops`로 읽고 승인 (`GITHUB_TOKEN` 필요)
+
+## 주소
+- 화면마다 주소(`#/c/캠페인id/report` 등)가 있어 브라우저 뒤로 가기로 직전 화면으로 돌아감
