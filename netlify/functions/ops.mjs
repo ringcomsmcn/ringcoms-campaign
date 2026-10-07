@@ -3,6 +3,7 @@
 //   { action: 'list' }                         → 업데이트 제안 목록 (팀원 모두)
 //   { action: 'approve', ids: [...] }          → 「업데이트 진행」: 승인 표시 → 매주 일요일 09:47 정기 실행에서 Claude가 한 번에 적용·배포 (마스터만)
 //   { action: 'hold' | 'dismiss' | 'reopen', ids: [...] } → 보류 / 제외 / 다시 새 제안으로 (마스터만)
+//   { action: 'delete', ids: [...] }           → 제안 영구 삭제 (마스터만, 진행 대기 항목은 「진행 취소」 후 삭제)
 //   { action: 'add', title, detail }           → 팀이 직접 남기는 업데이트 요청 (마스터·매니저)
 // 저장 위치: GitHub 저장소의 ops 브랜치 ops/suggestions.json (배포되지 않는 브랜치)
 // 필요한 환경변수: GITHUB_TOKEN (저장소 Contents 읽기·쓰기 권한의 fine-grained 토큰)
@@ -65,6 +66,11 @@ export function applyAction(data, action, ids, me, extra) {
     data.items.unshift({ id, date: now.slice(0, 10), createdAt: now, source: 'team', by: me, title: String(extra.title || '').slice(0, 120), why: String(extra.detail || '').slice(0, 2000), what: [], effort: '', needs: [], cautions: [], impact: '보통', area: '', status: 'requested' });
     return id;
   }
+  if (action === 'delete') {
+    const before = data.items.length;
+    data.items = data.items.filter(it => !set.has(it.id) || it.status === 'approved');
+    return before - data.items.length;
+  }
   const to = { approve: 'approved', hold: 'hold', dismiss: 'dismissed', reopen: 'new' }[action];
   let n = 0;
   data.items.forEach(it => {
@@ -88,15 +94,15 @@ export default async (req) => {
       const { data } = await readFile();
       return json({ ...data, edit: w.edit, master: w.master });
     }
-    if (!['approve', 'hold', 'dismiss', 'reopen', 'add'].includes(body.action)) return json({ error: 'action은 list·approve·hold·dismiss·reopen·add 중 하나여야 합니다.' }, 400);
-    if (body.action === 'add' ? !w.edit : !w.master) return json({ error: body.action === 'add' ? '마스터·매니저만 요청을 남길 수 있습니다.' : '업데이트 진행·보류·제외는 마스터만 할 수 있습니다.' }, 403);
+    if (!['approve', 'hold', 'dismiss', 'reopen', 'delete', 'add'].includes(body.action)) return json({ error: 'action은 list·approve·hold·dismiss·reopen·delete·add 중 하나여야 합니다.' }, 400);
+    if (body.action === 'add' ? !w.edit : !w.master) return json({ error: body.action === 'add' ? '마스터·매니저만 요청을 남길 수 있습니다.' : '업데이트 진행·보류·제외·삭제는 마스터만 할 수 있습니다.' }, 403);
     if (body.action === 'add' && !String(body.title || '').trim()) return json({ error: '요청 제목을 입력하세요.' }, 400);
     for (let i = 0; i < 3; i++) {
       const { data, sha } = await readFile();
       const res = applyAction(data, body.action, (body.ids || []).map(String).slice(0, 50), w.email, body);
       if (body.action !== 'add' && !res) return json({ ...data, changed: 0 });
       data.updatedAt = new Date().toISOString();
-      const label = { approve: '업데이트 진행 승인', hold: '보류', dismiss: '제외', reopen: '다시 열기', add: '팀 요청 추가' }[body.action];
+      const label = { approve: '업데이트 진행 승인', hold: '보류', dismiss: '제외', reopen: '다시 열기', delete: '삭제', add: '팀 요청 추가' }[body.action];
       const wr = await writeFile(data, sha, `업데이트 제안: ${label} (${w.email})`);
       if (wr.ok) return json({ ...data, changed: body.action === 'add' ? 1 : res, edit: true });
     }
