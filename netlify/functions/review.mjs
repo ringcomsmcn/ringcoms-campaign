@@ -5,7 +5,7 @@
 // 영상 가져오기: 유튜브(공개) = Gemini가 직접 / 구글 드라이브(링크 공개)·영상 파일 주소 = 내려받아 Gemini Files API
 //               인스타그램·틱톡 = Apify로 영상 주소 확인 후 내려받기 (APIFY_TOKEN 필요)
 // 환경변수: GEMINI_API_KEY (필수), APIFY_TOKEN (인스타·틱톡), APIFY_IG_ACTOR, APIFY_TT_ACTOR
-import { gemini, uploadFile, deleteFile, checkEditor, fsPatch } from '../lib/gemini.mjs';
+import { geminiBest, uploadFile, deleteFile, checkEditor, fsPatch } from '../lib/gemini.mjs';
 import { createWriteStream, createReadStream, promises as fsp } from 'node:fs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -172,7 +172,7 @@ export default async (req) => {
     if ((v.frames || []).length) await fsPatch(who.tok, 'guideimg/rv_' + id, { frames: JSON.stringify(v.frames), updatedAt: new Date().toISOString() }).catch(e => console.error('frames save', e.message));
     await save({ status: '분석 중', source: v.kind, frameN: String((v.frames || []).length) });
     const ci = body.concept == null || body.concept === '' ? null : +body.concept;
-    const { data, model } = await gemini([v.part, { text: reviewPrompt(body.guide, Number.isFinite(ci) ? ci : null, String(body.infl || '')) }], { temperature: 0.2, maxTokens: 12000, timeoutMs: 300000, thinking: 2048 });
+    const { data, model } = await geminiBest([v.part, { text: reviewPrompt(body.guide, Number.isFinite(ci) ? ci : null, String(body.infl || '')) }], { temperature: 0.2, maxTokens: 12000, timeoutMs: 300000, thinking: 2048 });
     await save({ status: '완료', resultJson: JSON.stringify(data), model, doneAt: new Date().toISOString() });
   } catch (e) {
     console.error(e);

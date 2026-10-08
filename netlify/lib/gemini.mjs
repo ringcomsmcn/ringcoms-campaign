@@ -48,11 +48,22 @@ export function parseJsonText(t) {
 }
 
 /* Gemini generateContent — 모델이 없으면(404) 다음 모델로 */
-export async function gemini(parts, { temperature = 0.4, maxTokens = 8192, timeoutMs = 50000, thinking = null, totalMs = 0 } = {}) {
+/* 정확도가 중요한 작업(영상 검수): 상위 모델이 붐비면 잠시 기다렸다 다시 시도하고, 그래도 안 되면 가벼운 모델로 */
+export async function geminiBest(parts, opts = {}, { rounds = 4, waitMs = 25000 } = {}) {
+  const top = MODELS.filter(m => !/lite/.test(m)), lite = MODELS.filter(m => /lite/.test(m));
+  let last = null;
+  for (let i = 0; i < rounds; i++) {
+    try { return await gemini(parts, { ...opts, models: top }); } catch (e) { last = e; if (!/붐빕니다|시간이 초과/.test(e.message)) throw e; }
+    if (i < rounds - 1) await new Promise(r => setTimeout(r, waitMs));
+  }
+  if (lite.length) return await gemini(parts, { ...opts, models: lite });
+  throw last;
+}
+export async function gemini(parts, { temperature = 0.4, maxTokens = 8192, timeoutMs = 50000, thinking = null, totalMs = 0, models = null } = {}) {
   const end = totalMs ? Date.now() + totalMs : 0;
   if (!GKEY) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다. Netlify 환경변수에 추가해 주세요.');
   let last = null;
-  for (const m of MODELS) {
+  for (const m of (models || MODELS)) {
     const left = end ? end - Date.now() : timeoutMs; if (left < 4000) break;
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), Math.min(timeoutMs, left));
     let r;
