@@ -260,13 +260,18 @@ async function gAiApply(gid,g,j,mode){const out=mergeGuide(g,j.guide||{},mode);c
 /* 백그라운드 AI 결과가 들어오면, 편집 권한이 있는 사람이 열어 둔 화면에서 한 번만 적용 */
 function gAiCheck(){if(!canEdit()||!A.guides)return;Object.entries(A.guides).forEach(([gid,g])=>{if(g.aiStatus==='완료'&&g.aiResult&&!(gAiCheck.done||(gAiCheck.done=new Set())).has(g.aiJob)){gAiCheck.done.add(g.aiJob);let j=null;try{j=JSON.parse(g.aiResult)}catch(e){}
     if(j)gAiApply(gid,g,j,g.aiMode||'fill').then(()=>scheduleRender()).catch(e=>saveErr(e))}else if(g.aiStatus==='실패'&&g.aiJob&&!(gAiCheck.done||(gAiCheck.done=new Set())).has('f'+g.aiJob)&&gid===A.gid&&Date.now()-new Date(g.aiAt||0).getTime()<10*60*1000){gAiCheck.done.add('f'+g.aiJob);toast('AI 가이드를 만들지 못했습니다: '+(g.aiError||''),'crit')}})}
+/* 비슷한 문장 빼기: 글자 2개씩 묶어 겹치는 비율이 높으면 같은 말로 봄 (예: 「#협찬을 맨 앞에」가 두 번) */
+function simTxt(a,b){const n=x=>String(x).replace(/[\s.,!?·()「」'"~…]/g,'').replace(/(해|하)\s*주세요|말아\s*주세요|주세요|반드시|꼭/g,'');const bg=x=>{const t=n(x),o=new Set();for(let i=0;i<t.length-1;i++)o.add(t.slice(i,i+2));return o};const A_=bg(a),B_=bg(b);if(!A_.size||!B_.size)return 0;let c=0;A_.forEach(x=>{if(B_.has(x))c++});return c/Math.min(A_.size,B_.size)}
+const SAME_G=[/#협찬|공정위/,/3초.*(시작|후킹)|(후킹|첫).*3초/,/치료|완치|의학|효능.*단정|단정.*효능|100%/,/다른 브랜드|타사|경쟁/,/승인 ?전|검수.*(전|후).*업로드|초안.*먼저/,/좌우 ?반전/,/9:16|1080/];
+function dedupeL(L){const out=[];L.forEach(x=>{const t=String(x||'').trim();if(t&&!out.some(y=>simTxt(y,t)>=0.6||SAME_G.some(r=>r.test(y)&&r.test(t))))out.push(t)});return out}
 const isEmptyV=v=>v==null||v===''||(Array.isArray(v)&&!v.filter(x=>isObj(x)?Object.values(x).some(Boolean):Boolean(x)).length);
 function conceptsEmpty(cs){return !(cs||[]).some(c=>c.name||c.hook||(c.scenes||[]).some(s=>s.shot||s.say||s.sub||s.point))}
 function normConcepts(cs){return (cs||[]).slice(0,4).map(c=>({id:tid('c'),name:String(c.name||''),hook:String(c.hook||''),scenes:(c.scenes||[]).slice(0,8).map(s=>({id:tid('s'),part:G_PARTS.includes(s.part)?s.part:'바디',time:String(s.time||''),shot:String(s.shot||''),say:String(s.say||''),sub:String(s.sub||''),point:String(s.point||''),ref:String(s.ref||''),prompt:String(s.prompt||'')}))}))}
 function mergeGuide(g,ai,mode){const o=clone(g);const R=mode==='replace';const put=(path,v)=>{if(v==null||isEmptyV(v))return;if(R||isEmptyV(getIn(o,path)))setIn(o,path,clone(v))};
-  if(!o.title||/^새 콘텐츠 가이드/.test(o.title)){const t=[ai.brand||o.brand,(ai.product||{}).name].filter(Boolean).join(' ');if(t)o.title=t+' 콘텐츠 가이드'}
+  if(!o.title||/^새 콘텐츠 가이드/.test(o.title)){const b_=ai.brand||o.brand||'',p_=(ai.product||{}).name||'';const t=(p_&&b_&&p_.replace(/\s/g,'').startsWith(b_.replace(/\s/g,''))?p_:[b_,p_].filter(Boolean).join(' '));if(t)o.title=t+' 콘텐츠 가이드'}
   put('advertiser',ai.advertiser);put('brand',ai.brand);
-  const S=ai.summary||{};put('summary.one',S.one);if(R){put('summary.must',S.must);put('summary.dont',S.dont)}else{['must','dont'].forEach(k=>{const add=(S[k]||[]).filter(x=>!(o.summary[k]||[]).includes(x));if(add.length)o.summary[k]=[...(o.summary[k]||[]),...add].slice(0,8)})}
+  const S=ai.summary||{};put('summary.one',S.one);['must','dont'].forEach(k=>{const add=(S[k]||[]).map(String).filter(Boolean);if(!add.length)return;const cur=o.summary[k]||[];const def=newGuide(null).summary[k];
+    o.summary[k]=(R||!cur.length||JSON.stringify(cur)===JSON.stringify(def))?dedupeL(add).slice(0,7):dedupeL([...cur,...add]).slice(0,8)});
   const Pp=ai.product||{};['name','price','sale','option','intro','caution'].forEach(k=>put('product.'+k,Pp[k]));
   if(Pp.points&&Pp.points.length&&(R||!(o.product.points||[]).some(x=>x.t||x.d)))o.product.points=Pp.points.slice(0,5).map(x=>({t:String(x.t||''),d:String(x.d||'')}));put('product.howto',Pp.howto);
   if(ai.concepts&&ai.concepts.length&&(R||conceptsEmpty(o.concepts)))o.concepts=normConcepts(ai.concepts);
@@ -275,8 +280,8 @@ function mergeGuide(g,ai,mode){const o=clone(g);const R=mode==='replace';const p
   if(ai.words&&ai.words.length){const ex=R?[]:(o.words||[]);const nw=ai.words.filter(w=>w&&w.no&&!ex.some(x=>x.no===w.no)).map(w=>({no:String(w.no),yes:String(w.yes||'')}));o.words=[...ex,...nw].slice(0,12)}
   put('text.closing',Tx.closing);
   if(ai.cuts&&ai.cuts.length){const def=JSON.stringify(G_CUTS.map(x=>x[0]));const cur=JSON.stringify((o.cuts||[]).map(x=>x.name));if(R||!(o.cuts||[]).length||cur===def)o.cuts=ai.cuts.slice(0,6).map(k=>({id:tid('k'),name:String(k.name||''),desc:String(k.desc||''),need:['필수','권장','선택'].includes(k.need)?k.need:'권장'}))}
-  if(ai.uploadExtra&&ai.uploadExtra.length){o.upload=o.upload||[...G_UPLOAD];const add=ai.uploadExtra.filter(x=>!o.upload.includes(x));o.upload=[...o.upload,...add].slice(0,10)}
-  if(ai.shootExtra&&ai.shootExtra.length){const add=ai.shootExtra.filter(x=>!(o.shoot||[]).includes(x));o.shoot=[...(o.shoot||[]),...add].slice(0,12)}
+  if(ai.uploadExtra&&ai.uploadExtra.length){o.upload=o.upload||[...G_UPLOAD];o.upload=dedupeL([...o.upload,...ai.uploadExtra]).slice(0,10)}
+  if(ai.shootExtra&&ai.shootExtra.length){o.shoot=dedupeL([...(o.shoot||[]),...ai.shootExtra]).slice(0,12)}
   return o}
 function mockGuide(b){const nm=b.productName||'예시 제품';return {advertiser:b.advertiser||'예시 광고주',brand:b.brand||'예시 브랜드',summary:{one:`${nm}, 바르는 순간 느껴지는 차이`,must:['제품을 바르기 전과 후를 같은 조명·같은 각도로 보여 주세요.'],dont:['피부가 "치료"된다고 말하지 말아 주세요.']},
   product:{name:nm,price:'32,000원',sale:'25,600원 (20% 할인)',option:'50ml',intro:'가볍게 발리고 오래 촉촉한 데일리 세럼',points:[{t:'3초 흡수',d:'바르자마자 쏙 스며들어 끈적임이 없어요.'},{t:'하루 종일 촉촉',d:'아침에 바르면 저녁까지 당김이 없어요.'},{t:'예민한 피부도 OK',d:'자극 테스트를 마친 순한 성분이에요.'}],howto:['세안 후 토너로 정리','2~3방울 덜어 얼굴에 펴 바르기','가볍게 두드려 흡수'],caution:'사용 전후 비교는 같은 조명·각도에서 찍어 주세요.'},
