@@ -137,6 +137,22 @@ service cloud.firestore {
         && request.resource.data.last is timestamp;
       allow delete: if canEdit();
     }
+    // 캠페인 일별 링크 집계 (문서 id = 캠페인id_YYYYMMDD): 방문자는 정해진 숫자 칸만 0→1로 만들거나 +1만 할 수 있음
+    match /linkday/{id} {
+      function cnt() { return ['v', 'u', 'c', 'ios', 'aos', 'pc']; }
+      function z1(k) { return request.resource.data.get(k, 0) in [0, 1]; }
+      function inc1(k) { return request.resource.data.get(k, 0) == resource.data.get(k, 0) || request.resource.data.get(k, 0) == resource.data.get(k, 0) + 1; }
+      allow get, list: if isTeam() || ownsCamp(resource.data.cid);
+      allow create: if request.resource.data.keys().hasOnly(['cid', 'd', 'v', 'u', 'c', 'ios', 'aos', 'pc'])
+        && request.resource.data.cid is string && request.resource.data.d is string
+        && request.resource.data.d.matches('^[0-9]{8}$')
+        && id == request.resource.data.cid + '_' + request.resource.data.d
+        && exists(/databases/$(database)/documents/campaigns/$(request.resource.data.cid))
+        && z1('v') && z1('u') && z1('c') && z1('ios') && z1('aos') && z1('pc');
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(cnt())
+        && inc1('v') && inc1('u') && inc1('c') && inc1('ios') && inc1('aos') && inc1('pc');
+      allow delete: if canEdit();
+    }
     // 프로필 이미지 등 공개 정보: 누구나 한 건씩 읽기, 마스터·매니저만 수정
     match /public/{id} {
       allow get: if true;

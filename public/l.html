@@ -70,6 +70,17 @@ a.go{color:var(--c);font-weight:700}
     return fetch(DOCS+':commit?key='+KEY,{method:'POST',keepalive:true,headers:{'content-type':'application/json'},
       body:JSON.stringify({writes:[{transform:{document:'projects/'+P+'/databases/(default)/documents/linkstat/'+code+'_'+slot,fieldTransforms:ft},currentDocument:{exists:true}}]})}).catch(function(){});
   }
+  /* 캠페인 일별 집계 (linkday/{캠페인}_{한국 날짜}): 방문·고유 방문·버튼 클릭·기기 — 문서가 없으면 이 요청으로 만들어짐 */
+  var DEV=IOS?'ios':AOS?'aos':'pc';
+  function kday(){return new Date(Date.now()+9*3600e3).toISOString().slice(0,10).replace(/-/g,'')}
+  function dayHit(cid,f){
+    if(!COUNT||!cid)return Promise.resolve();var d=kday(),id=cid+'_'+d;
+    if(DEMO){try{var x=demoData(),k='linkday/'+id,o=x[k]||{cid:cid,d:d};for(var q in f)o[q]=(o[q]||0)+f[q];x[k]=o;localStorage.setItem(DK,JSON.stringify(x))}catch(e){}return Promise.resolve()}
+    var ft=[];for(var q in f)ft.push({fieldPath:q,increment:{integerValue:'1'}});
+    return fetch(DOCS+':commit?key='+KEY,{method:'POST',keepalive:true,headers:{'content-type':'application/json'},
+      body:JSON.stringify({writes:[{update:{name:'projects/'+P+'/databases/(default)/documents/linkday/'+id,fields:{cid:{stringValue:cid},d:{stringValue:d}}},updateMask:{fieldPaths:['cid','d']},updateTransforms:ft}]})}).catch(function(){});
+  }
+  function visitF(u){var f={v:1};if(u)f.u=1;f[DEV]=1;return f}
   /* 광고주 분석 도구용 구분값: 일반 주소는 쿼리에 추가(이미 있으면 유지), Google Play 는 referrer 로, App Store 는 그대로 */
   function withParams(u,p){
     if(!p||!u)return u;
@@ -98,7 +109,7 @@ a.go{color:var(--c);font-weight:700}
       app.innerHTML=pv+'<div class="msg"><div class="spin"></div>이동 중입니다…<br><a class="go" href="'+esc(to)+'">이동하지 않으면 여기를 누르세요</a></div>';
       if(PREVIEW)return;
       var done=false,goNow=function(){if(!done){done=true;location.replace(to)}};
-      Promise.race([hit('v',first('v')),new Promise(function(r){setTimeout(r,700)})]).then(goNow);
+      var fv=first('v');Promise.race([Promise.all([hit('v',fv),dayHit(L.cid,visitF(fv))]),new Promise(function(r){setTimeout(r,700)})]).then(goNow);
       return;
     }
     /* 브릿지 페이지 */
@@ -109,14 +120,14 @@ a.go{color:var(--c);font-weight:700}
       (okUrl(pg.img)?'<img class="im" src="'+esc(pg.img)+'" alt="" onerror="this.remove()">':'')+
       '<div class="btns">'+bs.map(function(b,i){return '<a class="btn" href="'+esc(withParams(target(b),L.params))+'" data-i="'+i+'">'+(b.kind==='app'?ICON_APP:'')+'<span>'+esc(b.label)+'</span>'+(b.kind==='app'?'':ICON_GO)+'</a>'}).join('')+'</div>'+
       (pg.brand?'<div class="ft">'+esc(pg.brand)+'</div>':'')+'</div>';
-    hit('v',first('v'));
+    var fv=first('v');hit('v',fv);dayHit(L.cid,visitF(fv));
     app.addEventListener('click',function(e){
       var a=e.target.closest&&e.target.closest('a.btn');if(!a)return;var b=bs[+a.dataset.i];if(!b)return;
       if(PREVIEW||!COUNT)return; /* 미리보기는 그냥 이동 */
       if(e.metaKey||e.ctrlKey||e.shiftKey)return;
       e.preventDefault();var href=a.getAttribute('href');a.classList.add('ld');
       var fc=first('c'),fb=first(b.id);
-      Promise.race([Promise.all([hit(b.id,fb),hit('c',fc)]),new Promise(function(r){setTimeout(r,800)})]).then(function(){location.href=href;setTimeout(function(){a.classList.remove('ld')},1500)});
+      Promise.race([Promise.all([hit(b.id,fb),hit('c',fc),dayHit(L.cid,{c:1})]),new Promise(function(r){setTimeout(r,800)})]).then(function(){location.href=href;setTimeout(function(){a.classList.remove('ld')},1500)});
     });
   }).catch(function(){fail('잠시 후 다시 시도해 주세요.')});
 })();
