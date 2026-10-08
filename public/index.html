@@ -544,6 +544,8 @@ const STAGES=['컨택','집행','기획안제작중','기획안전달','기획�
 /* 예전 단계명 호환: 영상제작중 → 가편본제작중 */
 const OLD_STAGE={'영상제작중':'가편본제작중'};function normStage(s){return OLD_STAGE[s]||s}
 const DROP='드롭', DONE='업로드완료';
+/* 체험단 전용: 컨택했지만 선정되지 않은 인원 (선정 후 이탈은 드롭) */
+const NOSEL='미선정';function isOut(s){return s===DROP||s===NOSEL}function outStages(c){return isTrial(c)?[NOSEL,DROP]:[DROP]}
 /* 공동구매·라이브커머스 진행 단계 (마지막 단계 = 정산완료) */
 const GB_STAGES=['컨택','조건협의','확정','샘플발송','콘텐츠준비','오픈대기','판매중','판매종료','정산완료'];
 const LIVE_STAGES=['컨택','일정협의','확정','큐시트작성','큐시트컨펌','리허설','방송대기','방송완료','정산완료'];
@@ -594,11 +596,11 @@ const WRITE_ACTS=new Set(['chFetch','shareGroup','tierSplit','ctGo','ctStep','yt
 const SHARE_METRICS=[['views','조회 수'],['likes','좋아요 수'],['cmts','댓글 수'],['shares','공유 수'],['saves','저장 수'],['part','총 참여 수'],['eng','인게이지먼트'],['er','ER'],['reach','도달 수'],
  ['cpv','CPV','cost'],['cpe','CPE','cost'],['cpm','CPM','cost'],['clicks','링크 클릭','clicks'],['ctr','CTR','clicks'],['cpc','CPC','cost,clicks'],['conv','전환 수','conv'],['cvr','CVR','conv,clicks'],['cpa','CPA','cost,conv'],['rev','매출','revenue'],['roas','ROAS','cost,revenue'],
  ['s_rev','매출','sales'],['s_orders','주문 수','sales'],['s_qty','판매 수량','sales'],['s_aov','객단가','sales'],['s_cvr','구매 전환율','sales'],['s_roas','ROAS','sales,cost'],['s_cost','판매 광고비 (수수료 포함)','sales,cost'],['s_clicks','판매 링크 클릭','gbclicks'],['s_viewers','시청자 수 (누적·최고 동접)','live'],['s_rpm','분당 매출','live'],
- ['lic','2차 활용 확보','lic'],['tr_price','제품 판매단가','trial'],['tr_recruit','모집 인원','trial'],['tr_apps','신청자 수','trial'],['tr_compete','신청 경쟁률','trial'],['tr_applyRate','신청 전환율','trial'],['tr_selected','선정 인원','trial'],['tr_value','총 제품 제공가치','trial'],['tr_vpv','조회 1회당 제품가치','trial']];
+ ['lic','2차 활용 확보','lic'],['tr_price','제품 판매단가','trial'],['tr_recruit','모집 인원','trial'],['tr_contacts','컨택 인원','trial'],['tr_apps','신청자 수','trial'],['tr_compete','신청 경쟁률','trial'],['tr_applyRate','신청 전환율','trial'],['tr_selected','선정 인원','trial'],['tr_value','총 제품 제공가치','trial'],['tr_vpv','조회 1회당 제품가치','trial']];
 const HIDE_DERIV={views:['avgViews','viewRate','cpm'],reach:['reachRate','cpmReach'],cpm:['cpmReach'],lic:['licRate']};
 const HIDE_TARGET={views:'views',reach:'reach',er:'er',cpv:'cpv',clicks:'clicks',conv:'conv',cpa:'cpa',rev:'revenue',roas:'roas',tr_apps:'applicants'};
 const HIDE_S={s_rev:['rev','share'],s_orders:['orders'],s_qty:['qty'],s_aov:['aov'],s_cvr:['cvr','vcr'],s_roas:['roas'],s_cost:['cost','comm'],s_clicks:['clicks'],s_viewers:['viewers','peak','chats'],s_rpm:['rpm','min']};
-const HIDE_TR={tr_price:['price','unitValue','qty'],tr_recruit:['recruit'],tr_apps:['apps','selRate'],tr_compete:['compete'],tr_applyRate:['applyRate','pv'],tr_selected:['selected','selRate'],tr_value:['totalValue'],tr_vpv:['valuePerView','valuePerEng']};
+const HIDE_TR={tr_price:['price','unitValue','qty'],tr_recruit:['recruit','fillRate'],tr_contacts:['contacts','contactApplyRate'],tr_apps:['apps','selRate'],tr_compete:['compete'],tr_applyRate:['applyRate','pv'],tr_selected:['selected','selRate','fillRate'],tr_value:['totalValue'],tr_vpv:['valuePerView','valuePerEng']};
 /* 기본으로 숨기는 지표 (공유 탭에서 켜야 보임) */
 const DEF_HIDE=new Set(['reach']);
 function shHidden(sh,k){const v=((sh||{}).hide||{})[k];return DEF_HIDE.has(k)?v!==false:!!v}
@@ -653,9 +655,13 @@ function kindOf(c){const k=c&&c.kind;return k==='trial'||k==='gb'||k==='live'?k:
 function listKind(){return VIEW_KIND[A.view]||'seed'}
 function kindView(k){return (KINDS[k]||KINDS.seed).view}
 /* 체험단 지표: 선정 인원은 진행관리에 입력된 인플루언서(드롭 제외) 수 */
-function trialCalc(c,selected){const t=(c&&c.trial)||{};const price=has(t.price)?n(t.price):null;const qty=has(t.qty)&&n(t.qty)>0?n(t.qty):1;const recruit=has(t.recruit)?n(t.recruit):null;const apps=has(t.applicants)?n(t.applicants):null;const pv=has(t.pageViews)?n(t.pageViews):null;
-  if(selected==null)selected=n(c&&c.summary&&c.summary.n);const unit=price!=null?price*qty:null;
-  return {product:t.product||'',cat:t.cat||'',platform:t.platform||'',price,qty,recruit,apps,pv,selected,unitValue:unit,totalValue:unit!=null&&selected?unit*selected:null,compete:recruit&&apps!=null?apps/recruit:null,applyRate:pv&&apps!=null?apps/pv:null,selRate:apps&&selected?selected/apps:null}}
+function trialCalc(c,selected,ex){const t=(c&&c.trial)||{};const sm=ex||(c&&c.summary)||{};const price=has(t.price)?n(t.price):null;const qty=has(t.qty)&&n(t.qty)>0?n(t.qty):1;const recruit=has(t.recruit)?n(t.recruit):null;const pv=has(t.pageViews)?n(t.pageViews):null;
+  /* 신청자 수: 캠페인 설정에 입력한 값이 우선, 비어 있으면 진행관리 기준 자동 집계(신청 체크 + 집행 이후 단계) */
+  const autoApps=has(sm.appliedAuto)&&n(sm.appliedAuto)>0?n(sm.appliedAuto):null;const appsManual=has(t.applicants);const apps=appsManual?n(t.applicants):autoApps;
+  const contacts=has(sm.contacts)&&n(sm.contacts)>0?n(sm.contacts):null;const dropped=has(sm.dropped)?n(sm.dropped):null;const nosel=has(sm.nosel)?n(sm.nosel):null;
+  /* 선정 인원: 집행 이후 단계(컨택 단계·미선정·드롭 제외) */
+  if(has(sm.selected))selected=n(sm.selected);else if(selected==null)selected=n(c&&c.summary&&c.summary.n);const unit=price!=null?price*qty:null;
+  return {product:t.product||'',cat:t.cat||'',platform:t.platform||'',price,qty,recruit,apps,appsAuto:apps!=null&&!appsManual,pv,selected,contacts,dropped,nosel,unitValue:unit,totalValue:unit!=null&&selected?unit*selected:null,compete:recruit&&apps!=null?apps/recruit:null,applyRate:pv&&apps!=null?apps/pv:null,contactApplyRate:contacts&&apps!=null&&!appsManual?apps/contacts:null,fillRate:recruit&&selected!=null?selected/recruit:null,selRate:apps&&selected?selected/apps:null}}
 const fmtX=v=>(v==null||!isFinite(v))?'–':(v>=10?Math.round(v).toLocaleString('ko-KR'):v.toFixed(1).replace(/\.0$/,''))+' : 1';
 function bandOf(p){const b=PRICE_BANDS.find(([a,z])=>p>=a&&p<z);return b?b[2]:''}
 const COST_LEVELS=[['row','인플루언서별 비용까지 공개'],['total','합계만 공개 (CPV·CPA 등 전체값)'],['none','비용 지표 숨김']];
@@ -685,6 +691,7 @@ const COLS=[
  {k:'liveMin',l:'방송 시간 (분)',g:'sales',w:100,t:'num',kinds:['live']},
  {k:'liveLink',l:'방송·다시보기 링크',g:'sales',w:180,t:'url',kinds:['live']},
  {k:'stage',l:'진행 상황',g:'comm',w:128,t:'sel',o:[...STAGES,DROP]},
+ {k:'apply',l:'신청',g:'comm',w:60,t:'chk',kinds:['trial']},
  {k:'cf',l:'광고주 컨펌',g:'comm',w:118,t:'cf'},
  {k:'contract',l:'계약',g:'comm',w:80,t:'sel',o:['완료','미완료']},
  {k:'ship',l:'제품 발송',g:'comm',w:78,t:'chk',lk:{gb:'샘플 발송',live:'샘플 발송'}},
@@ -738,7 +745,7 @@ const COLS=[
 const GROUPS={info:'인플루언서 정보',comm:'커뮤니케이션',sales:'일정·링크',content:'콘텐츠',cost:'비용 (원)',perf:'성과 데이터',conv:'유입·전환',calc:'자동 계산'};
 function groupLabel(c,g){if(g==='sales')return isLive(c)?'방송 정보':'공구 일정·링크';if(g==='conv'&&isCom(c))return isLive(c)?'방송·판매 성과':'판매 성과';if(g==='content'&&isCom(c))return '홍보 콘텐츠';if(g==='perf'&&isCom(c))return '콘텐츠 성과';return GROUPS[g]}
 function colLabel(c,col){return (col.lk&&col.lk[kindOf(c)])||col.l}
-function colOpts(c,col){return col.k==='stage'?[...stagesOf(c),DROP]:col.o}
+function colOpts(c,col){return col.k==='stage'?[...stagesOf(c),...outStages(c)]:col.o}
 
 /* ============ 유틸 ============ */
 const $=s=>document.querySelector(s);
@@ -774,7 +781,7 @@ function stageIdx(s,c){s=normStage(s);if(c)return stagesOf(c).indexOf(s);let i=S
 function stageListFor(sc){const ks=Object.keys(sc||{});if(ks.some(k=>GB_STAGES.includes(k)&&!STAGES.includes(k)&&!LIVE_STAGES.includes(k)))return GB_STAGES;if(ks.some(k=>LIVE_STAGES.includes(k)&&!STAGES.includes(k)))return LIVE_STAGES;return STAGES}
 function groupsOf(c){return Object.entries((c&&c.groups)||{}).map(([id,g])=>({id,...g})).sort((a,b)=>(a.order||0)-(b.order||0))}
 function groupName(c,gid){return gid&&c.groups&&c.groups[gid]?c.groups[gid].name:''}
-function autoStatus(rows,c){const live=rows.filter(r=>r.name&&r.stage!==DROP);if(!live.length)return '시작 전';if(live.every(r=>isDone(r.stage)))return '완료';if(live.every(r=>stageIdx(r.stage,c)<=0))return '시작 전';return '진행 중'}
+function autoStatus(rows,c){const live=rows.filter(r=>r.name&&!isOut(r.stage));if(!live.length)return '시작 전';if(live.every(r=>isDone(r.stage)))return '완료';if(live.every(r=>stageIdx(r.stage,c)<=0))return '시작 전';return '진행 중'}
 function campStatus(c){return (c.status==='보류'||c.status==='종료')?c.status:((c.summary&&c.summary.status)||'시작 전')}
 const STATUS_LIST=['시작 전','진행 중','완료','보류','종료'];
 const STATUS_CLS={'시작 전':'','진행 중':'accent','완료':'ok','보류':'warn','종료':''};
@@ -926,7 +933,7 @@ function rowCalc(r,c,mode){
 const CF_ST=['승인','보류','제외 요청'];
 function confOf(r,c){if(!c||acctOf(c)===TEAM||c.confirmOn===false)return null;if(c!==A.campaigns[A.cid]||!A.cconf)return undefined;return A.cconf[r.id]||{st:''}}
 function alertOf(r,c){
-  if(!r.name)return '';if(r.stage===DROP)return '';if(!r.stage)return '진행 상황 미입력';
+  if(!r.name)return '';if(isOut(r.stage))return '';if(!r.stage)return '진행 상황 미입력';
   {const cf=confOf(r,c);if(cf&&cf.st==='제외 요청')return '광고주 제외 요청';if(cf&&!cf.st&&isTrial(c)&&stageIdx(r.stage,c)>=1)return '광고주 컨펌 대기'}
   if(isCom(c))return comAlert(r,c);
   const M=settings(c).M;
@@ -950,16 +957,17 @@ function comAlert(r,c){if(r.stage===SETTLED)return '';const si=stageIdx(r.stage,
   return ''}
 /* 일정에 맞춰 단계 자동 이동 (앞으로만): 공구 시작 → 판매중, 공구 종료 → 판매종료, 방송 시각 경과 → 방송완료 */
 function autoStageUp(c,rows){if(!isCom(c))return {};const up={};const td=today();const now=new Date();
-  rows.forEach(r=>{if(!r.name||!r.stage||r.stage===DROP)return;const si=stageIdx(r.stage,c);if(si<2)return;
+  rows.forEach(r=>{if(!r.name||!r.stage||isOut(r.stage))return;const si=stageIdx(r.stage,c);if(si<2)return;
     if(isGB(c)){if(si<6&&r.gbStart&&r.gbStart<=td&&!(r.gbEnd&&r.gbEnd<td))up[r.id]='판매중';else if(si<7&&r.gbEnd&&r.gbEnd<td)up[r.id]='판매종료'}
     else{const t=r.liveAt?new Date(r.liveAt):null;if(si<7&&t&&!isNaN(t)&&t.getTime()+n(r.liveMin||60)*60e3<now.getTime())up[r.id]='방송완료'}});return up}
 function rowsArr(rowsDoc){return Object.entries((rowsDoc&&rowsDoc.rows)||{}).map(([id,r])=>({...r,id,...(r.stage?{stage:normStage(r.stage)}:{})})).sort((a,b)=>(a.order||0)-(b.order||0))}
 function summaryOf(c,rows){
-  const live=rows.filter(r=>r.name&&r.stage!==DROP);const sc={};stagesOf(c).forEach(s=>sc[s]=0);live.forEach(r=>{if(sc[r.stage]!=null)sc[r.stage]++});
+  const live=rows.filter(r=>r.name&&!isOut(r.stage));const sc={};stagesOf(c).forEach(s=>sc[s]=0);live.forEach(r=>{if(sc[r.stage]!=null)sc[r.stage]++});
   const k=new Map(live.map(r=>[r,rowCalc(r,c)]));const S=f=>live.reduce((t,r)=>t+n(f(r)),0);
   const views=S(r=>r.views),eng=S(r=>k.get(r).eng),costV=live.filter(r=>n(r.views)>0).reduce((t,r)=>t+n(k.get(r).cost),0),cost=S(r=>k.get(r).cost),rev=S(r=>r.rev),costR=live.filter(r=>has(r.rev)).reduce((t,r)=>t+n(k.get(r).cost),0);
-  const com=isCom(c);
-  return {n:live.length,stages:sc,uploaded:com?live.filter(r=>r.clink).length:sc[DONE],alerts:rows.filter(r=>alertOf(r,c)).length,views,contract:live.filter(r=>isTrial(c)?r.ship==='완료':r.contract==='완료').length,
+  const com=isCom(c);const named=rows.filter(r=>r.name);
+  const trialN=isTrial(c)?{selected:live.filter(r=>r.stage!=='컨택').length,contacts:named.length,nosel:named.filter(r=>r.stage===NOSEL).length,dropped:named.filter(r=>r.stage===DROP).length,appliedAuto:named.filter(r=>r.apply==='완료'||(r.stage&&r.stage!==NOSEL&&r.stage!=='컨택')).length}:{};
+  return {...trialN,n:live.length,stages:sc,uploaded:com?live.filter(r=>r.clink).length:sc[DONE],alerts:rows.filter(r=>alertOf(r,c)).length,views,contract:live.filter(r=>isTrial(c)?r.ship==='완료':r.contract==='완료').length,
     ...(com?{qty:S(r=>r.qty),viewers:S(r=>r.viewers),settled:sc[SETTLED]||0,sellers:live.filter(r=>has(r.rev)).length,payout:S(r=>k.get(r).payout),comm:S(r=>k.get(r).comm),aov:S(r=>r.conv)?S(r=>r.rev)/S(r=>r.conv):null}:{}),
     status:autoStatus(rows,c),cost,cost0:S(r=>k.get(r).cost0),agf:S(r=>k.get(r).agf),feeMode:feeMode(c),feeRate:feeRate(c),fee:S(r=>r.fee),offer:S(r=>r.offer),eng,er:views?eng/views:null,cpv:views&&costV?costV/views:null,conv:S(r=>r.conv),clicks:S(r=>r.clicks),rev,roas:costR&&rev?rev/costR:null,groups:groupsOf(c).length};
 }
@@ -968,7 +976,7 @@ function buildReport(c,rows,admin,groupLabel,mode){
   {const s0=c.share||{};if(!admin&&has(s0.feeRate))c={...c,agencyRate:n(s0.feeRate)}}
   const sh=c.share||{};const trial=isTrial(c);mode=mode||(admin?feeMode(c):(sh.feeMode||'incl'));const CO=!trial||trialCostOn(c,rows);const costLevel=!CO?'none':admin?'row':(sh.costLevel||'row');const showNames=admin||sh.showNames!==false;const showLinks=admin||sh.showLinks!==false;
   const {E,M}=settings(c);const convLabel=CONV_LABEL[c.convType]||'전환';
-  const live=rows.filter(r=>r.name&&r.stage!==DROP);
+  const live=rows.filter(r=>r.name&&!isOut(r.stage));
   const calc=new Map(live.map(r=>[r,rowCalc(r,c,mode)]));
   const posted=live.filter(r=>r.clink);
   const S=(arr,f)=>arr.reduce((t,r)=>t+n(f(r)),0);
@@ -999,7 +1007,7 @@ function buildReport(c,rows,admin,groupLabel,mode){
     if(c.objective==='2차 라이선스 활용')o.lic=r.lic==='완료'?1:0;
     if(costLevel==='row'){o.cost=k.cost;o.cpv=k.cpv;o.cpe=k.cpe;if(M.conv)o.cpa=k.cpa;if(M.revenue)o.roas=k.roas}return o});
   const tg=clone(c.targets||{});if(!admin){delete tg.budget;if(costLevel==='none'){delete tg.cpv;delete tg.cpa;delete tg.roas}}
-  let TR=null;if(trial&&(admin||sh.showTrial!==false)){TR=trialCalc(c,live.length);TR.valuePerView=TR.totalValue&&T.views?TR.totalValue/T.views:null;TR.valuePerEng=TR.totalValue&&T.eng?TR.totalValue/T.eng:null}
+  let TR=null;if(trial&&(admin||sh.showTrial!==false)){TR=trialCalc(c,live.length,summaryOf(c,rows));TR.valuePerView=TR.totalValue&&T.views?TR.totalValue/T.views:null;TR.valuePerEng=TR.totalValue&&T.eng?TR.totalValue/T.eng:null}
   if(!trial)delete tg.applicants;
   /* 공동구매·라이브: 판매 성과 (콘텐츠 링크와 상관없이 일정·판매 데이터가 있는 인플루언서 기준) */
   let SALES=null;if(isCom(c)){const GB=isGB(c);const sr=live.filter(r=>has(r.rev)||has(r.conv)||has(r.qty)||(GB?r.gbStart:r.liveAt));let k3=0;const rowCost=r=>n(calc.get(r).cost);
@@ -1017,7 +1025,7 @@ function buildReport(c,rows,admin,groupLabel,mode){
       info:{product:(c.com||{}).product||'',cat:(c.com||{}).cat||'',price:has((c.com||{}).price)?n(c.com.price):null,salePrice:has((c.com||{}).salePrice)?n(c.com.salePrice):null,channel:(c.com||{}).channel||'',plat:(c.com||{}).plat||'',benefit:(c.com||{}).benefit||'',...(admin?{rate:comRate(c),settle:(c.com||{}).settle||''}:{})}}}
   const REP={v:2,updatedAt:new Date().toISOString(),meta:{theme:themeOf(c),advLogo:c.advLogo||'',name:c.name||'',advertiser:c.advertiser||'',brand:c.brand||'',ctype:c.ctype||'',status:c.status||'',objective:c.objective||'조회수',convType:c.convType||'',convLabel,start:c.start||'',end:c.end||'',asof:c.asof||'',usageMonths:c.usageMonths||'',
       kind:kindOf(c),trial:TR,targets:(admin||sh.showTargets!==false)?tg:{},metrics:M,eng:E,costLevel,showLinks,showProgress:admin||sh.progOn===true,reachOn:!shHidden(sh,'reach'),insight:c.insight||'',groupLabel:groupLabel||'',fee:{mode,rate:CO&&(admin||sh.feeToggle!==false)?feeRate(c):null,toggle:CO&&!admin&&sh.feeToggle!==false}},
-    T,sales:SALES,byGroup:groupsOf(c).length?grp(r=>groupName(c,r.group)||'그룹 미지정',groupsOf(c).map(g=>g.name)):[],byCh:grp(r=>r.ch,CHANNELS),byTier:grp(r=>tierGroup(c,calc.get(r).tier),c.tierSplit?TIERS:TIERS_M),byType:grp(r=>r.ctype,CTYPES),stages,drop:rows.filter(r=>r.name&&r.stage===DROP).length,progress,rows:out};
+    T,sales:SALES,byGroup:groupsOf(c).length?grp(r=>groupName(c,r.group)||'그룹 미지정',groupsOf(c).map(g=>g.name)):[],byCh:grp(r=>r.ch,CHANNELS),byTier:grp(r=>tierGroup(c,calc.get(r).tier),c.tierSplit?TIERS:TIERS_M),byType:grp(r=>r.ctype,CTYPES),stages,drop:rows.filter(r=>r.name&&isOut(r.stage)).length,progress,rows:out};
   {const TK=(admin||trkShareOn(c))?trkAgg(c,rows,showNames,admin,{conv:admin||!(shHidden(sh,'conv')&&shHidden(sh,'rev'))}):null;if(TK){if(!admin){if(TK.cv&&shHidden(sh,'conv')){TK.cv.conv=false;delete TK.T.conv;delete TK.T.cvr;TK.rows.forEach(r=>{delete r.conv;delete r.cvr})}if(TK.cv&&shHidden(sh,'rev')){TK.cv.rev=false;delete TK.T.rev;TK.rows.forEach(r=>delete r.rev)}if(TK.cv&&!TK.cv.conv&&!TK.cv.rev)TK.cv=null}REP.track=TK}}
   if(!admin){applyHide(REP,new Set(shareMetricsFor(c).map(x=>x[0]).filter(k=>shHidden(sh,k))))}
   return REP;
@@ -1039,14 +1047,14 @@ async function syncNow(cid,fromSeed){
   try{
     await DB.update('campaigns/'+cid,{summary:summaryOf(c,rows),updatedAt:new Date().toISOString()});
     const sh=c.share||{};if(sh.enabled&&sh.token){const fm=sh.feeMode||'incl';const sc=shareScope(c,rows);const snap=buildReport(c,sc.rows,false,sc.label,fm);if(trialCostOn(c,sc.rows)&&sh.feeToggle!==false&&(sh.costLevel||'row')!=='none')snap.alt=buildReport(c,sc.rows,false,sc.label,fm==='incl'?'excl':'incl');snap.acct=acctOf(c);await DB.set('shares/'+sh.token,snap);
-      try{const tm=(A.cid===cid&&A.unsubThumbs)?A.thumbs:(((await DB.get('thumbs/'+cid))||{}).t||{});const pub={};rows.filter(r=>r.name&&r.stage!==DROP&&tm[r.id]).forEach(r=>pub[r.id]=tm[r.id]);await DB.set('sharethumbs/'+sh.token,{t:pub,acct:acctOf(c),updatedAt:new Date().toISOString()})}catch(e){console.warn('sharethumbs',e)}}
+      try{const tm=(A.cid===cid&&A.unsubThumbs)?A.thumbs:(((await DB.get('thumbs/'+cid))||{}).t||{});const pub={};rows.filter(r=>r.name&&!isOut(r.stage)&&tm[r.id]).forEach(r=>pub[r.id]=tm[r.id]);await DB.set('sharethumbs/'+sh.token,{t:pub,acct:acctOf(c),updatedAt:new Date().toISOString()})}catch(e){console.warn('sharethumbs',e)}}
     if(acctOf(c)!==TEAM){await DB.set('cview/'+cid,cviewOf(c,cid,rows));if(c.cvAcct!==acctOf(c))await DB.update('campaigns/'+cid,{cvAcct:acctOf(c)})}
     else if(c.cvAcct){await DB.del('cview/'+cid).catch(()=>{});await DB.update('campaigns/'+cid,{cvAcct:DB.DEL})}
     await syncPool(cid,c,rows);
   }catch(e){console.error(e);if(!fromSeed)toast('광고주 공유 화면을 갱신하지 못했습니다. 권한을 확인하세요.','crit')}
 }
 /* 클라이언트 공개용 진행 현황 (비용·연락처·주소·메모 제외) */
-function cviewOf(c,cid,rows){const live=rows.filter(r=>r.name&&r.stage!==DROP);const s=summaryOf(c,rows);const sh=c.share||{};
+function cviewOf(c,cid,rows){const live=rows.filter(r=>r.name&&!isOut(r.stage));const s=summaryOf(c,rows);const sh=c.share||{};
   return {acct:acctOf(c),cid,managed:c.managed||'',kind:kindOf(c),name:c.name||'',advertiser:c.advertiser||'',brand:c.brand||'',start:c.start||'',end:c.end||'',status:(c.status==='보류'||c.status==='종료')?c.status:s.status,objective:c.objective||'',confirmOn:c.confirmOn!==false,
     product:(c.trial&&c.trial.product)||(c.com&&c.com.product)||'',cat:(c.trial&&c.trial.cat)||(c.com&&c.com.cat)||'',groups:groupsOf(c).map(g=>({id:g.id,name:g.name||'',start:g.start||'',end:g.end||''})),
     stages:s.stages,n:s.n,uploaded:s.uploaded,views:s.views||0,rev:isCom(c)?n(s.rev):null,report:sh.enabled&&sh.token?shareUrl(sh.token):'',updatedAt:new Date().toISOString(),
@@ -1471,7 +1479,7 @@ function groupChips(c,rows){const gs=groupsOf(c);if(!gs.length)return '';const n
   return `<div class="row"><span class="small muted bold">광고 그룹</span><div class="chips"><span class="chip ${!A.gf?'on':''}" data-act="gfSet" data-g="">전체 <em>${rows.length}</em></span>${gs.map(g=>`<span class="chip ${A.gf===g.id?'on':''}" data-act="gfSet" data-g="${g.id}">${esc(g.name)} <em>${rows.filter(r=>r.group===g.id).length}</em></span>`).join('')}${none?`<span class="chip ${A.gf==='__none'?'on':''}" data-act="gfSet" data-g="__none">그룹 미지정 <em>${none}</em></span>`:''}</div></div>`}
 function tabGrid(c,rows){
   const M=settings(c).M;const q=A.rq.trim().toLowerCase();const allRows=rows;rows=rows.filter(inGroup);
-  const SL=stagesOf(c);const sc={};[...SL,DROP].forEach(s=>sc[s]=rows.filter(r=>r.stage===s).length);
+  const SL=stagesOf(c);const sc={};[...SL,NOSEL,DROP].forEach(s=>sc[s]=rows.filter(r=>r.stage===s).length);
   const list=rows.filter(r=>(!A.stageF||r.stage===A.stageF||(A.stageF==='__alert'&&alertOf(r,c)))&&(!q||[r.name,r.acct,r.ch,r.owner,r.memo].join(' ').toLowerCase().includes(q)));
   const cols=visibleCols(c);
   const groups=[];cols.forEach(col=>{const last=groups[groups.length-1];if(last&&last.g===col.g)last.n++;else groups.push({g:col.g,n:1})});
@@ -1489,27 +1497,27 @@ function tabGrid(c,rows){
     const v=r[col.k];
     if(col.t==='sel'){const cls=col.k==='stage'?(isDone(v)?'st-done':''):(col.k==='contract'||col.k==='disc')?(v==='완료'?'yes':v==='미완료'?'no':''):'';
       return `<td class="${cls}"><select id="${id}" data-row="${r.id}" data-f="${col.k}"><option value=""></option>${colOpts(c,col).map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select></td>`}
-    const over=(col.k==='due'&&v&&v<today()&&!isDone(r.stage)&&r.stage!==DROP)||(col.k==='rate'&&false);
+    const over=(col.k==='due'&&v&&v<today()&&!isDone(r.stage)&&!isOut(r.stage))||(col.k==='rate'&&false);
     const type=col.t==='num'?'text':col.t==='date'?'date':col.t==='dt'?'datetime-local':col.t==='url'?'url':'text';
     const val=col.t==='num'&&has(v)?Number(v).toLocaleString('ko-KR'):v;
     return `<td class="${over?'over':''}"><input id="${id}" type="${type}" ${col.t==='num'?'inputmode="decimal" style="text-align:right"':''} data-row="${r.id}" data-f="${col.k}" data-t="${col.t}" value="${esc(val??'')}" ${col.k==='rate'?`placeholder="${comRate(c)}"`:isTrial(c)&&(col.k==='fee'||col.k==='use')&&has(trialFee(c,r)[col.k])&&!has(r[col.k])?`placeholder="${fmt(n(trialFee(c,r)[col.k]))} (기본)" title="비워 두면 캠페인 기본값이 적용됩니다"`:col.ph?`placeholder="${col.ph}"`:''}></td>`;
   };
   const K=calcTotals(c,list);
-  const cfBar=acctOf(c)!==TEAM&&c.confirmOn!==false?(()=>{const live=rows.filter(r=>r.name&&r.stage!==DROP);if(!A.cconf)return '';const k={};['','승인','보류','제외 요청'].forEach(s=>k[s]=live.filter(r=>((A.cconf[r.id]||{}).st||'')===s).length);
+  const cfBar=acctOf(c)!==TEAM&&c.confirmOn!==false?(()=>{const live=rows.filter(r=>r.name&&!isOut(r.stage));if(!A.cconf)return '';const k={};['','승인','보류','제외 요청'].forEach(s=>k[s]=live.filter(r=>((A.cconf[r.id]||{}).st||'')===s).length);
     return `<div class="banner info" style="margin:0;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center"><b>광고주 컨펌 · ${esc(acctName(acctOf(c)))}</b><span>승인 ${k['승인']}</span><span>보류 ${k['보류']}</span><span>제외 요청 ${k['제외 요청']}</span><span>대기 ${k['']}</span><span class="small" style="opacity:.8">클라이언트가 ad.ringcoms.com 에서 인플루언서별로 컨펌하면 「광고주 컨펌」 열에 바로 표시됩니다</span></div>`})():'';
-  return `<div class="stack"><div class="sect-h"><h2>인플루언서 진행현황 관리</h2><span class="sub">단계별 인원과 인플루언서별 진행 상황 · 칸을 고치면 바로 저장됩니다</span>${isTrial(c)?'':(()=>{const td=rows.filter(r=>r.name&&r.stage!==DROP&&ctOf(r)!=='완료').length;return `<span class="grow"></span><button class="btn sm ${td?'primary':''}" data-act="ctJump">인플루언서 계약 관리${td?` · 진행 필요 ${td}`:''} ↓</button>`})()}</div>${groupChips(c,allRows)}${cfBar}
-  <div class="row"><div class="chips"><span class="chip ${!A.stageF?'on':''}" data-act="stageF" data-k="">전체 <em>${rows.length}</em></span>${SL.map(s=>`<span class="chip ${A.stageF===s?'on':''}" data-act="stageF" data-k="${s}">${s} <em>${sc[s]}</em></span>`).join('')}<span class="chip ${A.stageF===DROP?'on':''}" data-act="stageF" data-k="${DROP}">드롭 <em>${sc[DROP]}</em></span><span class="chip ${A.stageF==='__alert'?'on':''}" data-act="stageF" data-k="__alert" style="color:var(--crit)">확인 필요 <em>${rows.filter(r=>alertOf(r,c)).length}</em></span></div></div>
+  return `<div class="stack"><div class="sect-h"><h2>인플루언서 진행현황 관리</h2><span class="sub">단계별 인원과 인플루언서별 진행 상황 · 칸을 고치면 바로 저장됩니다</span>${isTrial(c)?'':(()=>{const td=rows.filter(r=>r.name&&!isOut(r.stage)&&ctOf(r)!=='완료').length;return `<span class="grow"></span><button class="btn sm ${td?'primary':''}" data-act="ctJump">인플루언서 계약 관리${td?` · 진행 필요 ${td}`:''} ↓</button>`})()}</div>${groupChips(c,allRows)}${cfBar}
+  <div class="row"><div class="chips"><span class="chip ${!A.stageF?'on':''}" data-act="stageF" data-k="">전체 <em>${rows.length}</em></span>${SL.map(s=>`<span class="chip ${A.stageF===s?'on':''}" data-act="stageF" data-k="${s}">${s} <em>${sc[s]}</em></span>`).join('')}${isTrial(c)?`<span class="chip ${A.stageF===NOSEL?'on':''}" data-act="stageF" data-k="${NOSEL}">미선정 <em>${sc[NOSEL]}</em></span>`:''}<span class="chip ${A.stageF===DROP?'on':''}" data-act="stageF" data-k="${DROP}">드롭 <em>${sc[DROP]}</em></span><span class="chip ${A.stageF==='__alert'?'on':''}" data-act="stageF" data-k="__alert" style="color:var(--crit)">확인 필요 <em>${rows.filter(r=>alertOf(r,c)).length}</em></span></div></div>
   <div class="row"><input type="text" id="rq" data-ui="rq" value="${esc(A.rq)}" placeholder="이름·계정·담당자 검색" style="max-width:220px"><span class="small muted hide-m">표시 열</span><div class="chips hide-m">${Object.keys(GROUPS).filter(g=>(g!=='conv'||M.clicks||M.conv||M.revenue)&&(g!=='cost'||!isTrial(c))&&(g!=='sales'||isCom(c))).map(g=>`<span class="chip ${A.hide.has(g)?'':'on'}" data-act="hideG" data-g="${g}">${groupLabel(c,g)}</span>`).join('')}</div><span class="grow"></span>${isTrial(c)?'':`<span class="small muted">광고비</span>${feeSwitch(c)}`}
    ${chBtn(allRows)}${ytBtn(allRows)}${isCom(c)?'<button class="btn" data-act="settleXlsx" title="인플루언서별 매출·수수료·정산 금액을 엑셀로">정산서 엑셀</button>':''}<button class="btn" data-act="import">${isCom(c)?'엑셀 업로드 · 판매 데이터':'엑셀 업로드'}</button><button class="btn primary" data-act="addRow">+ 인플루언서 추가</button></div>
-  ${A.sel.size?`<div class="panel row" style="padding:10px 14px"><b>${A.sel.size}개 선택</b><span class="grow"></span><select id="bulk-stage" style="width:auto"><option value="">진행 상황 일괄 변경</option>${[...SL,DROP].map(s=>`<option>${s}</option>`).join('')}</select><button class="btn sm primary" data-act="bulkStage">적용</button><button class="btn sm" data-act="bulkContract">${isTrial(c)?'제품 발송 완료 처리':'계약 완료 처리'}</button><button class="btn sm danger" data-act="bulkDel">${A.confirm==='bulkDel'?'한 번 더 누르면 삭제':'삭제'}</button><button class="btn sm ghost" data-act="selClear">선택 해제</button></div>`:''}
-  ${allRows.length?`<div class="mcards show-m">${list.map(r=>{const al=alertOf(r,c);const k=rowCalc(r,c);return `<div class="mcard ${r.stage===DROP?'drop':''} ${A.sel.has(r.id)?'sel':''}">
+  ${A.sel.size?`<div class="panel row" style="padding:10px 14px"><b>${A.sel.size}개 선택</b><span class="grow"></span><select id="bulk-stage" style="width:auto"><option value="">진행 상황 일괄 변경</option>${[...SL,...outStages(c)].map(s=>`<option>${s}</option>`).join('')}</select><button class="btn sm primary" data-act="bulkStage">적용</button><button class="btn sm" data-act="bulkContract">${isTrial(c)?'제품 발송 완료 처리':'계약 완료 처리'}</button><button class="btn sm danger" data-act="bulkDel">${A.confirm==='bulkDel'?'한 번 더 누르면 삭제':'삭제'}</button><button class="btn sm ghost" data-act="selClear">선택 해제</button></div>`:''}
+  ${allRows.length?`<div class="mcards show-m">${list.map(r=>{const al=alertOf(r,c);const k=rowCalc(r,c);return `<div class="mcard ${isOut(r.stage)?'drop':''} ${A.sel.has(r.id)?'sel':''}">
     <div class="mh"><input type="checkbox" data-act="sel" data-r="${r.id}" aria-label="선택" ${A.sel.has(r.id)?'checked':''} style="margin-top:3px"><div class="grow" data-act="rowMenu" data-r="${r.id}" style="cursor:pointer"><div class="mt">${esc(r.name||'이름 없음')}</div><div class="ms">${esc([r.acct,r.ch,groupName(c,r.group),r.ctype].filter(Boolean).join(' · '))}</div></div><button class="btn sm" data-act="rowMenu" data-r="${r.id}">상세</button></div>
-    <select id="m_${r.id}_stage" data-row="${r.id}" data-f="stage" aria-label="진행 상황"><option value=""></option>${[...SL,DROP].map(o=>`<option ${o===r.stage?'selected':''}>${o}</option>`).join('')}</select>
+    <select id="m_${r.id}_stage" data-row="${r.id}" data-f="stage" aria-label="진행 상황"><option value=""></option>${[...SL,...outStages(c)].map(o=>`<option ${o===r.stage?'selected':''}>${o}</option>`).join('')}</select>
     ${isCom(c)?`<div class="mkv"><div><span>${isLive(c)?'방송':'공구 기간'}</span><b>${isLive(c)?fmtLiveAt(r.liveAt):r.gbStart?md(r.gbStart)+'~'+md(r.gbEnd).slice(3):'–'}</b></div><div><span>매출</span><b>${has(r.rev)?compact(r.rev):'–'}</b></div><div><span>주문</span><b>${has(r.conv)?fmt(r.conv):'–'}</b></div></div>`:`<div class="mkv"><div><span>업로드 예정</span><b>${md(r.due)}</b></div><div><span>업로드</span><b>${md(r.up)}</b></div>${isTrial(c)?`<div><span>조회</span><b>${n(r.views)?compact(r.views):'–'}</b></div>`:`<div><span>광고비</span><b>${k.cost!=null?compact(k.cost):'–'}</b></div>`}</div>`}
     ${r.clink?`<div class="small">${thumbHtml(r.clink,24,A.thumbs[r.id])} <a href="${esc(r.clink)}" target="_blank" rel="noopener">업로드 콘텐츠 보기 ↗</a>${n(r.views)?` · 조회 ${compact(r.views)}`:''}</div>`:''}${al?`<div class="malert">확인 필요 · ${esc(al)}</div>`:''}</div>`}).join('')||'<div class="panel empty">조건에 맞는 행이 없습니다.</div>'}</div><div class="grid-wrap hide-m" data-keep-scroll="grid"><table class="g"><thead>
    <tr class="grp"><th class="stk" style="left:0;min-width:${LEFT0}px"></th><th class="stk" style="left:${LEFT0}px;min-width:40px"></th>${groups.map(g=>`<th colspan="${g.n}">${groupLabel(c,g.g)}</th>`).join('')}</tr>
    <tr class="hd"><th class="stk" style="left:0"><input type="checkbox" data-act="selAll" aria-label="전체 선택" ${A.sel.size&&A.sel.size===list.length?'checked':''}></th><th class="stk" style="left:${LEFT0}px">No</th>${cols.map((col,i)=>`<th style="min-width:${col.w}px;${stS(i,4)}">${colLabel(c,col)}</th>`).join('')}</tr></thead>
-   <tbody>${list.map((r,ri)=>`<tr class="${r.stage===DROP?'drop':''} ${A.sel.has(r.id)?'sel':''}"><td class="ck stk" style="left:0"><input type="checkbox" data-act="sel" data-r="${r.id}" aria-label="선택" ${A.sel.has(r.id)?'checked':''}></td><td class="calc stk" style="left:${LEFT0}px;text-align:center"><button class="btn sm ghost" style="padding:2px 4px" data-act="rowMenu" data-r="${r.id}" title="행 상세·삭제">${ri+1}</button></td>${cols.map((col,i)=>i<stickyN?cell(r,col).replace('<td','<td style="'+stS(i,2)+'"'):cell(r,col)).join('')}</tr>`).join('')}</tbody>
+   <tbody>${list.map((r,ri)=>`<tr class="${isOut(r.stage)?'drop':''} ${A.sel.has(r.id)?'sel':''}"><td class="ck stk" style="left:0"><input type="checkbox" data-act="sel" data-r="${r.id}" aria-label="선택" ${A.sel.has(r.id)?'checked':''}></td><td class="calc stk" style="left:${LEFT0}px;text-align:center"><button class="btn sm ghost" style="padding:2px 4px" data-act="rowMenu" data-r="${r.id}" title="행 상세·삭제">${ri+1}</button></td>${cols.map((col,i)=>i<stickyN?cell(r,col).replace('<td','<td style="'+stS(i,2)+'"'):cell(r,col)).join('')}</tr>`).join('')}</tbody>
    <tfoot><tr><td class="stk" style="left:0"></td><td class="stk" style="left:${LEFT0}px"></td>${cols.map((col,i)=>`<td ${i<stickyN?`style="${stS(i,3)}text-align:left"`:''}>${i===0?`합계 ${list.length}행`:K[col.k]!=null?fmtBy(col.f||'n0',K[col.k]):''}</td>`).join('')}</tr></tfoot></table></div>
    <p class="small muted show-m" style="margin:0">카드의 「상세」를 누르면 모든 항목을 고칠 수 있습니다. 엑셀처럼 한 화면에서 전체를 편집하려면 PC를 이용하세요.</p>
    <p class="small muted hide-m" style="margin:0">칸을 수정하고 다른 칸으로 이동하면 바로 저장되고, 공유 중인 광고주 화면에도 몇 초 안에 반영됩니다. 숫자는 쉼표 없이 입력해도 됩니다. 한 인플루언서가 콘텐츠 2개를 올리면 2줄로 입력하세요.</p>`
@@ -1519,7 +1527,7 @@ function tabGrid(c,rows){
 /* 진행관리 하단: 인플루언서 계약 관리 (모두싸인 1단계) */
 const CT_ORDER=['미진행','반려·취소','작성 중','서명 대기','완료'];
 function ctSection(c,rows){if(isTrial(c))return '';
-  const live=rows.filter(r=>r.name&&r.stage!==DROP);const ed=canEdit();
+  const live=rows.filter(r=>r.name&&!isOut(r.stage));const ed=canEdit();
   const cnt={};CT_ORDER.forEach(x=>cnt[x]=live.filter(r=>ctOf(r)===x).length);const todo=live.length-cnt['완료'];
   const f=A.ctF==null?(todo?'__todo':''):A.ctF;
   const list=live.filter(r=>!f||(f==='__todo'?ctOf(r)!=='완료':ctOf(r)===f)).sort((a,b)=>CT_ORDER.indexOf(ctOf(a))-CT_ORDER.indexOf(ctOf(b))||(a.order||0)-(b.order||0));
@@ -1543,17 +1551,17 @@ function ctSection(c,rows){if(isTrial(c))return '';
      <div class="row" style="gap:6px">${go(r)}<button class="btn sm" data-act="ctOpen" data-r="${r.id}">관리</button></div></div>`).join('')}</div>`}
    <p class="small muted" style="margin:10px 0 0">계약 상태가 「완료」가 되면 진행현황 표의 계약 여부도 완료로 바뀝니다. 서명 완료 자동 반영은 모두싸인 API 연동(2단계) 후 가능합니다. 계약서 링크는 모두싸인 팀 계정으로 로그인해야 열립니다.</p></section>`}
 function calcTotals(c,list){const t={};const ks=['fol','offer','fee','use','ops','ad','views','likes','cmts','shares','saves','reach','clicks','conv','rev','qty','viewers','chats','liveMin'];ks.forEach(k=>t[k]=list.reduce((s,r)=>s+n(r[k]),0));
-  const live=list.filter(r=>r.stage!==DROP);t.cost=live.reduce((s,r)=>s+n(rowCalc(r,c).cost),0);t.cost0=live.reduce((s,r)=>s+n(rowCalc(r,c).cost0),0);t.agf=live.reduce((s,r)=>s+n(rowCalc(r,c).agf),0);t.eng=live.reduce((s,r)=>s+n(rowCalc(r,c).eng),0);t.er=t.views?t.eng/t.views:null;
+  const live=list.filter(r=>!isOut(r.stage));t.cost=live.reduce((s,r)=>s+n(rowCalc(r,c).cost),0);t.cost0=live.reduce((s,r)=>s+n(rowCalc(r,c).cost0),0);t.agf=live.reduce((s,r)=>s+n(rowCalc(r,c).agf),0);t.eng=live.reduce((s,r)=>s+n(rowCalc(r,c).eng),0);t.er=t.views?t.eng/t.views:null;
   const cv=live.filter(r=>n(r.views)>0).reduce((s,r)=>s+n(rowCalc(r,c).cost),0);t.cpv=t.views&&cv?cv/t.views:null;t.cpe=t.eng&&t.cost?t.cost/t.eng:null;t.ctr=t.views&&t.clicks?t.clicks/t.views:null;t.cvr=t.clicks&&t.conv?t.conv/t.clicks:null;t.cpa=t.conv&&t.cost?t.cost/t.conv:null;t.roas=t.cost&&t.rev?t.rev/t.cost:null;
   if(isCom(c)){t.comm=live.reduce((s,r)=>s+n(rowCalc(r,c).comm),0);t.payout=live.reduce((s,r)=>s+n(rowCalc(r,c).payout),0);t.aov=t.conv&&t.rev?t.rev/t.conv:null;t.vcr=t.viewers&&t.conv?t.conv/t.viewers:null;t.rpm=t.liveMin&&t.rev?t.rev/t.liveMin:null;t.peak=Math.max(0,...list.map(r=>n(r.peak)))}
   Object.keys(t).forEach(k=>{if(!t[k])t[k]=null});return t}
 
 function tabStatus(c,rows){
   const gc=groupChips(c,rows);rows=rows.filter(inGroup);
-  const live=rows.filter(r=>r.name&&r.stage!==DROP);const s=summaryOf(c,rows);const al=rows.filter(r=>alertOf(r,c));
+  const live=rows.filter(r=>r.name&&!isOut(r.stage));const s=summaryOf(c,rows);const al=rows.filter(r=>alertOf(r,c));
   const SL=stagesOf(c);const cum=SL.map((st,i)=>live.filter(r=>stageIdx(r.stage,c)>=i).length);const mx=Math.max(1,...cum);
   return `<div class="stack">${gc}<div class="tiles">
-   ${tile('운영 인원',fmt(s.n),'드롭 제외 · 콘텐츠 기준')}${tile(isTrial(c)?'제품 발송 완료':'계약 완료',fmt(s.contract),s.n?pct(s.contract/s.n,0):'')}${isCom(c)?tile('판매 데이터 입력',fmt(s.sellers),s.n?pct(s.sellers/s.n,0):'')+tile('정산 완료',fmt(s.settled),s.n?pct(s.settled/s.n,0):''):tile('업로드 완료',fmt(s.uploaded),s.n?pct(s.uploaded/s.n,0)+' · 목표 '+(c.targets&&c.targets.contents?fmt(c.targets.contents)+'개':'-'):'')}${tile('확인 필요',fmt(al.length),'아래 목록 참고',null,al.length?'crit':'')}${tile('드롭',fmt(rows.filter(r=>r.stage===DROP).length),'')}
+   ${tile('운영 인원',fmt(s.n),'드롭 제외 · 콘텐츠 기준')}${tile(isTrial(c)?'제품 발송 완료':'계약 완료',fmt(s.contract),s.n?pct(s.contract/s.n,0):'')}${isCom(c)?tile('판매 데이터 입력',fmt(s.sellers),s.n?pct(s.sellers/s.n,0):'')+tile('정산 완료',fmt(s.settled),s.n?pct(s.settled/s.n,0):''):tile('업로드 완료',fmt(s.uploaded),s.n?pct(s.uploaded/s.n,0)+' · 목표 '+(c.targets&&c.targets.contents?fmt(c.targets.contents)+'개':'-'):'')}${tile('확인 필요',fmt(al.length),'아래 목록 참고',null,al.length?'crit':'')}${tile('드롭',fmt(rows.filter(r=>isOut(r.stage)).length),'')}
   </div>
   <div class="grid2"><section class="panel"><div class="panel-h"><h2>단계별 누적 도달</h2><span class="sub">각 단계 이상까지 진행된 인원 · 크게 줄어드는 구간이 병목</span></div>
    <div class="bars">${SL.map((st,i)=>`<div class="bar" title="${st} 이상 ${cum[i]}명 · 현재 ${s.stages[st]}명"><span class="nm">${st}</span><div class="t"><i style="width:${(cum[i]/mx*100).toFixed(1)}%;background:${stageColor(i,SL.length)}"></i></div><span class="v">${cum[i]}명 <span class="muted">(현재 ${s.stages[st]})</span></span></div>`).join('')}</div></section>
@@ -1637,7 +1645,7 @@ function renderReport(R,o){
   const totalSC=Object.values(R.stages).reduce((a,b)=>a+b,0);const pg=R.progress.some(p=>p.group),rg=R.rows.some(r=>r.group);
   const ttl=TR?[[t('제공 제품','Product'),esc(TR.product||'–'),[V(TR.cat),TR.platform].filter(Boolean).map(esc).join(' · ')||t('카테고리 미입력','')],
     TR.price!=null&&[t('제품 판매단가','Retail Price'),won(TR.price),TR.qty>1?t(`1인당 ${TR.qty}개 제공 · 1인 ${fmt(TR.unitValue)}원`,`${TR.qty} units per creator · ${won(TR.unitValue)} each`):t('1인당 1개 제공','1 unit per creator')],
-    TR.recruit!=null&&[t('모집 인원','Recruited Slots'),fmt(TR.recruit)+t('명',''),''],TR.apps!=null&&[t('신청자 수','Applicants'),fmt(TR.apps)+t('명',''),tt.applicants?t(`목표 ${fmt(tt.applicants)}명 · 달성 ${pct(TR.apps/tt.applicants,0)}`,`Target ${fmt(tt.applicants)} · ${pct(TR.apps/tt.applicants,0)} achieved`):''],
+    TR.recruit!=null&&[t('모집 인원','Recruited Slots'),fmt(TR.recruit)+t('명',''),TR.fillRate!=null?t(`선정 기준 충원율 ${pct(TR.fillRate,0)}`,`${pct(TR.fillRate,0)} filled`):''],TR.contacts!=null&&[t('컨택 인원','Creators Contacted'),fmt(TR.contacts)+t('명',''),t('제안·모집 안내를 보낸 인플루언서','Creators we reached out to')],TR.apps!=null&&[t('신청자 수','Applicants'),fmt(TR.apps)+t('명',''),TR.contactApplyRate!=null&&!tt.applicants?t(`컨택 대비 ${pct(TR.contactApplyRate,1)}`,`${pct(TR.contactApplyRate,1)} of contacted`):tt.applicants?t(`목표 ${fmt(tt.applicants)}명 · 달성 ${pct(TR.apps/tt.applicants,0)}`,`Target ${fmt(tt.applicants)} · ${pct(TR.apps/tt.applicants,0)} achieved`):''],
     TR.compete!=null&&[t('신청 경쟁률','Applicants per Slot'),fmtX(TR.compete),t('신청자 ÷ 모집 인원','Applicants ÷ slots')],TR.applyRate!=null&&[t('신청 전환율','Application Rate'),pct(TR.applyRate,1),t(`모집글 조회 ${fmt(TR.pv)}회 대비`,`of ${fmt(TR.pv)} listing views`)],
     TR.selected!=null&&[t('선정 인원','Selected Creators'),fmt(TR.selected)+t('명',''),TR.selRate!=null?t(`신청자 대비 ${pct(TR.selRate,1)}`,`${pct(TR.selRate,1)} of applicants`):''],TR.totalValue!=null&&[t('총 제품 제공가치','Total Product Value'),won(TR.totalValue),t('판매단가 × 수량 × 선정 인원','Price × units × selected creators')],
     TR.valuePerView!=null&&[t('조회 1회당 제품가치','Product Value per View'),won1(TR.valuePerView),t('총 제품 제공가치 ÷ 조회 수','Total product value ÷ views')]].filter(Boolean):[];
@@ -1762,7 +1770,7 @@ function guessCat(d){const sc={};const add=(txt,w)=>{if(!txt)return;CAT_RULES.fo
   add(d.category,3);(d.topics||[]).forEach(t=>add(t.replace(/_/g,' '),2));add([d.name,d.bio].filter(Boolean).join(' '),1);
   const best=Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];return best&&best[1]>=1?best[0]:''}
 function chOk(r){const p=parseChLink(r.chlink);return !!(p&&p.kind)}
-function chBtn(rows){const k=rows.filter(r=>r.stage!==DROP&&chOk(r)).length;if(!k||!canEdit())return '';return `<button class="btn" data-act="chFetch" title="채널 링크로 계정 ID·팔로워·카테고리를 불러옵니다. 행을 선택하면 선택한 행만 불러옵니다 (인스타그램은 30초~1분)">${A.chBusy?esc(A.chBusy):'채널 정보 불러오기'}</button>`}
+function chBtn(rows){const k=rows.filter(r=>!isOut(r.stage)&&chOk(r)).length;if(!k||!canEdit())return '';return `<button class="btn" data-act="chFetch" title="채널 링크로 계정 ID·팔로워·카테고리를 불러옵니다. 행을 선택하면 선택한 행만 불러옵니다 (인스타그램은 30초~1분)">${A.chBusy?esc(A.chBusy):'채널 정보 불러오기'}</button>`}
 async function ytProfiles(items){let key=((A.settings||{}).ytKey||'').trim();if(!key)key=(((await loadSettings())||{}).ytKey||'').trim();
   if(!key)return {err:'YouTube API 키가 연결되지 않아 유튜브 채널은 건너뛰었습니다.',res:{}};const res={};const K=encodeURIComponent(key);const G='https://www.googleapis.com/youtube/v3/';
   await Promise.all(items.map(async it=>{const y=it.p.yt||{};let q=y.id?'id='+encodeURIComponent(y.id):y.handle?'forHandle='+encodeURIComponent('@'+y.handle):y.user?'forUsername='+encodeURIComponent(y.user):'';
@@ -1818,8 +1826,8 @@ async function perfAuto(cid,ids){const run=async()=>{const d=await DB.get('rows/
     finally{if(!prev){A.ytBusy=false;scheduleRender()}}};
   perfAuto.p=(perfAuto.p||Promise.resolve()).then(run).catch(e=>{console.error(e)});return perfAuto.p}
 /* ============ 유튜브 성과 불러오기 (YouTube Data API v3) ============ */
-function ytRows(rows){return rows.filter(r=>r.name&&r.stage!==DROP&&ytId(r.clink))}
-function socialRows(rows){return rows.filter(r=>r.name&&r.stage!==DROP&&/instagram\.com|tiktok\.com/.test(r.clink||''))}
+function ytRows(rows){return rows.filter(r=>r.name&&!isOut(r.stage)&&ytId(r.clink))}
+function socialRows(rows){return rows.filter(r=>r.name&&!isOut(r.stage)&&/instagram\.com|tiktok\.com/.test(r.clink||''))}
 function socialInfo(rows){const s=socialRows(rows);if(!s.length)return '';const last=s.map(r=>r.socialAt||'').sort().pop();return `인스타그램·틱톡 ${s.length}개${last?` · 최근 업데이트 ${fmtDT(last).replace(/<[^>]+>/g,'')}`:' · 아직 불러오기 전'}`}
 function ytBtn(rows,cls){const k=ytRows(rows).length+socialRows(rows).length;if(!k||!canEdit())return '';return `<button class="btn ${cls||''}" data-act="ytFetch" title="유튜브·인스타그램·틱톡 성과를 지금 불러옵니다 (인스타그램은 30초~1분)">${A.ytBusy?esc(typeof A.ytBusy==='string'?A.ytBusy:'불러오는 중…'):'성과 불러오기'}</button>`}
 /* 유튜브: YouTube Data API로 바로 */
@@ -1915,9 +1923,9 @@ function connectionPanel(){const st=A.intStatus;const on=!!(((A.settings||{}).yt
 function trialSettings(c,fld){const tr=c.trial||{};const tc=trialCalc(c,summaryOf(c,curRows()).n);
   return `<section class="panel"><div class="panel-h"><div><h2>체험단 제품·모집 정보</h2><div class="sub">무상으로 제공하는 제품 정보와 모집 결과입니다. 광고주 리포트의 「체험단 모집 성과」와 체험단 목록의 카테고리별 신청 분석에 쓰입니다.</div></div></div>
    <div class="fgrid">${fld('trial.product','제공 제품명',tr.product)}${fld('trial.cat','제품 카테고리',tr.cat,null,'카테고리별 신청 경쟁률 분석 기준',TRIAL_CATS)}${fld('trial.price','제품 판매단가 (원)',tr.price,'num','소비자 판매가 기준')}${fld('trial.qty','1인당 제공 수량',has(tr.qty)?tr.qty:1,'num')}
-   ${fld('trial.platform','모집 채널',tr.platform,null,'예: 자체 모집, 레뷰, 리뷰노트')}${fld('trial.recruit','모집 인원',tr.recruit,'num')}${fld('trial.applicants','신청자 수',tr.applicants,'num','모집 마감 후 최종 신청자 수')}${fld('trial.pageViews','모집글 조회수 (선택)',tr.pageViews,'num','입력하면 신청 전환율 계산')}</div>
+   ${fld('trial.platform','모집 채널',tr.platform,null,'예: 자체 모집, 레뷰, 리뷰노트')}${fld('trial.recruit','모집 인원',tr.recruit,'num')}${fld('trial.applicants','신청자 수',tr.applicants,'num','비워 두면 진행관리 「신청」 체크 + 집행 이후 단계 인원으로 자동 집계')}${fld('trial.pageViews','모집글 조회수 (선택)',tr.pageViews,'num','입력하면 신청 전환율 계산')}</div>
    <h3 style="font-size:13px;margin:16px 0 6px">비용 (원고료·2차 라이선스가 있는 경우)</h3><p class="small muted" style="margin:0 0 8px">무상협찬만 진행하면 비워 두세요. 입력하면 시딩 캠페인과 같이 광고비·대행수수료·CPV가 집계됩니다. 진행관리에서 인플루언서별로 다른 금액을 넣으면 그 값이 우선합니다.</p><div class="fgrid">${fld('trial.fixedFee','기본 고정단가 (원)',tr.fixedFee,'num','인플루언서 1명당 · 진행관리 「고정단가」가 비어 있으면 적용')}${fld('trial.licFee','2차 라이선스 단가 (원)',tr.licFee,'num','진행관리 「2차 라이선스」를 체크한 인플루언서에 자동 합산')}</div>
-   <div class="tcalc"><div><span>신청 경쟁률</span><b>${fmtX(tc.compete)}</b></div><div><span>신청 전환율</span><b>${pct(tc.applyRate,1)}</b></div><div><span>선정 인원 (진행관리 기준)</span><b>${fmt(tc.selected)}명</b></div><div><span>1인당 제품가치</span><b>${tc.unitValue!=null?fmt(tc.unitValue)+'원':'–'}</b></div><div><span>총 제품 제공가치</span><b>${tc.totalValue!=null?fmt(tc.totalValue)+'원':'–'}</b></div></div></section>`}
+   <div class="tcalc"><div><span>모집 인원 (설정)</span><b>${tc.recruit!=null?fmt(tc.recruit)+'명':'–'}</b></div><div><span>컨택 인원 (진행관리 전체)</span><b>${tc.contacts!=null?fmt(tc.contacts)+'명':'–'}</b></div><div><span>신청자 수 ${tc.appsAuto?'(자동 집계)':'(입력값)'}</span><b>${tc.apps!=null?fmt(tc.apps)+'명':'–'}</b></div><div><span>선정 인원 (집행 이후 · 드롭 제외)</span><b>${fmt(tc.selected)}명</b></div><div><span>미선정 · 드롭</span><b>${fmt(tc.nosel||0)} · ${fmt(tc.dropped||0)}명</b></div><div><span>신청 경쟁률</span><b>${fmtX(tc.compete)}</b></div><div><span>모집 충원율</span><b>${tc.fillRate!=null?pct(tc.fillRate,0):'–'}</b></div><div><span>${tc.contactApplyRate!=null?'컨택 대비 신청률':'신청 전환율'}</span><b>${pct(tc.contactApplyRate!=null?tc.contactApplyRate:tc.applyRate,1)}</b></div><div><span>1인당 제품가치</span><b>${tc.unitValue!=null?fmt(tc.unitValue)+'원':'–'}</b></div><div><span>총 제품 제공가치</span><b>${tc.totalValue!=null?fmt(tc.totalValue)+'원':'–'}</b></div></div></section>`}
 /* 계정(광고주) 연결: 클라이언트가 진행 현황을 보고 컨펌 */
 function acctSettings(c){if(!isTeam())return '';const ids=Object.keys(A.accounts||{});const cur=acctOf(c);
   return `<section class="panel"><div class="panel-h"><div><h2>광고주 계정 공개</h2><div class="sub">광고주 계정을 고르면 그 계정의 클라이언트가 ad.ringcoms.com 에 로그인해 이 캠페인의 진행 현황을 보고 인플루언서 진행 여부를 컨펌할 수 있습니다. 비용·연락처·주소·메모는 보이지 않습니다.</div></div></div>
@@ -1944,8 +1952,8 @@ function sumBlock(c,s,compact_){const {M}=settings(c);const cl=CONV_LABEL[c.conv
   if(isCom(c)){const tg=c.targets||{};const items=[['매출',s.rev?compact(s.rev)+'원':'–',tg.revenue?`목표 ${compact(tg.revenue)}원 · 달성 ${pct(n(s.rev)/tg.revenue,0)}`:`주문 ${fmt(s.conv)}건 · 판매 ${fmt(s.qty)}개`],['진행',`${s.settled||0}/${s.n}명`,`정산 완료 / 전체 · 판매 데이터 ${s.sellers||0}명`],
     ['ROAS',s.roas!=null?pct(s.roas,0):'–',`광고비 ${compact(s.cost)}원 (판매수수료 포함)`],['객단가',s.aov!=null?fmt(s.aov)+'원':'–',isLive(c)?`누적 시청 ${compact(s.viewers)}명`:`판매수수료 ${compact(s.comm)}원`]];
     if(!compact_)items.push(['정산 예정액',fmt(s.payout)+'원',`${isLive(c)?'출연료':'고정비'} + 판매수수료 · VAT 별도`]);return items}
-  if(isTrial(c)){const tc=trialCalc(c,s.n);const items=[['제품 제공가치',tc.totalValue!=null?fmt(tc.totalValue)+'원':'–',tc.price!=null?`판매단가 ${fmt(tc.price)}원${tc.qty>1?' × '+tc.qty+'개':''} × ${s.n}명`:'판매단가 미입력 (캠페인 설정)'],['진행',`${s.uploaded}/${s.n}명`,`업로드 완료 / 전체 · 발송 ${s.contract}명`],
-    ['조회수',started?compact(s.views):'–',started?`ER ${pct(s.er)}`:'진행 전']];if(!compact_)items.splice(1,0,['신청 경쟁률',fmtX(tc.compete),tc.recruit!=null?`모집 ${fmt(tc.recruit)}명 · 신청 ${tc.apps!=null?fmt(tc.apps):'–'}명`:'모집 정보 미입력 (캠페인 설정)']);return items}
+  if(isTrial(c)){const tc=trialCalc(c,s.n);const items=[['제품 제공가치',tc.totalValue!=null?fmt(tc.totalValue)+'원':'–',tc.price!=null?`판매단가 ${fmt(tc.price)}원${tc.qty>1?' × '+tc.qty+'개':''} × 선정 ${tc.selected}명`:'판매단가 미입력 (캠페인 설정)'],['진행',`${s.uploaded}/${s.n}명`,`업로드 완료 / 전체 · 발송 ${s.contract}명`],
+    ['조회수',started?compact(s.views):'–',started?`ER ${pct(s.er)}`:'진행 전']];if(!compact_)items.splice(1,0,['신청 경쟁률',fmtX(tc.compete),tc.recruit!=null?`모집 ${fmt(tc.recruit)} · 컨택 ${tc.contacts!=null?fmt(tc.contacts):'–'} · 신청 ${tc.apps!=null?fmt(tc.apps):'–'}${tc.appsAuto?'(자동)':''} · 선정 ${fmt(tc.selected)}명`:'모집 정보 미입력 (캠페인 설정)']);return items}
   const fm=feeMode(c);const items=[['광고비 (VAT 별도)',fmt(s.cost)+'원',`${fm==='incl'?`대행수수료 ${feeRate(c)}% 포함 (수수료 ${fmt(s.agf)})`:`대행수수료 미포함 (별도 ${fmt(s.agf)})`} · 원고료 ${fmt(s.fee)}${compact_?'':` · 제안 단가 ${fmt(s.offer)}`}${!compact_&&b?` · 예산 대비 ${pct(s.cost/b,0)}`:''}`],['진행',`${s.uploaded}/${s.n}명`,`업로드 완료 / 전체 · 계약 ${s.contract}명`],
     ['조회수',started?compact(s.views):'–',started?`ER ${pct(s.er)}`:'진행 전'],['CPV',started&&s.cpv!=null?fmt1(s.cpv)+'원':'–','광고비 ÷ 조회']];
   if(M.conv)items.push([cl+' 수',fmt(s.conv),M.clicks?`클릭 ${fmt(s.clicks)}`:'']);if(M.revenue)items.push(['매출',compact(s.rev)+'원',`ROAS ${pct(s.roas,0)}`]);
@@ -1972,10 +1980,10 @@ function tabOverview(c,rows){
 
 /* 공동구매·라이브: 다가오는 일정 (3일 전 ~ 3주 뒤) */
 function comSchedule(c,rows){const td=today();const GB=isGB(c);const ev=[];
-  rows.filter(r=>r.name&&r.stage!==DROP).forEach(r=>{if(GB){if(r.gbStart)ev.push({d:r.gbStart,t:'공구 오픈',r});if(r.gbEnd)ev.push({d:r.gbEnd,t:'공구 마감',r})}else if(r.liveAt)ev.push({d:String(r.liveAt).slice(0,10),tm:String(r.liveAt).slice(11,16),t:'라이브 방송',r,p:r.livePlat})});
+  rows.filter(r=>r.name&&!isOut(r.stage)).forEach(r=>{if(GB){if(r.gbStart)ev.push({d:r.gbStart,t:'공구 오픈',r});if(r.gbEnd)ev.push({d:r.gbEnd,t:'공구 마감',r})}else if(r.liveAt)ev.push({d:String(r.liveAt).slice(0,10),tm:String(r.liveAt).slice(11,16),t:'라이브 방송',r,p:r.livePlat})});
   const L=ev.filter(e=>{const x=dd(td,e.d);return x!=null&&x>=-3&&x<=21}).sort((a,b)=>(a.d+(a.tm||'')).localeCompare(b.d+(b.tm||'')));
   const dl=d=>{const x=dd(td,d);return x===0?'<span class="pill crit">D-DAY</span>':x>0?`<span class="pill ${x<=2?'warn':''}">D-${x}</span>`:`<span class="pill">D+${-x}</span>`};
-  const none=rows.filter(r=>r.name&&r.stage!==DROP&&!(GB?r.gbStart:r.liveAt)).length;
+  const none=rows.filter(r=>r.name&&!isOut(r.stage)&&!(GB?r.gbStart:r.liveAt)).length;
   return `<section class="panel"><div class="panel-h"><div><h2>${GB?'공구 일정':'방송 일정'}</h2><div class="sub">3일 전부터 3주 뒤까지 · ${GB?'공구 시작일·종료일':'방송 일시'}이 지나면 진행 상황이 자동으로 ${GB?'판매중·판매종료':'방송완료'}로 바뀝니다${none?` · 일정 미입력 ${none}명`:''}</div></div><button class="btn sm" data-act="tab" data-t="grid">진행관리에서 일정 입력</button></div>
    ${L.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th></th><th>날짜</th><th>일정</th><th>인플루언서</th>${GB?'':'<th>플랫폼</th>'}<th>진행 상황</th><th>확인 필요</th></tr></thead><tbody>${L.map(e=>`<tr class="click" data-act="rowMenu" data-r="${e.r.id}"><td>${dl(e.d)}</td><td style="white-space:nowrap">${md(e.d)}${e.tm?' '+e.tm:''}</td><td class="bold">${e.t}</td><td>${esc(e.r.name)}<span class="small muted"> ${esc(e.r.acct||'')}</span></td>${GB?'':`<td class="small">${esc(e.p||'')}</td>`}<td><span class="pill ${isDone(e.r.stage)?'ok':'accent'}">${esc(e.r.stage||'-')}</span></td><td class="small" style="color:var(--crit)">${esc(alertOf(e.r,c))}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">가까운 일정이 없습니다. 진행관리의 「${GB?'공구 시작일·종료일':'방송 일시'}」 칸을 채우면 여기에 모입니다.</div>`}</section>`}
 
@@ -2064,7 +2072,7 @@ async function trkGenerate(){if(A.trkBusy)return;const cid=A.cid;let c=curC();co
   const cfg=(!T.dirty&&c.track&&c.track.savedAt)?trkCfg(c):await trkSaveCfg(true);if(!cfg)return;
   const err=trkValidate(cfg);if(err){toast(err,'crit');return}
   c=A.campaigns[cid]||c;const codes={...((c.track&&c.track.codes)||cfg.codes||{})};
-  const todo=curRows().filter(r=>r.name&&r.stage!==DROP&&!codes[r.id]);if(!todo.length){toast('모든 인플루언서에게 이미 링크가 있습니다.');return}
+  const todo=curRows().filter(r=>r.name&&!isOut(r.stage)&&!codes[r.id]);if(!todo.length){toast('모든 인플루언서에게 이미 링크가 있습니다.');return}
   A.trkBusy='gen';render();const up={};
   try{for(const r of todo){const code=await trkNewCode();await DB.set('links/'+code,trkLinkDoc(c,cid,cfg,code,r));await trkEnsure(c,cid,code,r.id,trkSlots(cfg));up['track.codes.'+r.id]=code}
     up['track.cid']=cid;
@@ -2137,7 +2145,7 @@ function tabTrack(c,rows){
   if(A.view==='create')return '<div class="panel empty">캠페인을 만든 뒤 링크를 만들 수 있습니다.</div>';
   const T=trkDraft(c),d=T.d,ed=canEdit(),BR=d.mode!=='direct',dis=ed?'':'disabled',busy=A.trkBusy;
   const codes=(c.track&&c.track.codes)||{};const made=Object.keys(codes).length;
-  const live=rows.filter(r=>r.name&&r.stage!==DROP);const need=live.filter(r=>!codes[r.id]).length;
+  const live=rows.filter(r=>r.name&&!isOut(r.stage));const need=live.filter(r=>!codes[r.id]).length;
   const K=trkAgg(c,rows,true,true);const inp=(k,v,ph)=>`<input type="text" data-trk="${k}" value="${esc(v||'')}" placeholder="${esc(ph||'')}" ${dis}>`;
   const flow=`<div class="trk-flow">${['광고주 링크 등록','인플루언서별 링크 생성','인플루언서에게 전달','방문·버튼 클릭 자동 집계','광고주 리포트 반영'].map((s,i)=>`<span><b>${i+1}</b>${s}</span>`).join('<i>›</i>')}</div>`;
   const btnEd=(d.page.btns||[]).map((b,i)=>`<div class="trk-b"><div class="trk-bh"><span class="trk-n">${i+1}</span><input type="text" data-trkb="${b.id}" data-f="label" value="${esc(b.label||'')}" placeholder="버튼 문구 (예: 이벤트 참여하기)" ${dis}><select data-trkb="${b.id}" data-f="kind" ${dis}>${TRK_KIND.map(([k,l])=>`<option value="${k}" ${(b.kind||'web')===k?'selected':''}>${l}</option>`).join('')}</select>${ed?`<button class="btn sm ghost" data-act="trkUpBtn" data-id="${b.id}" ${i?'':'disabled'} title="위로 올리기" aria-label="위로">↑</button><button class="btn sm ghost" data-act="trkDelBtn" data-id="${b.id}" title="버튼 삭제" aria-label="삭제">✕</button>`:''}</div>
@@ -2159,7 +2167,7 @@ function tabTrack(c,rows){
     ${ed?`<div class="row"><button class="btn ${T.dirty||!c.track?'primary':''}" data-act="trkSave" ${busy?'disabled':''}>${busy==='push'?'반영 중…':made?'저장하고 모든 링크에 반영':'저장'}</button>${T.dirty?'<button class="btn ghost" data-act="trkUndo">변경 취소</button>':''}${made?`<span class="small muted">이미 나간 링크 ${made}개는 주소 그대로, 화면·이동 주소만 바뀝니다.</span>`:''}</div>`:''}
    </div><div class="trk-pv"><div class="small muted bold">미리보기</div>${trkPhone(d,c)}</div></div></section>`;
   const KR=K?Object.fromEntries(K.rows.map(r=>[r.rid,r])):{};
-  const lrows=rows.filter(r=>r.name&&(r.stage!==DROP||codes[r.id])).map(r=>KR[r.id]||{rid:r.id,name:r.name,group:groupName(c,r.group)||'',v:null,u:null,clk:null,b:null,ctr:null}).sort((a,b)=>(b.clk||0)-(a.clk||0)||(b.v||0)-(a.v||0));
+  const lrows=rows.filter(r=>r.name&&(!isOut(r.stage)||codes[r.id])).map(r=>KR[r.id]||{rid:r.id,name:r.name,group:groupName(c,r.group)||'',v:null,u:null,clk:null,b:null,ctr:null}).sort((a,b)=>(b.clk||0)-(a.clk||0)||(b.v||0)-(a.v||0));
   const lcell=r=>{const code=codes[r.rid];return code?`<div class="trk-lk"><span class="trk-code">${esc(trkUrl(code).replace(/^https?:\/\//,''))}</span><button class="btn sm" data-act="trkCopy" data-code="${code}">복사</button><a class="btn sm ghost" href="${esc(trkPrev(code))}" target="_blank" rel="noopener" title="미리보기로 열면 집계되지 않습니다">열기 ↗</a></div>`:'<span class="small muted">미생성</span>'};
   const KS=K||{mode:(c.track&&c.track.mode)==='direct'?'direct':'bridge',btns:trkBtns(trkCfg(c)).map(b=>({id:b.id,label:b.label,kind:b.kind})),rows:[]};
   const linkP=`<section class="panel"><div class="panel-h"><div><h2>인플루언서별 전용 링크</h2><div class="sub">진행관리에 등록된 인플루언서마다 짧은 전용 링크를 만듭니다. 인플루언서는 이 링크를 프로필·스토리 링크 스티커·고정 댓글에 넣으면 됩니다.</div></div>
@@ -2300,7 +2308,7 @@ function drawer(){
     f=`<button class="btn danger" data-act="delRow" data-r="${d.rid}">${A.confirm==='dr'+d.rid?'한 번 더 누르면 삭제':'행 삭제'}</button><span class="grow"></span><button class="btn primary" data-act="close">완료</button>`;
   } else if(d.type==='ct'){const x=ctDrawer(d);if(!x)return '';h=x.h;b=x.b;f=x.f;
   } else if(d.type==='pool'||d.type==='poolNew'||d.type==='poolImport'){const x=d.type==='pool'?poolDrawer(d):d.type==='poolNew'?poolNewDrawer():poolImportDrawer(d);if(!x)return '';h=x.h;b=x.b;f=x.f;
-  } else if(d.type==='thumbs'){const c=curC();if(!c)return '';const list=curRows().filter(r=>r.name&&r.stage!==DROP&&r.clink).sort((a,b)=>(!!(A.thumbs[a.id]||thumbSrc(a.clink)))-(!!(A.thumbs[b.id]||thumbSrc(b.clink))));
+  } else if(d.type==='thumbs'){const c=curC();if(!c)return '';const list=curRows().filter(r=>r.name&&!isOut(r.stage)&&r.clink).sort((a,b)=>(!!(A.thumbs[a.id]||thumbSrc(a.clink)))-(!!(A.thumbs[b.id]||thumbSrc(b.clink))));
     if(!d.rid||!list.some(r=>r.id===d.rid)){const f0=list.find(r=>!A.thumbs[r.id]&&!thumbSrc(r.clink))||list[0];d.rid=f0?f0.id:''}
     h='<h2 style="font-size:16px">콘텐츠 썸네일 넣기</h2>';
     b=`<div class="banner info" style="margin:0">인스타그램 썸네일은 「성과 불러오기」 때 자동으로 저장됩니다. 비공개·삭제 등으로 받지 못한 콘텐츠만 여기서 넣으세요. ① 「게시물 열기」로 게시물을 열고 ② 화면을 캡처(Win+Shift+S)한 뒤 ③ 이 창에서 <b>Ctrl+V</b>로 붙여넣으면 <b>선택된 콘텐츠</b>에 저장됩니다.</div>
@@ -2373,7 +2381,7 @@ async function dlTemplate(kind){
     cols.push(['다음 할 일 / 메모','제안서 발송 완료'])}
     head=cols.map(x=>x[0]);ex=cols.map(x=>x[1]);widths=head.map(h=>Math.max(10,h.length*2+2));
     guide=[[`「${c.name}」 인플루언서 업로드 템플릿 작성 방법`],[],['1. 「입력」 시트 2행의 (예시) 줄은 지우거나 그대로 두세요. (예시)로 시작하는 줄은 자동으로 건너뜁니다.'],['2. 3행부터 한 줄에 콘텐츠 1개씩 입력합니다. 한 인플루언서가 콘텐츠 2개면 2줄입니다.'],['3. 저장한 파일을 진행관리 → 엑셀 업로드에서 선택하면 자동으로 추가됩니다. 콘텐츠 링크나 이름이 같은 행은 새로 추가하지 않고 값만 업데이트합니다.'],[],['열','입력 방법'],
-      ['그룹',gs.length?`기존 그룹: ${gs.map(g=>g.name).join(' / ')} (없는 이름을 쓰면 새 그룹이 만들어짐)`:'비워도 됨. 이름을 쓰면 그 이름으로 그룹이 자동 생성'],['채널',CHANNELS.join(' / ')],['소속 구분',PARTNERS.join(' / ')],['실명 · 배송 주소 · 우편번호','어드민 전용 (광고주 화면·리포트에는 표시되지 않음)'],['진행 상황',[...stagesOf(c),DROP].join(' / ')],['계약 · 광고 표기','완료 / 미완료'],['콘텐츠 유형',CTYPES.join(' / ')],['날짜','2026-10-15 형식'],...(LV?[['방송 일시','2026-10-20 20:00 형식 (오후 8시처럼 써도 인식)'],['방송 플랫폼',LIVE_PLATS.join(' / ')]]:COM?[['공구 코드','판매처에서 받은 판매 데이터와 맞출 때 쓰는 코드 (판매 데이터만 다시 올릴 때 코드·계정 ID로 같은 행을 찾아 채움)']]:[]),...(COM?[['판매수수료율 (%)',`비우면 캠페인 기본값(${comRate(c)}%) 사용`],['판매 데이터만 올리기','인플루언서명 또는 계정 ID 또는 공구 코드 + 주문 수·판매 수량·매출 열만 있어도 됩니다']]:[]),['금액·수치','숫자만 (쉼표 있어도 됨)']];
+      ['그룹',gs.length?`기존 그룹: ${gs.map(g=>g.name).join(' / ')} (없는 이름을 쓰면 새 그룹이 만들어짐)`:'비워도 됨. 이름을 쓰면 그 이름으로 그룹이 자동 생성'],['채널',CHANNELS.join(' / ')],['소속 구분',PARTNERS.join(' / ')],['실명 · 배송 주소 · 우편번호','어드민 전용 (광고주 화면·리포트에는 표시되지 않음)'],['진행 상황',[...stagesOf(c),...outStages(c)].join(' / ')],['계약 · 광고 표기','완료 / 미완료'],['콘텐츠 유형',CTYPES.join(' / ')],['날짜','2026-10-15 형식'],...(LV?[['방송 일시','2026-10-20 20:00 형식 (오후 8시처럼 써도 인식)'],['방송 플랫폼',LIVE_PLATS.join(' / ')]]:COM?[['공구 코드','판매처에서 받은 판매 데이터와 맞출 때 쓰는 코드 (판매 데이터만 다시 올릴 때 코드·계정 ID로 같은 행을 찾아 채움)']]:[]),...(COM?[['판매수수료율 (%)',`비우면 캠페인 기본값(${comRate(c)}%) 사용`],['판매 데이터만 올리기','인플루언서명 또는 계정 ID 또는 공구 코드 + 주문 수·판매 수량·매출 열만 있어도 됩니다']]:[]),['금액·수치','숫자만 (쉼표 있어도 됨)']];
     fname=`${String(c.name||'캠페인').replace(/[\\/:*?"<>|]/g,'')}_인플루언서_업로드템플릿.xlsx`;
   }
   const wb=XLSX.utils.book_new();const s1=XLSX.utils.aoa_to_sheet([head,ex]);s1['!cols']=widths.map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,s1,'입력');
@@ -2392,11 +2400,11 @@ function importRows(P){
     let chp=null;if(v.chlink){chp=parseChLink(v.chlink);if(chp){v.ch=chp.ch;if(chp.acct)v.acct=chp.acct}}
     if(v.clink){const ct=ctypeFor(v.clink,v.ctype);if(ct)v.ctype=ct}
     if(v.stage)v.stage=normStage(String(v.stage).trim());
-    if(v.stage&&![...SL,DROP].includes(v.stage))v.stage=SL.find(s=>s.replace(/\s/g,'')===v.stage.replace(/\s/g,''))||v.stage;
+    if(v.stage&&![...SL,...outStages(c)].includes(v.stage))v.stage=SL.find(s=>s.replace(/\s/g,'')===v.stage.replace(/\s/g,''))||v.stage;
     if(v.liveAt){const x=normDT(v.liveAt);if(x)v.liveAt=x;else delete v.liveAt}
     if(v.livePlat){const s=String(v.livePlat).replace(/\s/g,'');v.livePlat=LIVE_PLATS.find(p=>p.replace(/\s/g,'')===s)||LIVE_PLATS.find(p=>s&&(p.replace(/\s/g,'').includes(s)||s.includes(p.replace(/\s/g,'').slice(0,3))))||v.livePlat}
     ['contract','disc'].forEach(k=>{if(v[k]){const s=String(v[k]).toLowerCase();v[k]=/완료|o|y|true|✓/.test(s)&&!/미완료/.test(s)?'완료':'미완료'}});
-    ['ship','lic'].forEach(k=>{if(v[k]!=null&&v[k]!==''){const s=String(v[k]).toLowerCase();if(/완료|동의|o|y|true|✓/.test(s)&&!/미완료|미동의/.test(s))v[k]='완료';else delete v[k]}});
+    ['ship','lic','apply'].forEach(k=>{if(v[k]!=null&&v[k]!==''){const s=String(v[k]).toLowerCase();if(/완료|동의|o|y|true|✓/.test(s)&&!/미완료|미동의/.test(s))v[k]='완료';else delete v[k]}});
     if(!v.stage&&v.clink&&!COM)v.stage=DONE;
     if(v.partner)v.partner=normPartner(v.partner);
     if(v.group){const nm=String(v.group).trim();if(!gByName[nm]){const gid='g'+uid();gByName[nm]=gid;upd[`groups.${gid}`]={name:nm,order:++gOrder,createdAt:today()}}v.group=gByName[nm]}else if(A.gf&&A.gf!=='__none')v.group=A.gf;
@@ -2569,7 +2577,7 @@ function salesAoa(R,t,V){const SL=R.sales,LV=R.meta.kind==='live';const p=v=>v==
   return [cols.map(x=>x[1]),...SL.rows.map((r,i)=>cols.map(([k])=>val(r,k,i)))]}
 /* 정산서: 인플루언서별 매출·수수료·정산 금액 (어드민 전용) */
 async function settleXlsx(){const c=curC();if(!c||!isCom(c))return;try{await ensureXlsx()}catch(e){return toast('엑셀 모듈을 불러오지 못했습니다.','crit')}
-  const LV=isLive(c);const rows=curRows().filter(inGroup).filter(r=>r.name&&r.stage!==DROP);const feeL=LV?'출연료':'고정비';
+  const LV=isLive(c);const rows=curRows().filter(inGroup).filter(r=>r.name&&!isOut(r.stage));const feeL=LV?'출연료':'고정비';
   const head=['No','그룹','인플루언서','계정','실명','연락처','이메일',LV?'방송 일시':'공구 기간',LV?'플랫폼':'공구 코드','주문 수','판매 수량','매출(원)','판매수수료율(%)','판매수수료(원)',`${feeL}(원)`,'정산 금액(원, VAT 별도)','진행 상황','정산 상태','메모'];
   const T={conv:0,qty:0,rev:0,comm:0,fee:0,pay:0};
   const body=rows.map((r,i)=>{const k=rowCalc(r,c);T.conv+=n(r.conv);T.qty+=n(r.qty);T.rev+=n(r.rev);T.comm+=n(k.comm);T.fee+=n(r.fee);T.pay+=n(k.payout);
@@ -2709,7 +2717,7 @@ const ACT={
   bulkDel(){if(A.confirm!=='bulkDel'){A.confirm='bulkDel';render();return}const up={};A.sel.forEach(id=>up[`rows.${id}`]=DB.DEL);DB.update('rows/'+A.cid,up).catch(saveErr);scheduleSync(A.cid);toast(`${A.sel.size}행을 삭제했습니다.`);A.sel.clear();A.confirm=null;render()},
   stageF(a){A.stageF=a.dataset.k;render()},
   ctF(a){A.ctF=a.dataset.k;render()},
-  chFetch(){if(A.chBusy)return;const rows=curRows();const ids=A.sel.size?[...A.sel]:rows.filter(r=>r.stage!==DROP&&chOk(r)).map(r=>r.id);fetchProfiles(A.cid,ids,{manual:true})},
+  chFetch(){if(A.chBusy)return;const rows=curRows();const ids=A.sel.size?[...A.sel]:rows.filter(r=>!isOut(r.stage)&&chOk(r)).map(r=>r.id);fetchProfiles(A.cid,ids,{manual:true})},
   ctJump(){const el=document.getElementById('ct-sec');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},
   hideG(a){const g=a.dataset.g;A.hide.has(g)?A.hide.delete(g):A.hide.add(g);render()},
   import(){A.drawer={type:'import',text:'',preview:null};render()},
