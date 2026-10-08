@@ -532,6 +532,15 @@ body.pm .rp .tbl{font-size:calc(10px*var(--pk,1));width:100%} body.pm .rp .tbl t
 .trk-lg2{display:flex;gap:12px;font-size:11px;color:var(--muted);margin-bottom:4px}.trk-lg2 i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:var(--th-acc,var(--accent))}.trk-lg2 i.v{opacity:.3}.trk-lg2 i.c{height:3px;vertical-align:3px}
 @media(max-width:760px){.trk-dash{grid-template-columns:1fr}}
 @media(max-width:600px){.trk-2{grid-template-columns:1fr}.trk-flow i{display:none}.trk-bh{flex-wrap:wrap}.trk-bh input{flex:1 1 calc(100% - 30px)}.trk-bh select{flex:1}}
+/* 0.14: LNB 3단 메뉴 · 풀 크게 보기 · 상단 계정 선택 · 도구 화면 */
+.lnb .lt{font-size:12px;letter-spacing:.02em;color:var(--ink2);font-weight:700;padding:4px 10px 6px}
+.lnb .lg+.lg{padding-top:12px;border-top:1px solid var(--line)}
+.pool-wrap{max-height:calc(100vh - 290px);resize:vertical}
+.pool-wrap.big{position:fixed;inset:60px 16px 16px;z-index:61;max-height:none;box-shadow:var(--shadow);resize:none}
+.pbig-bg{position:fixed;inset:0;background:rgba(10,12,18,.42);z-index:60}
+.pbig-x{position:fixed;top:14px;right:18px;z-index:62}
+.gacct{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.gacct select{width:auto;max-width:200px;padding:5px 8px;font-size:12.5px;border-radius:8px}
+.gacct-m{display:none}@media (max-width:720px){.top .gacct{display:none}.gacct-m{display:flex;margin:0 0 12px}.gacct-m select{flex:1;max-width:none}}
 </style>
 </head>
 <body>
@@ -1103,11 +1112,8 @@ function startShare(tk){
   A.shareToken=tk;DB.watchDoc('shares/'+tk,d=>{A.shareView=d||false;render()},()=>{A.shareView=false;render()});
   DB.watchDoc('sharethumbs/'+tk,d=>{A.shareThumbs=(d&&d.t)||{};if(A.shareView)render()},()=>{});
 }
-function startDraft(d){if(d&&!d.acct&&isTeam()&&A.acctF)d.acct=A.acctF;if(A.unsubRows){A.unsubRows();A.unsubRows=null}if(A.unsubThumbs){A.unsubThumbs();A.unsubThumbs=null}A.thumbs={};A.draft=d;A.view='create';A.cid=null;A.rowsDoc={rows:{}};A.drawer=null;A.confirm=null;A.gf='';render();window.scrollTo(0,0)}
-function viewCreate(){const c=A.draft;if(!c)return '<div class="panel empty">만들 캠페인이 없습니다.</div>';const KM=KINDS[kindOf(c)];
-  const bar=`<div class="row"><button class="btn" data-act="draftCancel">취소</button><button class="btn primary" data-act="draftCreate">캠페인 생성</button></div>`;
-  return `<div class="page-h"><div><div class="eyebrow">${KM.newEb}</div><h1>${KM.newH}</h1><div class="sub">아래 내용을 채우고 「캠페인 생성」을 눌러야 저장됩니다. 취소하거나 다른 메뉴로 이동하면 저장되지 않습니다.</div></div>${bar}</div>
-  ${tabSettings(c)}<div class="panel row" style="margin-top:16px;justify-content:flex-end"><span class="small muted grow">생성 후에도 캠페인 설정 탭에서 언제든 바꿀 수 있습니다.</span>${bar}</div>`}
+function startDraft(d){if(d&&!d.acct&&isTeam()&&A.acctF)d.acct=A.acctF;if(A.unsubRows){A.unsubRows();A.unsubRows=null}if(A.unsubThumbs){A.unsubThumbs();A.unsubThumbs=null}A.thumbs={};A.draft=d;A.view='create';A.cid=null;A.rowsDoc={rows:{}};A.drawer=null;A.confirm=null;A.gf='';A.wstep=1;A.wpick=false;render();window.scrollTo(0,0)}
+function viewCreate(){return viewCreateWizard()}
 /* 광고주 계정에 공개된 캠페인이면 클라이언트 컨펌을 구독 */
 function ensureConfWatch(cid){cid=cid||A.cid;if(!cid||A.confCid===cid)return;const c0=A.campaigns[cid];if(!c0||acctOf(c0)===TEAM||!isTeam())return;A.confCid=cid;try{A.unsubConf=DB.watchDoc('cconfirm/'+cid,d=>{A.cconf=(d&&d.r)||{};scheduleRender()},()=>{})}catch(e){}}
 function openCampaign(cid,tab){
@@ -1130,12 +1136,12 @@ document.addEventListener('pointerdown',()=>pointerDown=true,true);
 document.addEventListener('pointerup',()=>{pointerDown=false;if(pending){pending=false;setTimeout(render,0)}},true);
 /* ============ 주소(뒤로 가기) ============ */
 /* 화면 이동을 브라우저 기록에 남겨, 뒤로 가기를 누르면 사이트를 나가지 않고 직전 화면으로 돌아감 */
-function routeOf(){const v=A.view;if(v==='campaign')return {v,c:A.cid,t:A.tab||'overview'};if(v==='create')return {v,k:kindOf(A.draft)};if(v==='team')return {v,tt:A.teamTab==='int'?'int':A.teamTab==='accts'?'accts':'members'};if(v==='cvc')return {v,c:A.cvId};
+function routeOf(){const v=A.view;if(v==='campaign')return {v,c:A.cid,t:A.tab||'overview'};if(v==='create')return {v,k:kindOf(A.draft)};if(v==='team')return {v,tt:A.teamTab==='int'?'int':A.teamTab==='accts'?'accts':'members'};if(v==='cvc')return {v,c:A.cvId};if(v==='guides'&&A.gid)return {v,g:A.gid};
   if(VIEW_KIND[v])return {v,lt:A.ltab==='groups'?'groups':'camps'};return {v}}
-function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.lt==='groups')return `#/${r.v}/groups`;return '#/'+r.v}
+function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.v==='guides'&&r.g)return '#/guides/'+encodeURIComponent(r.g);if(r.lt==='groups')return `#/${r.v}/groups`;return '#/'+r.v}
 function parseHash(h){const p=String(h||'').replace(/^#\/?/,'').split('/').filter(Boolean).map(x=>{try{return decodeURIComponent(x)}catch(e){return x}});if(!p.length)return null;
-  if(p[0]==='c'&&p[1])return {v:'campaign',c:p[1],t:p[2]||'overview'};if(p[0]==='new')return {v:'create',k:p[1]||'seed'};if(p[0]==='team')return {v:'team',tt:p[1]||'members'};if(p[0]==='cv'&&p[1])return {v:'cvc',c:p[1]};
-  if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':'camps'};if(['pool','updates','history','cv','acct'].includes(p[0]))return {v:p[0]};return null}
+  if(p[0]==='c'&&p[1])return {v:'campaign',c:p[1],t:p[2]||'overview'};if(p[0]==='new')return {v:'create',k:p[1]||'seed'};if(p[0]==='team')return {v:'team',tt:p[1]||'members'};if(p[0]==='cv'&&p[1])return {v:'cvc',c:p[1]};if(p[0]==='guides')return {v:'guides',g:p[1]||''};
+  if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':'camps'};if(['pool','updates','history','cv','acct','review','aivideo'].includes(p[0]))return {v:p[0]};return null}
 let ROUTE_LOCK=false;
 function routeSync(){if(A.view==='share'||!A.user||!A.admin||ROUTE_LOCK)return;if(A.skipPop){clearTimeout(routeSync.t);routeSync.t=setTimeout(()=>{A.skipPop=0;routeSync()},400);return}const r=routeOf();const h=routeHash(r);const d=!!(A.drawer||A.modal||A.bellOpen||A.more);const st=history.state;
   try{if(!st||!st.h){history.replaceState({h,r,d:false},'',h);if(d)history.pushState({h,r,d:true},'',h);return}
@@ -1147,7 +1153,7 @@ function allowedView(v){if(A.role==='client')return ['cv','cvc','acct'].includes
 function applyRoute(r){if(!r)return;if(!allowedView(r.v))r={v:homeView()};ROUTE_LOCK=true;try{A.drawer=null;A.modal=null;A.bellOpen=false;A.more=false;A.confirm=null;A.editName=null;
   if(r.v==='campaign'){if(A.cid!==r.c||A.view!=='campaign')openCampaign(r.c,r.t);else{A.tab=r.t;render()}}
   else if(r.v==='create'){if(A.draft&&A.view==='create')render();else{A.view=homeView(r.k);render()}}
-  else{if(A.unsubRows){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(VIEW_KIND[r.v]&&r.v!==A.view){A.csel.clear();A.statusF=''}A.view=r.v;if(r.lt)A.ltab=r.lt;if(r.tt)A.teamTab=r.tt;if(r.v==='cvc')A.cvId=r.c;render()}
+  else{if(A.unsubRows){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(VIEW_KIND[r.v]&&r.v!==A.view){A.csel.clear();A.statusF=''}A.view=r.v;if(r.lt)A.ltab=r.lt;if(r.tt)A.teamTab=r.tt;if(r.v==='cvc')A.cvId=r.c;if(r.v==='guides')A.gid=r.g||'';render()}
   window.scrollTo(0,0)}finally{ROUTE_LOCK=false}}
 window.addEventListener('popstate',e=>{if(A.view==='share'||!A.user)return;if(A.skipPop){A.skipPop=0;clearTimeout(routeSync.t);setTimeout(routeSync,0);return}const st=e.state;
   if((A.drawer||A.modal||A.bellOpen||A.more)&&!(st&&st.d)&&st&&st.h===routeHash(routeOf())){A.drawer=null;A.modal=null;A.bellOpen=false;A.more=false;A.confirm=null;ROUTE_LOCK=true;try{render()}finally{ROUTE_LOCK=false}return}
@@ -1212,7 +1218,7 @@ function viewLogin(){return `<div class="center"><div class="card login-card"><i
 function viewNoAccess(){return `<div class="center"><div class="card login-card"><img class="logo-lg" src="${logoSrc()}" alt="RINGCOMS"><h2 style="font-size:19px">접근 권한이 없습니다</h2><p class="sub" style="margin:0"><b>${esc(A.user.email)}</b> 계정은 등록되어 있지 않습니다. 링컴즈 팀원은 관리자에게, 광고주는 링컴즈 담당자에게 이 이메일로 초대해 달라고 요청하세요.</p><button class="btn" data-act="signOut">다른 계정으로 로그인</button></div></div>`}
 function shell(){
   const IC0={list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M8 14h8"/></svg>',pool:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.2c2.3.2 3.9 1.8 4.5 4.8"/></svg>',team:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',trial:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="9" width="17" height="11" rx="2"/><path d="M2.5 9h19M12 9v11"/><path d="M12 9c-1.5-3.5-5.5-4-5.5-1.5S10 9 12 9zM12 9c1.5-3.5 5.5-4 5.5-1.5S14 9 12 9z"/></svg>'};
-  const IC={...IC0,
+  const IC={...IC0,...(window.TOOL_IC||{}),
     gb:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/></svg>',
     live:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M16 10.5l5-3v9l-5-3"/><circle cx="7.5" cy="10" r="1.2" fill="currentColor" stroke="none"/></svg>',
     updates:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 18v3M4.6 6.6l2.1 2.1M17.3 15.3l2.1 2.1M3 12h3M18 12h3M4.6 17.4l2.1-2.1M17.3 8.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -1221,32 +1227,32 @@ function shell(){
     cv:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
     acct:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="17" height="13" rx="2"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17"/></svg>'};
   const ck=A.view==='campaign'||A.view==='create'?kindOf(curC()):'';const curV=ck?kindView(ck):A.view==='cvc'?'cv':A.view;
-  const navs=navItems();const cnt=k=>Object.values(A.campaigns).filter(c=>kindOf(c)===k&&inAcctScope(c)).length;
-  const nb=it=>`<button class="${curV===it.v?'on':''}" data-act="nav" data-v="${it.v}" title="${esc(it.l)}">${IC[it.ic||it.v]||IC.list}<span>${it.l}</span>${it.badge?`<em class="nw">${it.badge}</em>`:it.kind?`<em>${cnt(it.kind)}</em>`:''}</button>`;
+  const navs=navItems();const onOf=it=>it.tt?(curV==='team'&&(A.teamTab||'members')===it.tt):curV===it.v;const cnt=k=>Object.values(A.campaigns).filter(c=>kindOf(c)===k&&inAcctScope(c)).length;
+  const nb=it=>`<button class="${onOf(it)?'on':''}" data-act="nav" data-v="${it.v}"${it.tt?` data-tt="${it.tt}"`:''} title="${esc(it.l)}">${IC[it.ic||it.v]||IC.list}<span>${it.l}</span>${it.badge?`<em class="nw">${it.badge}</em>`:it.kind?`<em>${cnt(it.kind)}</em>`:''}</button>`;
   const lnb=`<aside class="lnb noprint ${A.lnbMini?'mini':''}" aria-label="메뉴">${navs.map(g=>`<div class="lg">${g.t?`<div class="lt">${g.t}</div>`:''}${g.items.map(nb).join('')}</div>`).join('')}<span class="grow"></span><button class="lnb-tg" data-act="lnbMini" title="${A.lnbMini?'메뉴 펼치기':'메뉴 접기'}">${A.lnbMini?'›':'‹'}<span>${A.lnbMini?'':'메뉴 접기'}</span></button></aside>`;
   const flat=navs.flatMap(g=>g.items);const mainM=flat.filter(x=>x.m).slice(0,5);const moreM=flat.filter(x=>!mainM.includes(x));
-  const mb=it=>`<button class="${curV===it.v?'on':''}" data-act="nav" data-v="${it.v}">${IC[it.ic||it.v]||IC.list}<span>${it.ms||it.l}</span>${it.badge?`<i class="dot"></i>`:''}</button>`;
-  const moreOn=moreM.some(x=>x.v===curV);
+  const mb=it=>`<button class="${onOf(it)?'on':''}" data-act="nav" data-v="${it.v}"${it.tt?` data-tt="${it.tt}"`:''}>${IC[it.ic||it.v]||IC.list}<span>${it.ms||it.l}</span>${it.badge?`<i class="dot"></i>`:''}</button>`;
+  const moreOn=moreM.some(onOf);
   const mnav=`<nav class="mnav noprint" style="grid-template-columns:repeat(${mainM.length+(moreM.length?1:0)},1fr)">${mainM.map(mb).join('')}${moreM.length?`<button class="${moreOn||A.more?'on':''}" data-act="moreToggle">${IC.more}<span>더보기</span>${moreM.some(x=>x.badge)?'<i class="dot"></i>':''}</button>`:''}</nav>
-   ${A.more&&moreM.length?`<div class="msheet-bg noprint" data-act="moreToggle"></div><div class="msheet noprint">${moreM.map(it=>`<button class="${curV===it.v?'on':''}" data-act="nav" data-v="${it.v}">${IC[it.ic||it.v]||IC.list}<span>${it.l}</span>${it.badge?`<em class="nw">${it.badge}</em>`:''}</button>`).join('')}</div>`:''}`;
+   ${A.more&&moreM.length?`<div class="msheet-bg noprint" data-act="moreToggle"></div><div class="msheet noprint">${moreM.map(it=>`<button class="${onOf(it)?'on':''}" data-act="nav" data-v="${it.v}"${it.tt?` data-tt="${it.tt}"`:''}>${IC[it.ic||it.v]||IC.list}<span>${it.l}</span>${it.badge?`<em class="nw">${it.badge}</em>`:''}</button>`).join('')}</div>`:''}`;
   let body=viewBody();
-  return `<div class="top noprint"><div class="wrap">${brandLink()}<span class="grow"></span><div class="who">${DB.mode==='demo'?'<span class="pill warn">데모 모드</span><button class="btn sm ghost" data-act="demoReset">데모 초기화</button>':''}${A.role&&A.role!=='master'?`<span class="pill role-pill ${['viewer','client'].includes(A.role)?'warn':'accent'}" title="${esc(ROLE_DESC[A.role]||'')}">${ROLES[A.role]||A.role}</span>`:''}${bellHtml()}<span class="email">${esc(A.user.email)}</span><button class="btn sm" data-act="signOut">${DB.mode==='demo'?'데모 종료':'로그아웃'}</button></div></div></div>
-  <div class="layout ${A.lnbMini?'mini':''}">${lnb}<main><div class="wrap">${A.err?`<div class="banner">${esc(A.err)}</div>`:''}${body}</div></main></div>${mnav}${drawer()}${A.modal&&A.modal.type==='logo'?logoModal():A.modal&&A.modal.type==='updGo'?updGoModal():''}${bellPanel()}`;
+  return `<div class="top noprint"><div class="wrap">${brandLink()}<span class="grow"></span><div class="who">${DB.mode==='demo'?'<span class="pill warn">데모 모드</span><button class="btn sm ghost" data-act="demoReset">데모 초기화</button>':''}${A.role&&A.role!=='master'?`<span class="pill role-pill ${['viewer','client'].includes(A.role)?'warn':'accent'}" title="${esc(ROLE_DESC[A.role]||'')}">${ROLES[A.role]||A.role}</span>`:''}${typeof gnbAcct==='function'?gnbAcct():''}${bellHtml()}<span class="email">${esc(A.user.email)}</span><button class="btn sm" data-act="signOut">${DB.mode==='demo'?'데모 종료':'로그아웃'}</button></div></div></div>
+  <div class="layout ${A.lnbMini?'mini':''}">${lnb}<main><div class="wrap">${typeof gnbAcct==='function'&&gnbAcct()?`<div class="gacct-m noprint">${gnbAcct().replace('id="gnb-acct"','id="gnb-acct-m"')}</div>`:''}${A.err?`<div class="banner">${esc(A.err)}</div>`:''}${body}</div></main></div>${mnav}${drawer()}${A.modal&&A.modal.type==='logo'?logoModal():A.modal&&A.modal.type==='updGo'?updGoModal():''}${bellPanel()}`;
 }
 /* 메뉴 구성 (권한별) */
 function navItems(){
   if(isClientView())return clientNav();
-  const camps={t:'캠페인',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb',m:1},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live',m:1}]};
-  const mng={t:'관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool',m:1},{v:'team',l:'권한 관리',ic:'team'}]};
-  const upd={t:'업데이트 관리',items:[{v:'updates',l:'업데이트 제안',badge:updBadge()},{v:'history',l:'업데이트 이력'}]};
-  return [camps,mng,upd]}
-function viewBody(){const v=A.view;return v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
+  const ads={t:'광고관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'}]};
+  const tools={t:'도구',items:[{v:'guides',l:'콘텐츠 가이드',ms:'가이드',ic:'guide',m:1},{v:'review',l:'영상 검수',ms:'검수',ic:'review',m:1},{v:'aivideo',l:'AI 영상 제작',ic:'aivideo'},{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'}]};
+  const comp={t:'구성요소 관리',items:[{v:'team',tt:'members',l:'팀원·권한',ic:'team'},{v:'team',tt:'accts',l:'광고주 계정',ic:'acct'},{v:'team',tt:'int',l:'연동 관리',ic:'int'},{v:'updates',l:'업데이트 제안',badge:updBadge()},{v:'history',l:'업데이트 이력'}]};
+  return [ads,tools,comp]}
+function viewBody(){const v=A.view;return v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
 function homeView(k){return isClientView()?'cv':kindView(k||'seed')}
 
 /* ---- 계정·클라이언트·업데이트 기능 (아래에서 다시 정의) ---- */
 function inAcctScope(c){if(isExt())return acctOf(c)===A.acct&&!c.managed;return !A.acctF||acctOf(c)===A.acctF}
 function canCreate(){return canEdit()}
-function acctFilter(){if(!isTeam())return '';const ids=Object.keys(A.accounts||{});if(!ids.length)return '';const k=listKind();const n_=id=>Object.values(A.campaigns).filter(c=>kindOf(c)===k&&(!id||acctOf(c)===id)).length;
+function acctFilter(){return '';if(!isTeam())return '';const ids=Object.keys(A.accounts||{});if(!ids.length)return '';const k=listKind();const n_=id=>Object.values(A.campaigns).filter(c=>kindOf(c)===k&&(!id||acctOf(c)===id)).length;
   return `<div class="row" style="margin:-6px 0 12px"><span class="small muted bold">계정</span><div class="chips">${[['','전체'],[TEAM,'RINGCOMS MCN'],...ids.sort((a,b)=>acctName(a).localeCompare(acctName(b),'ko')).map(id=>[id,acctName(id)])].map(([id,l])=>`<span class="chip ${(A.acctF||'')===id?'on':''}" data-act="acctF" data-k="${id}">${esc(l)} <em>${n_(id)}</em></span>`).join('')}</div></div>`}
 function clientNav(){const items=[];if(A.role==='clientAdmin')items.push({t:'우리 캠페인',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb',m:1},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'}]});
   items.push({t:'링컴즈 진행',items:[{v:'cv',l:'캠페인 진행 현황',ms:'진행 현황',ic:'cv',m:1,badge:cvPending()}]});items.push({t:'계정',items:[{v:'acct',l:'우리 계정',ms:'계정',ic:'acct',m:A.role==='client'?1:0}]});return items}/* ============ 클라이언트(광고주) 화면 ============ */
@@ -1718,7 +1724,7 @@ function tabSettings(c){
    ${fld('name','캠페인명',c.name)}${fld('advertiser','광고주',c.advertiser)}<div class="f" style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:500;color:var(--ink2)">광고주 로고<div class="row">${c.advLogo?`<img class="advprev" src="${esc(c.advLogo)}" alt="">`:''}<label class="btn sm" style="cursor:pointer">${c.advLogo?'변경':'이미지 선택'}<input type="file" accept="image/*" data-advlogo hidden></label>${c.advLogo?'<button class="btn sm danger" data-act="advLogoDel">삭제</button>':''}</div><span class="hint" style="font-weight:400;color:var(--muted);font-size:11.5px">리포트 상단에 RINGCOMS × 광고주 로고로 표시 (배경 없는 PNG 권장)</span></div>${fld('brand','브랜드명',c.brand)}<label class="f">캠페인 구분<select id="s_kind" data-cf="kind">${Object.entries(KINDS).map(([k,o])=>`<option value="${k}" ${kindOf(c)===k?'selected':''}>${o.label}${k==='trial'?' (무상협찬)':''}</option>`).join('')}</select><span class="hint">바꾸면 해당 메뉴 목록으로 옮겨집니다${TRL?'':' · 체험단은 비용 항목 없이 관리'}</span></label>${TRL||COM?'':fld('ctype','캠페인 유형',c.ctype,null,'',CAMP_TYPES)}
    <label class="f">상태<select id="s_status" data-cf="status"><option value="" ${c.status!=='보류'&&c.status!=='종료'?'selected':''}>자동 판정 (현재: ${esc(c.summary&&c.summary.status||'시작 전')})</option><option ${c.status==='보류'?'selected':''}>보류</option><option ${c.status==='종료'?'selected':''}>종료</option></select><span class="hint">진행 상황에 따라 시작 전·진행 중·완료가 자동으로 바뀝니다</span></label>${fld('start','시작일',c.start,'date')}${fld('end','종료일',c.end,'date')}${fld('owner','담당자',c.owner)}
    ${(TRL&&c.objective!=='2차 라이선스 활용')||COM?'':fld('usageMonths','2차 활용 기간 (개월)',c.usageMonths,'num')}${fld('asof','데이터 기준일',c.asof,'date','리포트에 표시되는 성과 수집 기준일 (예: 업로드 후 D+7)')}</div></section>
-  ${acctSettings(c)}${TRL?trialSettings(c,fld):''}${COM?comSettings(c,fld):''}${groupSettings(c)}
+  ${acctSettings(c)}${TRL?trialSettings(c,fld):''}${COM?comSettings(c,fld):''}${A.view==='create'?'':groupSettings(c)}
   ${COM?`<section class="panel"><div class="panel-h"><h2>캠페인 목적</h2><span class="sub">${isLive(c)?'라이브커머스':'공동구매'}는 판매(매출) 목적으로 고정됩니다 · 리포트 상단에 「판매 성과」가 나옵니다</span></div>
    ${tg('metrics.clicks','판매 링크 클릭 (유입) 입력',M.clicks,isGB(c)?'공구 링크 클릭 수를 넣으면 구매 전환율(주문 ÷ 클릭)을 계산합니다':'상품 클릭 수를 따로 받는 경우에만 켜세요 · 구매 전환율은 누적 시청자 기준으로 계산')}</section>`:`<section class="panel"><div class="panel-h"><h2>캠페인 목적</h2><span class="sub">목적에 따라 리포트 상단의 핵심 지표가 바뀝니다</span></div>
    <div class="objs">${(TRL?OBJ_TRIAL:OBJECTIVES).map(o=>`<button class="obj ${c.objective===o.k?'on':''}" data-act="objective" data-k="${o.k}"><b>${o.k}</b><span>${o.d}</span></button>`).join('')}</div>
@@ -2251,7 +2257,7 @@ function viewTeam(){if(A.settingsErr&&!viewTeam.busy){viewTeam.busy=true;loadSet
   const tt=A.teamTab==='int'?'int':A.teamTab==='accts'?'accts':'members';
   const head=`<div class="page-h"><div><div class="eyebrow">Settings</div><h1>권한 관리</h1><div class="sub">${tt==='int'?'성과 수집 등에 쓰는 외부 서비스 연결을 관리합니다. 연결 변경은 마스터만 할 수 있습니다.':tt==='accts'?'광고주가 이 플랫폼을 쓸 수 있도록 계정을 만들고, 초대한 Google 계정만 로그인하게 합니다.':'여기 등록된 Google 계정만 로그인할 수 있고, 권한에 따라 할 수 있는 일이 나뉩니다.'}</div></div></div>
   <div class="tabs noprint" role="tablist" style="max-width:960px">${[['members','팀원 관리',list.length],['accts','광고주 계정',Object.keys(A.accounts||{}).length],['int','연동 관리','']].map(([k,l,x])=>`<button role="tab" class="${tt===k?'on':''}" data-act="teamTab" data-t="${k}">${l}${x?`<em>${x}</em>`:''}</button>`).join('')}</div>`;
-  if(tt==='int')return head+`<div class="stack" style="max-width:860px">${integrationPanel()}${connectionPanel()}</div>`;
+  if(tt==='int')return head+`<div class="stack" style="max-width:860px">${typeof aiIntPanel==='function'?aiIntPanel():''}${integrationPanel()}${connectionPanel()}</div>`;
   if(tt==='accts')return head+viewAccounts();
   return head+`<div class="stack" style="max-width:860px">
   ${canEdit()?`<section class="panel"><div class="panel-h"><h2>팀원 추가</h2></div><div class="row"><input type="email" id="new-admin" placeholder="teammate@gmail.com" style="max-width:300px"><select id="new-admin-role" style="width:auto">${opts.map(r=>`<option value="${r}" ${r==='manager'?'selected':''}>${ROLES[r]}</option>`).join('')}</select><button class="btn primary" data-act="addAdmin">팀원 추가</button></div>${!isMaster()?'<p class="small muted" style="margin:8px 0 0">매니저는 매니저·뷰어 권한으로만 추가할 수 있습니다. 마스터 권한은 마스터가 부여합니다.</p>':''}</section>`:''}
@@ -2626,7 +2632,7 @@ const ACT={
   signIn(){DB.signIn().catch(e=>toast(e&&e.code==='auth/unauthorized-domain'?'이 주소가 Firebase 승인된 도메인에 없습니다. 설치 안내 4단계를 확인하세요.':'로그인하지 못했습니다.','crit'))},
   signOut(){DB.signOut()},
   demoReset(){if(A.confirm!=='reset'){A.confirm='reset';toast('한 번 더 누르면 데모 데이터를 처음 상태로 되돌립니다.');return}A.confirm=null;DB.reset();toast('데모 데이터를 초기화했습니다.');A.view='list';render()},
-  nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
+  nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(a.dataset.tt)A.teamTab=a.dataset.tt;if(v==='guides')A.gid='';if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
   back(a){ACT.nav(a)},
   lnbMini(){A.lnbMini=!A.lnbMini;try{localStorage.setItem('lnb_mini',A.lnbMini?'1':'')}catch(e){}render()},
   moreToggle(){A.more=!A.more;render()},
@@ -2688,7 +2694,7 @@ const ACT={
   async draftCreate(){const ae=document.activeElement;if(ae&&ae.blur)ae.blur();await new Promise(r=>setTimeout(r,30));const d=A.draft;if(!d)return;
     if(!String(d.name||'').trim())return toast('캠페인명을 입력하세요.','crit');if(d.start&&d.end&&d.end<d.start)return toast('종료일이 시작일보다 빠릅니다.','crit');
     const id=uid();const doc={...clone(d),createdAt:today(),summary:{}};
-    if(isExt()){doc.acct=A.acct;doc.managed=''}else{doc.acct=doc.acct||(A.acctF||TEAM);doc.managed=doc.acct!==TEAM?TEAM:''}try{await DB.set('campaigns/'+id,doc);await DB.set('rows/'+id,{rows:{}});A.draft=null;A.campaigns[id]=A.campaigns[id]||doc;openCampaign(id,'grid');toast('캠페인을 생성했습니다. 진행관리에서 인플루언서를 추가하세요.')}catch(e){saveErr(e)}},
+    if(isExt()){doc.acct=A.acct;doc.managed=''}else{doc.acct=doc.acct||(A.acctF||TEAM);doc.managed=doc.acct!==TEAM?TEAM:''}const dr=draftRowsOut();const nr=Object.keys(dr).length;try{await DB.set('campaigns/'+id,doc);await DB.set('rows/'+id,{rows:dr});A.draft=null;A.wstep=1;A.campaigns[id]=A.campaigns[id]||doc;openCampaign(id,nr?'grid':'overview');if(nr)scheduleSync(id);toast(nr?`광고를 만들었습니다. 인플루언서 ${nr}명이 컨택 단계로 등록되었습니다.`:'광고를 만들었습니다. 진행관리에서 인플루언서를 추가하세요.')}catch(e){saveErr(e)}},
   trialIns(){A.trialInsOpen=A.trialInsOpen===false;render()},
   duplicate(){const c=curC();const d={...clone(c),name:c.name+' (복사본)',status:'',summary:{},share:{...newCampaignData(kindOf(c)).share},insight:'',poolKeys:[]};delete d.updatedAt;if(d.trial){d.trial.applicants=null;d.trial.pageViews=null}startDraft(d);toast('설정을 복사했습니다. 확인 후 「캠페인 생성」을 누르세요.')},
   async delCampaign(){if(A.confirm!=='delc'){A.confirm='delc';render();return}const c=curC();const id=A.cid;A.confirm=null;try{if(c.share&&c.share.token)await DB.del('shares/'+c.share.token);for(const k of (c.poolKeys||[]))if(A.pool[k]){const up={};Object.keys(A.pool[k].campaigns||{}).filter(ek=>ek===id||ek.startsWith(id+'__')).forEach(ek=>up['campaigns.'+ek]=DB.DEL);if(Object.keys(up).length)await DB.update('pool/'+k,up).catch(()=>{})}await DB.del('rows/'+id);if(acctOf(c)!==TEAM||c.cvAcct){await DB.del('cview/'+id).catch(()=>{});if(isTeamEdit())await DB.del('cconfirm/'+id).catch(()=>{})}await DB.del('campaigns/'+id);toast('캠페인을 삭제했습니다.');A.view=kindView(kindOf(c));A.cid=null;render()}catch(e){saveErr(e)}},
@@ -2789,7 +2795,7 @@ document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||(!t.d
   T.dirty=true;render()});
 document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a)return;if(a.disabled)return;const k=a.dataset.act;if(!ACT[k])return;
   if(A.view!=='share'&&A.user&&!canEdit()&&WRITE_ACTS.has(k)){toast('보기 전용(뷰어) 권한이라 수정할 수 없습니다.','crit');return}
-  if(!['delCampaign','delRow','bulkDel','shareRegen','delAdmin','demoReset','poolDel','poolResync','delGroup','delYtKey','logoReset','delAcct','delMember','updDel','updBulk'].includes(k))A.confirm=null;
+  if(!['delCampaign','delRow','bulkDel','shareRegen','delAdmin','demoReset','poolDel','poolResync','delGroup','delYtKey','logoReset','delAcct','delMember','updDel','updBulk',...(window.CONFIRM_ACTS||[])].includes(k))A.confirm=null;
   if(a.tagName!=='INPUT')e.preventDefault();ACT[k](a,e)});
 document.addEventListener('change',e=>{if(A.view==='share'||!A.user||canEdit())return;const d=(e.target&&e.target.dataset)||{};if(d.trk||d.trkb||d.row||d.cf||d.cb||d.gf||d.sh||d.shm||d.pf||d.rename||d.upload||d.roleE||d.thumb||d.advlogo!==undefined){e.stopImmediatePropagation();toast('보기 전용(뷰어) 권한이라 수정할 수 없습니다.','crit');render()}},true);
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.roleE)return;const em=t.dataset.roleE,v=t.value;
@@ -2898,7 +2904,7 @@ const V_CH=v=>v||'';
 function poolList(){
   const q=A.pq.trim().toLowerCase();const F=A.pf||{};
   let L=Object.entries(A.pool).map(([id,p])=>{const g=poolAgg(p);return {id,...p,...g,tier:tierOf(p.fol)||p.tier||''}});
-  L=L.filter(p=>{if(q&&![p.name,p.acct,p.cat,p.memo,p.lastCampaign,p.contact,p.emailV,p.lastMemo,p.partner].join(' ').toLowerCase().includes(q))return false;if(A.phideEx&&p.exclude)return false;
+  L=L.filter(p=>{if(q&&![p.name,p.acct,p.cat,p.memo,p.lastCampaign,p.contact,p.emailV,p.lastMemo,p.partner].join(' ').toLowerCase().includes(q))return false;if(A.phideEx&&p.exclude)return false;if(!!p.hidden!==!!A.pshowHid)return false;
     for(const [k,,t] of PCOLS){const f=F[k];if(!f)continue;
       if(t==='sel'){if(p[k]!==f)return false}
       else if(t==='n'){if(!numMatch(p[k],f,k==='er'?100:1))return false}
@@ -2921,13 +2927,13 @@ function viewPool(){
   return `<div class="page-h"><div><div class="eyebrow">Creator Pool</div><h1>인플루언서 풀</h1><div class="sub">캠페인 진행관리에 입력한 인플루언서가 컨택 단계부터 자동으로 쌓이고, 직접 등록도 할 수 있습니다.</div></div>
    <div class="row"><button class="btn" data-act="poolResync">${A.confirm==='resync'?'진행 중…':'전체 다시 동기화'}</button><button class="btn" data-act="poolImport">엑셀 업로드</button><button class="btn" data-act="poolXlsx">엑셀 다운로드</button><button class="btn primary" data-act="poolNew">+ 직접 등록</button></div></div>
   <div class="row" style="margin-bottom:12px"><input type="text" id="pq" data-ui="pq" value="${esc(A.pq)}" placeholder="이름·계정·카테고리·메모·연락처 통합 검색" style="max-width:300px">
-   <label class="row small"><input type="checkbox" data-act="phideEx" ${A.phideEx?'checked':''}> 재섭외 제외 숨기기</label>${nf?`<button class="btn sm ghost" data-act="pfClear">열 필터 ${nf}개 초기화</button>`:''}<span class="grow"></span><span class="sub">${L.length}명 / 전체 ${all.length}명</span></div>
+   <label class="row small"><input type="checkbox" data-act="phideEx" ${A.phideEx?'checked':''}> 재섭외 제외 숨기기</label>${(()=>{const hn=all.filter(p=>p.hidden).length;return hn||A.pshowHid?`<label class="row small"><input type="checkbox" data-act="pshowHid" ${A.pshowHid?'checked':''}> 삭제한 인플루언서 보기 <em class="muted">${hn}</em></label>`:''})()}<button class="btn sm hide-m" data-act="pbig" title="표를 화면 가득 펼쳐 봅니다">⤢ 크게 보기</button>${nf?`<button class="btn sm ghost" data-act="pfClear">열 필터 ${nf}개 초기화</button>`:''}<span class="grow"></span><span class="sub">${L.length}명 / 전체 ${all.length}명</span></div>
   <p class="small muted show-m" style="margin:0 0 10px">열별 상세 필터·정렬은 PC 화면에서 쓸 수 있습니다.</p>
   <p class="small muted hide-m" style="margin:0 0 10px">표 맨 윗줄 입력칸으로 열마다 필터링합니다. 숫자 열은 <b>&gt;=10000</b>, <b>&lt;50</b>, <b>1만-10만</b>처럼 입력하고, 제목을 누르면 정렬됩니다.</p>
-  ${A.psel.size?`<div class="panel row" style="padding:10px 14px;margin-bottom:12px"><b>${A.psel.size}명 선택</b><span class="grow"></span><select id="ptarget" style="width:auto"><option value="">캠페인 선택</option>${camps.map(([id,c])=>`<option value="${id}">${esc(c.name)}</option>`).join('')}</select><button class="btn sm primary" data-act="poolToCamp">컨택 단계로 추가</button><button class="btn sm ghost" data-act="pselClear">선택 해제</button></div>`:''}
+  ${A.psel.size?`<div class="panel row" style="padding:10px 14px;margin-bottom:12px"><b>${A.psel.size}명 선택</b><span class="grow"></span><select id="ptarget" style="width:auto"><option value="">캠페인 선택</option>${camps.map(([id,c])=>`<option value="${id}">${esc(c.name)}</option>`).join('')}</select>${A.pshowHid?`<button class="btn sm primary" data-act="poolRestore">선택 복원</button>`:`<button class="btn sm primary" data-act="poolToCamp">컨택 단계로 추가</button><button class="btn sm danger" data-act="poolBulkDel" title="캠페인 진행관리의 인플루언서와 이력은 그대로 남습니다">${A.confirm==='pbd'?'한 번 더 누르면 삭제':'선택 삭제'}</button>`}<button class="btn sm ghost" data-act="pselClear">선택 해제</button></div>`:''}
   ${all.length?`<div class="mcards show-m">${L.slice(0,200).map(p=>`<div class="mcard ${A.psel.has(p.id)?'sel':''}" data-act="poolOpen" data-p="${esc(p.id)}"><div class="mh"><input type="checkbox" data-act="psel" data-p="${esc(p.id)}" aria-label="선택" ${A.psel.has(p.id)?'checked':''} style="margin-top:3px"><div class="grow"><div class="mt">${esc(p.name)}</div><div class="ms">${esc([p.acct,V_CH(p.ch),p.cat].filter(Boolean).join(' · '))}</div></div>${p.rating?`<span class="small">${'★'.repeat(p.rating)}</span>`:''}</div>
     <div class="mpills">${p.partner?`<span class="pill accent">${esc(p.partner)}</span>`:''}${p.tier?`<span class="pill">${esc(p.tier)}</span>`:''}${p.exclude?'<span class="pill crit">재섭외 제외</span>':''}${p.lastCampaign?`<span class="pill">${esc(p.lastCampaign)}</span>`:''}</div>
-    <div class="mkv"><div><span>팔로워</span><b>${compact(p.fol)}</b></div><div><span>원고료</span><b>${p.r_fee!=null?compact(p.r_fee):'–'}</b></div><div><span>평균 조회</span><b>${compact(p.avgViews)}</b></div></div></div>`).join('')||'<div class="panel empty">조건에 맞는 인플루언서가 없습니다.</div>'}${L.length>200?'<p class="small muted">200명까지 표시합니다. 검색으로 좁혀 보세요.</p>':''}</div><div class="tblwrap hide-m" data-keep-scroll="pool" style="max-height:calc(100vh - 290px)"><table class="tbl pooltbl"><thead><tr><th><input type="checkbox" data-act="pselAll" aria-label="전체 선택" ${A.psel.size&&A.psel.size===L.length?'checked':''}></th>${PCOLS.map(th).join('')}</tr>
+    <div class="mkv"><div><span>팔로워</span><b>${compact(p.fol)}</b></div><div><span>원고료</span><b>${p.r_fee!=null?compact(p.r_fee):'–'}</b></div><div><span>평균 조회</span><b>${compact(p.avgViews)}</b></div></div></div>`).join('')||'<div class="panel empty">조건에 맞는 인플루언서가 없습니다.</div>'}${L.length>200?'<p class="small muted">200명까지 표시합니다. 검색으로 좁혀 보세요.</p>':''}</div>${A.pbig?'<div class="pbig-bg hide-m" data-act="pbig"></div><button class="btn pbig-x hide-m" data-act="pbig">✕ 닫기</button>':''}<div class="tblwrap hide-m pool-wrap ${A.pbig?'big':''}" data-keep-scroll="pool"><table class="tbl pooltbl"><thead><tr><th><input type="checkbox" data-act="pselAll" aria-label="전체 선택" ${A.psel.size&&A.psel.size===L.length?'checked':''}></th>${PCOLS.map(th).join('')}</tr>
    <tr class="frow"><th></th>${PCOLS.map(fcell).join('')}</tr></thead><tbody>
    ${L.length?L.map(p=>`<tr class="click" data-act="poolOpen" data-p="${esc(p.id)}"><td><input type="checkbox" data-act="psel" data-p="${esc(p.id)}" aria-label="선택" ${A.psel.has(p.id)?'checked':''}></td>${PCOLS.map(([k])=>cell(p,k)).join('')}</tr>`).join(''):`<tr><td colspan="${PCOLS.length+1}" class="empty">조건에 맞는 인플루언서가 없습니다.</td></tr>`}</tbody></table></div>`
    :`<div class="panel empty">아직 풀이 비어 있습니다. 캠페인 진행관리에 인플루언서를 입력하면 자동으로 쌓이고, 「직접 등록」이나 「엑셀 붙여넣기」로 추가할 수도 있습니다.</div>`}`;
@@ -3013,7 +3019,7 @@ Object.assign(ACT,{
   poolOpen(a,e){if(e.target.closest('input'))return;A.drawer={type:'pool',pid:a.dataset.p};A.confirm=null;render()},
   async poolToCamp(){await addToCampaign($('#ptarget').value,[...A.psel]);A.psel.clear();render()},
   async poolToCamp1(a){await addToCampaign($('#p1target').value,[a.dataset.p])},
-  async poolDel(a){const k='pd'+a.dataset.p;if(A.confirm!==k){A.confirm=k;render();return}A.confirm=null;A.drawer=null;try{await DB.del('pool/'+a.dataset.p);toast('풀에서 삭제했습니다. 진행 중인 캠페인에 남아 있으면 다음 수정 때 다시 추가됩니다.')}catch(e){saveErr(e)}render()},
+  async poolDel(a){const k='pd'+a.dataset.p;if(A.confirm!==k){A.confirm=k;render();return}A.confirm=null;A.drawer=null;await poolRemove([a.dataset.p]);render()},
   poolXlsx(){poolXlsx()},
   async poolResync(){if(!A.poolLoaded)return toast('풀을 불러오는 중입니다. 잠시 후 다시 누르세요.');A.confirm='resync';render();let k=0;
     for(const [id,c] of Object.entries(A.campaigns)){try{const rd=await DB.get('rows/'+id);await syncPool(id,c,rowsArr(rd));k++}catch(e){console.error(e)}}
@@ -3115,6 +3121,19 @@ service cloud.firestore {
       allow read: if isTeam();
       allow write: if canEdit();
     }
+    // 콘텐츠 가이드 · 가이드 장면 이미지 · 영상 검수: 링컴즈 팀원 읽기, 마스터·매니저 수정
+    match /guides/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
+    match /guideimg/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
+    match /reviews/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
     // 광고주 공유용 썸네일·공유본: 링크(토큰)를 아는 사람만 한 건씩 읽기, 목록 조회 불가
     match /sharethumbs/{token} {
       allow get: if true;
@@ -3155,5 +3174,6 @@ service cloud.firestore {
   }
 }
 </script>
+<script src="/tools.js?v=0.14.0"></script>
 </body>
 </html>

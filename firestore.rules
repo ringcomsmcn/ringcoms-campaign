@@ -88,6 +88,19 @@ service cloud.firestore {
       allow read: if isTeam();
       allow write: if canEdit();
     }
+    // 콘텐츠 가이드 · 가이드 장면 이미지 · 영상 검수: 링컴즈 팀원 읽기, 마스터·매니저 수정
+    match /guides/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
+    match /guideimg/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
+    match /reviews/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
     // 광고주 공유용 썸네일·공유본: 링크(토큰)를 아는 사람만 한 건씩 읽기, 목록 조회 불가
     match /sharethumbs/{token} {
       allow get: if true;

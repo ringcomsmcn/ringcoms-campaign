@@ -9,6 +9,11 @@
 | `public/l.html` | 인플루언서 전용 단축 링크(`/l/{코드}`)가 여는 브릿지 페이지 (로그인 없음, 방문·버튼 클릭 집계) |
 | `netlify/functions/social-stats.mjs` | 인스타그램·틱톡 성과·게시일·썸네일 수집 서버 함수 (`/api/social-stats`) |
 | `netlify/functions/ops.mjs` | 업데이트 제안 읽기·승인 서버 함수 (`/api/ops`, GitHub `ops` 브랜치의 `ops/suggestions.json`) |
+| `public/tools.js` | 도구 화면: 콘텐츠 가이드 · 영상 검수 · AI 영상 제작(틀), 캠페인 만들기 4단계, 상단 계정 선택, 풀 선택 삭제 |
+| `public/img/ringcoms-wide.png` | 가로형 RINGCOMS 로고 (흰색, 가이드 PPT·PDF 우상단 · 광고주 색으로 자동 변환) |
+| `netlify/functions/ai.mjs` | 콘텐츠 가이드 AI (`/api/ai`): 광고주 링크 읽기 → Gemini로 표준 가이드 초안 |
+| `netlify/functions/review.mjs` | 영상 검수 백그라운드 함수 (`/api/review`, 최대 15분): 영상 → Gemini → `reviews/{id}`에 결과 |
+| `netlify/lib/gemini.mjs` | Gemini 호출·파일 업로드·팀원 확인 공용 모듈 (함수 폴더 밖이라 단독 배포 안 됨) |
 | `public/changelog.json` | 업데이트 이력 (버전별 변경 사항) — 배포할 때마다 맨 앞에 추가 |
 | `firestore.rules` | Firestore 보안 규칙 (Firebase 콘솔에 게시해야 적용) |
 | `netlify.toml` | Netlify 배포 설정 |
@@ -23,6 +28,8 @@
 | `APIFY_IG_ACTOR` | 아니오 | 기본 `apify~instagram-scraper` |
 | `APIFY_TT_ACTOR` | 아니오 | 기본 `clockworks~tiktok-scraper` |
 | `FIREBASE_PROJECT_ID` | 아니오 | 기본 `ringcoms-campaign` |
+| `GEMINI_API_KEY` | 가이드·검수에 필요 | Google AI Studio API 키 (프로젝트 「Gemini API」, 무료 등급) |
+| `GEMINI_MODEL` | 아니오 | 기본 `gemini-2.5-flash` → 없으면 `gemini-flash-latest` |
 | `GITHUB_TOKEN` | 업데이트 제안에 필요 | fine-grained 토큰, 이 저장소만 · Contents 읽기·쓰기 |
 
 ## 성과 불러오기 동작
@@ -82,3 +89,28 @@
 - 가장 빠른 방법: Netlify → Deploys → 안정 버전 배포(10/7 「업데이트 이력 v0.12 커밋 기록」)를 열고 **Publish deploy** (새 빌드 없이 즉시 되돌림)
 - 코드까지 되돌리기: `git revert`로 문제 커밋을 되돌려 main에 푸시 (강제 푸시 금지). `stable-v0.12`와 비교: `git diff stable-v0.12 main`
 - Firestore 규칙 되돌리기: 콘솔 → Firestore → 규칙 → 기록(History)에서 이전 버전 선택, 또는 `git show stable-v0.12:firestore.rules` 내용을 붙여넣고 게시
+
+## 콘텐츠 가이드 (도구 → 콘텐츠 가이드)
+- 표준 구성(첨부 가이드 3종 공통 구조): 표지 → 이것만 꼭 지켜 주세요(핵심 메시지·✅/❌) → 제품 정보(특징·사용법·주의) → 컨셉 고르기(1~4개, 택 1) → 컨셉별 장면 가이드(인트로·바디·아웃트로: 찍는 법·예시 멘트·자막·포인트·참고 영상·장면 이미지) → 꼭 찍어야 할 컷 + 마무리 핵심 메시지 → 문구·해시태그·바른 표기 → 이렇게 말하면 안 돼요 → 촬영·업로드 주의사항 → 제출 방법·일정 → E.O.D
+- 광고주 홈페이지·상품 링크(최대 3개)와 붙여넣은 상품 정보로 AI가 빈 칸을 채움 (「빈 칸 채우기」 / 「새로 만들기」). 스마트스토어처럼 스크립트로만 그려지는 페이지는 상품 정보를 붙여넣기
+- PPT(Pretendard, 우상단 가로형 로고, 가이드 색 = 광고주 톤) · PDF(인쇄 창 → PDF로 저장) 다운로드
+- 데이터: `guides/{id}`, 장면 이미지 `guideimg/{id}` (가이드당 약 1MB까지)
+
+## 장면 이미지 · Canva
+- 지금(반자동): 장면의 「Canva로 만들기」 → 이미지 프롬프트 복사 + Canva 열림 → Canva AI(Magic Media)로 만들고 다운로드 → 「이미지 넣기」
+- 완전 자동 연동 검토 결과 (나중에 추가할 때):
+  - Canva Connect API로 가능한 것: 브랜드 템플릿 자동 채우기(autofill)로 디자인 만들기, 이미지 업로드, PNG·PDF 내보내기 → 장면 텍스트·이미지를 넣은 가이드 디자인을 자동 생성 가능
+  - 조건: Canva Pro·Teams·Enterprise 계정 + 2단계 인증, Canva 개발자 포털에서 통합(Integration) 생성·OAuth 연결, 범위 `design:content`·`design:meta`·`brandtemplate:meta/content`·`asset`
+  - 한계: AI 이미지 생성 API는 공개돼 있지 않음 → 장면 이미지 자동 생성은 Gemini/Imagen 등 이미지 생성 API로 만들고 Canva에는 업로드·배치만 맡기는 구조가 현실적
+  - 추가 작업: Netlify 환경변수 `CANVA_CLIENT_ID`·`CANVA_CLIENT_SECRET`, 서버 함수 `/api/canva`(OAuth 토큰 보관·autofill·export), 가이드 화면 「Canva 디자인으로 만들기」 버튼
+
+## 영상 검수 (도구 → 영상 검수)
+- 기준 가이드·컨셉 선택 → 영상 링크 → 「검수 시작」 → 1~5분 뒤 결과 (점수·판정·수정 요청 표·장면 구성 비교·체크리스트·나레이션/자막 받아쓰기·인플루언서에게 보낼 메시지)
+- 지원 링크: 유튜브(공개), 구글 드라이브(「링크가 있는 모든 사용자」), 영상 파일 주소, 인스타그램·틱톡 게시물(Apify 사용) · 300MB 이하
+- 업로드 전 초안은 구글 드라이브 링크로 받는 것을 권장. 캡션·해시태그는 영상만으로 확인할 수 없어 판정하지 않음
+- 데이터: `reviews/{id}` (진행 상태·결과 JSON)
+
+## AI 영상 제작 (틀만 구축)
+- 가이드·컨셉을 고르면 장면별 영상 프롬프트를 만들어 복사 가능. 실제 생성 버튼은 연동 전 비활성
+- 연동 시: 서비스(Veo·Runway·Kling) 결정 → API 키 → Netlify 환경변수 `AI_VIDEO_PROVIDER`·키 → `/api/ai`의 `video` 동작 구현 → 생성 영상 저장소(Firebase Storage는 Blaze 요금제)
+
