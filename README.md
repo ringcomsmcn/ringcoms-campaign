@@ -29,7 +29,7 @@
 | `APIFY_TT_ACTOR` | 아니오 | 기본 `clockworks~tiktok-scraper` |
 | `FIREBASE_PROJECT_ID` | 아니오 | 기본 `ringcoms-campaign` |
 | `GEMINI_API_KEY` | 가이드·검수에 필요 | Google AI Studio API 키 (프로젝트 「Gemini API」, 무료 등급) |
-| `GEMINI_MODEL` | 아니오 | 기본 `gemini-2.5-flash` → 없으면 `gemini-flash-latest` |
+| `GEMINI_MODEL` | 아니오 | 기본 `gemini-flash-latest` → 붐비거나 없으면 `gemini-2.5-flash` → `gemini-flash-lite-latest` |
 | `GITHUB_TOKEN` | 업데이트 제안에 필요 | fine-grained 토큰, 이 저장소만 · Contents 읽기·쓰기 |
 
 ## 성과 불러오기 동작

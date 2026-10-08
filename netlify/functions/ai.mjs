@@ -91,7 +91,7 @@ export default async (req) => {
     try {
       const pages = await Promise.all(links.map(readPage));
       if (!pages.some(p => p.ok) && !String(body.memo || '').trim()) return json({ error: '링크 내용을 읽지 못했습니다. 상품 정보를 직접 붙여넣어 주세요.', pages: pages.map(p => ({ url: p.url, ok: false, error: p.error })) }, 422);
-      const { data, model } = await gemini([{ text: guidePrompt(pages, body.memo, body.base || {}) }], { temperature: 0.6, maxTokens: 12000, timeoutMs: 46000, thinking: 512 });
+      const { data, model } = await gemini([{ text: guidePrompt(pages, body.memo, body.base || {}) }], { temperature: 0.6, maxTokens: 12000, timeoutMs: 46000, thinking: 512, totalMs: 50000 });
       return json({ guide: data, model, pages: pages.map(p => ({ url: p.url, ok: p.ok, title: p.title || '', error: p.error || '' })) });
     } catch (e) { return json({ error: String(e.message || e) }, 502); }
   }

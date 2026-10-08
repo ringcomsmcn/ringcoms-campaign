@@ -5,7 +5,7 @@
 export const PROJECT = process.env.FIREBASE_PROJECT_ID || 'ringcoms-campaign';
 export const GKEY = process.env.GEMINI_API_KEY || '';
 const API = 'https://generativelanguage.googleapis.com';
-export const MODELS = [...new Set([process.env.GEMINI_MODEL, 'gemini-2.5-flash', 'gemini-flash-latest'].filter(Boolean))];
+export const MODELS = [...new Set([process.env.GEMINI_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest'].filter(Boolean))];
 export const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 
 /* 호출한 사람이 링컴즈 팀원(마스터·매니저)인지: 그 사람의 로그인 토큰으로 Firestore 팀원 문서를 읽어 봄 (보안 규칙이 판정) */
@@ -47,11 +47,13 @@ export function parseJsonText(t) {
 }
 
 /* Gemini generateContent — 모델이 없으면(404) 다음 모델로 */
-export async function gemini(parts, { temperature = 0.4, maxTokens = 8192, timeoutMs = 50000, thinking = null } = {}) {
+export async function gemini(parts, { temperature = 0.4, maxTokens = 8192, timeoutMs = 50000, thinking = null, totalMs = 0 } = {}) {
+  const end = totalMs ? Date.now() + totalMs : 0;
   if (!GKEY) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다. Netlify 환경변수에 추가해 주세요.');
   let last = null;
   for (const m of MODELS) {
-    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), timeoutMs);
+    const left = end ? end - Date.now() : timeoutMs; if (left < 4000) break;
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), Math.min(timeoutMs, left));
     let r;
     try {
       r = await fetch(`${API}/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
@@ -65,6 +67,7 @@ export async function gemini(parts, { temperature = 0.4, maxTokens = 8192, timeo
     if (r.status === 404 || (r.status === 400 && /model/i.test(JSON.stringify(j.error || '')) && /not (found|supported)/i.test(JSON.stringify(j.error || '')))) { last = new Error('모델 없음: ' + m); continue; }
     if (!r.ok) {
       const msg = (j.error && j.error.message) || ('AI 오류 ' + r.status);
+      if (r.status === 503 || r.status === 500 || /high demand|overloaded|UNAVAILABLE/i.test(msg)) { last = new Error('AI 서버가 잠시 붐빕니다. 잠시 후 다시 시도해 주세요.'); continue; }
       if (r.status === 429) throw new Error('AI 무료 사용량을 초과했습니다. 잠시 후 다시 시도해 주세요. (' + msg.slice(0, 120) + ')');
       if (r.status === 400 && /API key/i.test(msg)) throw new Error('Gemini API 키가 올바르지 않습니다. Netlify 환경변수 GEMINI_API_KEY를 확인해 주세요.');
       throw new Error(msg.slice(0, 300));
