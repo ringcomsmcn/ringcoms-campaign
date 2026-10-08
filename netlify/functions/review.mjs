@@ -1,15 +1,22 @@
 // RINGCOMS 캠페인 관리 · 영상 검수 (백그라운드 함수, 최대 15분)
 // POST /api/review  { id, url, infl, guide, concept }  → 바로 202 응답, 결과는 Firestore reviews/{id} 에 기록
 //   status: 영상 받는 중 → 분석 중 → 완료 | 실패,  resultJson: 검수 결과(JSON 문자열)
+// 주요 장면: 영상을 10구간으로 나눠 1장씩 캡처(ffmpeg) → guideimg/rv_{id}.frames (유튜브는 유튜브 자동 썸네일 4장)
 // 영상 가져오기: 유튜브(공개) = Gemini가 직접 / 구글 드라이브(링크 공개)·영상 파일 주소 = 내려받아 Gemini Files API
 //               인스타그램·틱톡 = Apify로 영상 주소 확인 후 내려받기 (APIFY_TOKEN 필요)
 // 환경변수: GEMINI_API_KEY (필수), APIFY_TOKEN (인스타·틱톡), APIFY_IG_ACTOR, APIFY_TT_ACTOR
 import { gemini, uploadFile, deleteFile, checkEditor, fsPatch } from '../lib/gemini.mjs';
+import { createWriteStream, createReadStream, promises as fsp } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { execFile } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const APIFY = 'https://api.apify.com/v2';
 const IG_ACTOR = process.env.APIFY_IG_ACTOR || 'apify~instagram-scraper';
 const TT_ACTOR = process.env.APIFY_TT_ACTOR || 'clockworks~tiktok-scraper';
-const MAX_BYTES = 1024 * 1024 * 1024;
+const MAX_BYTES = 500 * 1024 * 1024;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
 const ytId = u => (String(u).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || '';
@@ -22,7 +29,7 @@ async function download(url, headers = {}) {
   const type = (r.headers.get('content-type') || '').split(';')[0].trim();
   if (/text\/html/.test(type)) { try { await r.body.cancel(); } catch (e) {} throw new Error('영상 대신 웹페이지가 열립니다. 구글 드라이브는 공유 설정을 「링크가 있는 모든 사용자」로 바꿔 주세요.'); }
   const len = +(r.headers.get('content-length') || 0);
-  if (len > MAX_BYTES) { try { await r.body.cancel(); } catch (e) {} throw new Error('영상이 너무 큽니다 (1GB 이하만 가능).'); }
+  if (len > MAX_BYTES) { try { await r.body.cancel(); } catch (e) {} throw new Error('영상이 너무 큽니다 (500MB 이하만 가능).'); }
   const mime = /^video\//.test(type) ? type : 'video/mp4';
   return { stream: r.body, size: len, mime };
 }
@@ -37,13 +44,34 @@ async function apifyItems(actor, input) {
 }
 
 /* 링크 → Gemini에 넘길 영상 part (+ 지울 파일 이름) */
-async function videoPart(url) {
+/* ffmpeg (ffmpeg-static 패키지) — 없으면 장면 캡처만 건너뜀 */
+async function ffmpegPath() { try { const m = await import('ffmpeg-static'); return m.default || m; } catch (e) { return null; } }
+const run = (bin, args) => new Promise(res => execFile(bin, args, { maxBuffer: 8 * 1024 * 1024, timeout: 60000 }, (err, stdout, stderr) => res({ err, stdout, stderr: String(stderr || '') })));
+const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+/* 영상 구간을 10등분해 가운데 장면을 1장씩 (가로 360px JPG) */
+async function captureFrames(file, n = 10) {
+  const bin = await ffmpegPath(); if (!bin) return [];
+  const info = await run(bin, ['-hide_banner', '-i', file]);
+  const m = info.stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/); if (!m) return [];
+  const dur = (+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]); if (!(dur > 0)) return [];
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = Math.min(dur - 0.05, (i + 0.5) * dur / n); const jpg = file + '_' + i + '.jpg';
+    const r = await run(bin, ['-hide_banner', '-loglevel', 'error', '-ss', t.toFixed(2), '-i', file, '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '7', '-y', jpg]);
+    if (r.err) continue;
+    try { const b = await fsp.readFile(jpg); out.push({ t: mmss(t), src: 'data:image/jpeg;base64,' + b.toString('base64') }); await fsp.unlink(jpg).catch(() => {}); } catch (e) {}
+  }
+  return out;
+}
+/* 링크 → Gemini에 넘길 영상 part (+ 지울 파일 이름, 장면 캡처) */
+async function videoPart(url, id) {
   const yt = ytId(url);
-  if (yt) return { part: { fileData: { fileUri: 'https://www.youtube.com/watch?v=' + yt, mimeType: 'video/*' } }, kind: '유튜브' };
+  if (yt) return { part: { fileData: { fileUri: 'https://www.youtube.com/watch?v=' + yt, mimeType: 'video/*' } }, kind: '유튜브',
+    frames: [['처음', 'hqdefault'], ['약 25%', '1'], ['약 50%', '2'], ['약 75%', '3']].map(([t, k]) => ({ t, src: `https://i.ytimg.com/vi/${yt}/${k}.jpg` })) };
   let got = null, kind = '';
   if (/drive\.google\.com|docs\.google\.com/.test(url)) {
-    const id = driveId(url); if (!id) throw new Error('구글 드라이브 파일 링크가 아닙니다. 파일의 「링크 복사」 주소를 넣어 주세요.');
-    got = await download(`https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`); kind = '구글 드라이브';
+    const did = driveId(url); if (!did) throw new Error('구글 드라이브 파일 링크가 아닙니다. 파일의 「링크 복사」 주소를 넣어 주세요.');
+    got = await download(`https://drive.usercontent.google.com/download?id=${did}&export=download&confirm=t`); kind = '구글 드라이브';
   } else if (/instagram\.com/.test(url)) {
     const it = (await apifyItems(IG_ACTOR, { directUrls: [url], resultsType: 'posts', resultsLimit: 1, addParentData: false }))[0] || {};
     const v = it.videoUrl || (Array.isArray(it.childPosts) && (it.childPosts.find(c => c.videoUrl) || {}).videoUrl);
@@ -57,8 +85,18 @@ async function videoPart(url) {
   } else {
     got = await download(url); kind = '영상 파일';
   }
-  const f = await uploadFile(got.stream, got.mime, 'ringcoms-review', got.size);
-  return { part: { fileData: { fileUri: f.uri, mimeType: f.mime } }, file: f.name, kind };
+  // 임시 폴더에 저장 (메모리에 담지 않음) → 장면 캡처 → 파일에서 나눠 올리기
+  const tmp = join(tmpdir(), 'rv_' + id + '.mp4');
+  let size = 0;
+  const counter = new TransformStream({ transform(ch, c) { size += ch.length; if (size > MAX_BYTES) c.error(new Error('영상이 너무 큽니다 (500MB 이하만 가능).')); else c.enqueue(ch); } });
+  await pipeline(Readable.fromWeb(got.stream.pipeThrough(counter)), createWriteStream(tmp));
+  if (size < 20000) { await fsp.unlink(tmp).catch(() => {}); throw new Error('영상 파일이 아닙니다. 링크를 확인해 주세요.'); }
+  let frames = [];
+  try { frames = await captureFrames(tmp); } catch (e) { console.error('frames', e.message); }
+  try {
+    const f = await uploadFile(Readable.toWeb(createReadStream(tmp)), got.mime, 'ringcoms-review', size);
+    return { part: { fileData: { fileUri: f.uri, mimeType: f.mime } }, file: f.name, kind, frames };
+  } finally { await fsp.unlink(tmp).catch(() => {}); }
 }
 
 const L = a => (Array.isArray(a) ? a : []).map(x => String(x || '').trim()).filter(Boolean);
@@ -130,8 +168,9 @@ export default async (req) => {
     const url = String(body.url || '');
     if (!/^https?:\/\//i.test(url)) throw new Error('영상 링크가 올바르지 않습니다.');
     await save({ status: '영상 받는 중' });
-    const v = await videoPart(url); file = v.file || '';
-    await save({ status: '분석 중', source: v.kind });
+    const v = await videoPart(url, id); file = v.file || '';
+    if ((v.frames || []).length) await fsPatch(who.tok, 'guideimg/rv_' + id, { frames: JSON.stringify(v.frames), updatedAt: new Date().toISOString() }).catch(e => console.error('frames save', e.message));
+    await save({ status: '분석 중', source: v.kind, frameN: String((v.frames || []).length) });
     const ci = body.concept == null || body.concept === '' ? null : +body.concept;
     const { data, model } = await gemini([v.part, { text: reviewPrompt(body.guide, Number.isFinite(ci) ? ci : null, String(body.infl || '')) }], { temperature: 0.2, maxTokens: 12000, timeoutMs: 300000, thinking: 2048 });
     await save({ status: '완료', resultJson: JSON.stringify(data), model, doneAt: new Date().toISOString() });

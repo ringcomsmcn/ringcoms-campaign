@@ -8,6 +8,11 @@
 
 [functions]
   node_bundler = "esbuild"
+  # 영상 검수 장면 캡처용 ffmpeg 실행 파일을 함께 배포 (번들에 넣지 않고 패키지째 포함)
+  external_node_modules = ["ffmpeg-static"]
+
+[functions.review]
+  included_files = ["node_modules/ffmpeg-static/ffmpeg"]
 
 [[headers]]
   for = "/*"

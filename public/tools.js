@@ -16,7 +16,7 @@ window.TOOL_IC={
   int:SV('<path d="M9 7H6.5a3.5 3.5 0 0 0 0 7H9M15 7h2.5a3.5 3.5 0 0 1 0 7H15M8 10.5h8"/>')
 };
 window.CONFIRM_ACTS=['poolBulkDel','guideDel','revDel','sceneDel','conceptDel'];
-['guideNew','guideAi','cutAdd','cutDel','sceneAdd','sceneDel','conceptAdd','conceptDel','wordAdd','wordDel','pointAdd','gimgDel','guideDel','revRun','revDel','revRetry','poolBulkDel','poolRestore','drowAdd','drowDel','wpickAdd','wpasteGo'].forEach(k=>WRITE_ACTS.add(k));
+['guideNew','guideAi','cutAdd','cutDel','gimgClip','sceneAdd','sceneDel','conceptAdd','conceptDel','wordAdd','wordDel','pointAdd','gimgDel','guideDel','revRun','revDel','revRetry','poolBulkDel','poolRestore','drowAdd','drowDel','wpickAdd','wpasteGo'].forEach(k=>WRITE_ACTS.add(k));
 
 /* ============ 공통 ============ */
 const T_NOW=()=>new Date().toISOString();
@@ -110,6 +110,8 @@ document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.datase
 /* ============ 콘텐츠 가이드: 표준 템플릿 ============ */
 const G_PLATFORMS=['인스타그램 릴스','유튜브 쇼츠','틱톡','유튜브 롱폼','인스타그램 피드','네이버 블로그'];
 const G_PARTS=['인트로','바디','아웃트로'];
+const G_LEVELS={light:'Light · 5장 이내 요약',detail:'Detail · 전체 상세'};
+const gLevel=g=>g&&g.level==='light'?'light':'detail';
 const G_SHOOT=['9:16 세로로, 1080px(FHD) 이상 화질로 찍어 주세요.','밝은 곳에서 찍고, 흔들리지 않게 폰을 고정해 주세요.','보정 필터·뷰티 앱(스노우·B612 등)은 쓰지 말아 주세요.','제품 로고와 글자가 좌우 반전되지 않게 찍어 주세요.','깔끔하게 정리된 배경에서, 노출이 심한 옷은 피해 주세요.','다른 브랜드 제품·로고가 화면에 나오지 않게 해 주세요.','저작권이 있는 음원·셀럽 사진은 쓰지 말아 주세요.'];
 const G_SUBMIT=['가이드를 보고 촬영·편집해 주세요.','업로드 전에 초안 영상을 먼저 보내 주세요. (구글 드라이브 「링크가 있는 모든 사용자」 공유 링크)','링컴즈가 검수하고, 수정할 점이 있으면 알려 드려요.','승인을 받은 뒤 업로드해 주세요. (본문 맨 앞에 #협찬)','업로드한 게시물 링크와 원본 영상을 보내 주세요.'];
 const G_CUTS=[['썸네일','본인 채널 분위기에 맞게, 제품이 잘 보이는 컷 (셀럽 사진은 쓰지 마세요)','권장'],['인트로 (후킹)','첫 3초 안에 눈길을 끄는 장면이나 후킹 멘트로 시작해요','필수'],['사용 장면','제품을 실제로 쓰는 모습을 자연스럽게 보여 줘요','필수'],['사용 전후 비교','같은 각도·같은 조명·같은 거리에서 찍어요','권장'],['아웃트로','제품을 한 번 더 보여 주고 핵심 메시지로 마무리해요','필수']];
@@ -117,7 +119,7 @@ const G_UPLOAD=['제품명·브랜드명 오타가 없는지 한 번 더 확인�
 const gCuts=()=>G_CUTS.map(([name,desc,need])=>({id:tid('k'),name,desc,need}));
 const gScene=(part,time)=>({id:tid('s'),part,time,shot:'',say:'',sub:'',point:'',ref:'',prompt:''});
 function gConcept(name){return {id:tid('c'),name:name||'',hook:'',scenes:[gScene('인트로','0~3초'),gScene('바디','3~15초'),gScene('바디','15~25초'),gScene('아웃트로','25~30초')]}}
-function newGuide(c){const d=today();return {title:c?(c.brand||c.advertiser||'')+' 콘텐츠 가이드':'새 콘텐츠 가이드',advertiser:c?c.advertiser||'':'',brand:c?c.brand||'':'',cid:c?A.cid||'':'',platform:'인스타그램 릴스',length:'30초 이내',ratio:'9:16 세로',color:'#7A1E2C',status:'작성 중',links:[],memo:'',
+function newGuide(c){const d=today();return {title:c?(c.brand||c.advertiser||'')+' 콘텐츠 가이드':'새 콘텐츠 가이드',advertiser:c?c.advertiser||'':'',brand:c?c.brand||'':'',cid:c?A.cid||'':'',platform:'인스타그램 릴스',length:'30초 이내',ratio:'9:16 세로',color:'#7A1E2C',status:'작성 중',level:'detail',links:[],memo:'',
   summary:{one:'',must:['첫 3초 안에 눈길을 끄는 장면으로 시작해 주세요.','제품 이름이 화면과 말에 꼭 나오게 해 주세요.','자막이나 목소리(TTS 가능)를 꼭 넣어 주세요.','본문 맨 앞에 #협찬 을 넣어 주세요.','업로드 전에 초안 영상을 먼저 보내 주세요.'],dont:['효과를 단정하는 말(치료·완치·100%)은 쓰지 말아 주세요.','다른 브랜드 제품을 깎아내리지 말아 주세요.','검수 승인 전에 업로드하지 말아 주세요.']},
   product:{name:'',price:'',sale:'',option:'',intro:'',points:[{t:'',d:''},{t:'',d:''},{t:'',d:''}],howto:[],caution:''},
   concepts:[gConcept('')],text:{keywords:[],closing:'',tagsMust:['#협찬'],tagsRec:[],account:'',brandName:'',productName:'',ngNames:[]},
@@ -164,9 +166,9 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
   const P=g.product||{};const busy=A.gaiBusy||gAiRunning(g);
   const sceneCard=(ci,si,s)=>{const b=`concepts.${ci}.scenes.${si}`;const im=A.gimgs[s.id];
     return `<div class="scene"><div class="scene-h"><b>#${si+1}</b><select id="${id(b+'.part')}" data-gv="${b}.part" style="width:auto">${G_PARTS.map(o=>`<option ${o===s.part?'selected':''}>${o}</option>`).join('')}</select><input type="text" id="${id(b+'.time')}" data-gv="${b}.time" value="${esc(s.time||'')}" placeholder="0~3초" style="width:90px"><span class="grow"></span>${ed?`<button class="btn sm ghost" data-act="sceneDel" data-c="${ci}" data-s="${si}" title="장면 삭제">${A.confirm==='sd'+s.id?'한 번 더 누르면 삭제':'✕'}</button>`:''}</div>
-     <div class="scene-b"><div class="scene-img">${im?`<img src="${im}" alt="장면 ${si+1} 참고 이미지">`:'<span class="muted small">참고 이미지 없음</span>'}
+     <div class="scene-b"><div class="scene-img ${A.gpaste===s.id?'paste-on':''}" tabindex="0" data-gpaste="${s.id}" title="여기를 클릭한 뒤 Ctrl+V(맥은 ⌘+V)로 이미지를 붙여넣으세요">${im?`<img src="${im}" alt="장면 ${si+1} 참고 이미지">`:`<span class="muted small">${A.gpaste===s.id?'<b>Ctrl+V</b>로 붙여넣으세요':'클릭 → Ctrl+V로 이미지 붙여넣기'}</span>`}
        <div class="row" style="gap:4px;justify-content:center">${ed?`<label class="btn sm" style="cursor:pointer">${im?'바꾸기':'이미지 넣기'}<input type="file" accept="image/*" data-gimg="${s.id}" hidden></label>${im?`<button class="btn sm ghost" data-act="gimgDel" data-k="${s.id}">삭제</button>`:''}`:''}</div>
-       <button class="btn sm" data-act="canvaGo" data-c="${ci}" data-s="${si}" title="이미지 프롬프트를 복사하고 Canva를 엽니다">Canva로 만들기 ↗</button></div>
+       <div class="row" style="gap:4px;justify-content:center"><button class="btn sm" data-act="canvaGo" data-to="canva" data-c="${ci}" data-s="${si}" title="이미지 프롬프트를 복사하고 Canva를 엽니다">Canva AI ↗</button><button class="btn sm" data-act="canvaGo" data-to="gemini" data-c="${ci}" data-s="${si}" title="이미지 프롬프트를 복사하고 Gemini를 엽니다 (무료)">Gemini ↗</button><button class="btn sm ghost" data-act="canvaGo" data-to="copy" data-c="${ci}" data-s="${si}">프롬프트 복사</button>${ed?`<button class="btn sm ghost" data-act="gimgClip" data-k="${s.id}" title="복사해 둔 이미지를 바로 넣습니다">📋 붙여넣기</button>`:''}</div></div>
       <div class="fgrid one">${ta(b+'.shot','📷 이렇게 찍어요',{rows:2,ph:'예: 얼굴 반쪽만 바르고 정면 클로즈업'})}${ta(b+'.say','🎙 이렇게 말해요 (예시 멘트)',{rows:3,ph:'예: 수부지라 매트 쿠션 고민 많았는데…'})}${ta(b+'.sub','💬 자막 (화면 글자)',{rows:1,ph:'예: 아직도 파데 국물 생겨?'})}${tx(b+'.point','⭐ 강조 포인트',{wide:true,ph:'예: 촉촉하게 발리고 보송하게 마무리'})}${tx(b+'.ref','🔗 참고 영상 링크',{wide:true,ph:'https://'})}${ta(b+'.prompt','🖼 이미지 프롬프트 (Canva·AI 영상용)',{rows:2,ph:'AI가 채워 줍니다 · 장면을 그림으로 설명'})}</div></div></div>`};
   const conceptCard=(ci,cp)=>`<section class="panel concept"><div class="panel-h"><div class="row grow" style="gap:8px"><span class="cnum">${ci+1}</span><input type="text" id="${id(`concepts.${ci}.name`)}" data-gv="concepts.${ci}.name" value="${esc(cp.name||'')}" placeholder="컨셉 이름 (예: 3초 화잘먹 루틴)" style="max-width:340px;font-weight:600"></div>${ed&&(g.concepts||[]).length>1?`<button class="btn sm danger" data-act="conceptDel" data-c="${ci}">${A.confirm==='cd'+cp.id?'한 번 더 누르면 삭제':'컨셉 삭제'}</button>`:''}</div>
     <div class="fgrid">${tx(`concepts.${ci}.hook`,'첫 마디 · 후킹 문구',{wide:true,ph:'예: 아직도 여름에 파데 국물 생긴다고?!'})}</div>
@@ -175,10 +177,11 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
    <div class="row"><button class="btn" data-act="guidePpt">PPT 다운로드</button><button class="btn" data-act="guidePdf">PDF 다운로드</button><button class="btn" data-act="gotoReview">이 가이드로 영상 검수 →</button></div></div>
   ${A.guidesErr?rulesBanner():''}
   <div class="stack gedit">
-  <section class="panel ai-box"><div class="panel-h"><div><h2>① 광고주 정보 넣기 → AI로 가이드 채우기</h2><div class="sub">홈페이지·상품 상세 링크를 넣으면 AI가 제품 특징·핵심 메시지·컨셉·장면·멘트·해시태그·금지 표현을 표준 형식으로 채웁니다.</div></div>${aiPill()}</div>
+  <section class="panel ai-box"><div class="panel-h"><div><h2>① 광고주 정보 넣기 → AI로 가이드 채우기</h2><div class="sub">홈페이지·상품 상세 링크를 넣으면 AI가 ③ 꼭 지켜 주세요 · ④ 제품 정보 · ⑤ 컨셉·장면 · ⑥ 문구·해시태그 · ⑦ 금지 표현 · ⑧ 촬영 컷 · ⑨ 촬영·업로드 주의 · ⑩ 진행 순서까지 표준 형식으로 채웁니다.</div></div>${aiPill()}</div>
    <div class="fgrid">${tl('links','광고주 홈페이지 · 상품 링크',{rows:3,ph:'https://brand.com\nhttps://smartstore.naver.com/…',hint:'한 줄에 하나씩, 최대 3개. 네이버 스마트스토어처럼 내용을 읽기 어려운 페이지는 아래 칸에 상품 정보를 붙여넣어 주세요.'})}
    ${ta('memo','상품 정보 · 광고주 요청사항 붙여넣기 (선택)',{rows:4,ph:'상품 상세 문구, 광고주 브리프, 꼭 넣을 표현, 피해야 할 표현 등을 그대로 붙여넣어도 됩니다'})}
-   <label class="f">컨셉 개수<select id="g-ain">${[1,2,3,4].map(x=>`<option ${x===(A.gain||2)?'selected':''}>${x}</option>`).join('')}</select></label></div>
+   <label class="f">가이드 분량<select id="gd_level" data-gv="level">${Object.entries(G_LEVELS).map(([k,l])=>`<option value="${k}" ${gLevel(g)===k?'selected':''}>${l}</option>`).join('')}</select><span class="hint">${gLevel(g)==='light'?'핵심만 담아 PPT·PDF 5장 이내로 만듭니다 (컨셉 1개 권장)':'모든 항목을 장마다 자세히 담습니다 (10장 안팎)'}</span></label>
+   <label class="f">컨셉 개수<select id="g-ain">${[1,2,3,4].map(x=>`<option ${x===(A.gain||(gLevel(g)==='light'?1:2))?'selected':''}>${x}</option>`).join('')}</select></label></div>
    <div class="row" style="margin-top:10px">${ed?`<button class="btn primary" data-act="guideAi" data-m="fill" ${busy?'disabled':''}>${busy||gAiRunning(g)?'AI가 가이드를 만드는 중… (30초~2분)':'AI로 빈 칸 채우기'}</button><button class="btn" data-act="guideAi" data-m="replace" ${busy?'disabled':''}>AI로 새로 만들기 (내용 덮어쓰기)</button>`:''}<span class="small muted">결과는 초안입니다. 광고주 확인이 필요한 수치·효능 표현은 꼭 검토하세요.</span></div></section>
 
   <section class="panel"><div class="panel-h"><h2>② 기본 정보</h2></div><div class="fgrid">
@@ -199,6 +202,7 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
    ${tl('product.howto','사용 방법 (순서대로)',{wide:false,ph:'착용 후 패드 위치 맞추기\n강도 조절\n누워서 휴식'})}${ta('product.caution','사용 · 촬영 주의',{wide:false,rows:4})}</div>
    ${ed&&(P.points||[]).length<5?'<button class="btn sm" data-act="pointAdd">+ 핵심 특징 추가</button>':''}</section>
 
+  <div class="banner info" style="margin:0"><b>장면 이미지 넣는 법</b> ① 장면의 「Canva AI」나 「Gemini」를 누르면 이미지 프롬프트가 복사되고 사이트가 열려요 → ② 프롬프트를 붙여넣어 이미지를 만들고, 마음에 드는 이미지를 <b>마우스 오른쪽 클릭 → 이미지 복사</b> → ③ 여기 돌아와 장면의 이미지 칸을 <b>클릭</b>하고 <b>Ctrl+V</b>(맥 ⌘+V). 다른 사이트에서 만든 이미지·캡처 화면도 같은 방법으로 붙여넣을 수 있어요.<br><span class="small">무료로 쓰기 좋은 곳: <b>Gemini</b>(gemini.google.com · 한국어 그대로, 실사 느낌 좋음) · <b>Microsoft Copilot / Designer</b>(무료, 하루 생성량 넉넉) · <b>ChatGPT</b>(무료는 하루 몇 장) · <b>Canva AI</b>(무료 계정은 월 제한) · <b>Ideogram</b>(화면 글자·자막이 들어간 이미지에 강함). 실존 인물·연예인 얼굴, 다른 브랜드 로고는 넣지 마세요.</span></div>
   <div class="sect-h"><h2>⑤ 콘텐츠 컨셉 · 장면 구성</h2><span class="sub">컨셉이 여러 개면 인플루언서가 1개를 골라 촬영합니다. 장면마다 「찍는 법 · 말하는 법 · 자막 · 포인트」를 채우세요.</span><span class="grow"></span>${ed&&(g.concepts||[]).length<4?'<button class="btn sm" data-act="conceptAdd">+ 컨셉 추가</button>':''}</div>
   ${(g.concepts||[]).map((cp,ci)=>conceptCard(ci,cp)).join('')}
 
@@ -221,11 +225,19 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
 
 /* ---- 가이드 입력 저장 ---- */
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||(!t.dataset.gv&&!t.dataset.gl))return;const g=curG();if(!g)return;if(!canEdit())return toast('보기 전용 권한이라 수정할 수 없습니다.','crit');
-  const p=t.dataset.gv||t.dataset.gl;const v=t.dataset.gl?lines(t.value):t.value;setIn(g,p,v);gSave(p.split('.')[0],g);if(p==='color'||p==='title'||p==='status')render()});
-document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.gimg||!t.files||!t.files[0])return;const f=t.files[0];t.value='';if(!canEdit())return;
-  try{const data=await fileToDataUrl(f,960,960,'image/jpeg',0.72);const imgs={...(A.gimgs||{}),[t.dataset.gimg]:data};const size=Object.values(imgs).reduce((a,b)=>a+String(b).length,0);
+  const p=t.dataset.gv||t.dataset.gl;const v=t.dataset.gl?lines(t.value):t.value;setIn(g,p,v);gSave(p.split('.')[0],g);if(['color','title','status','level'].includes(p))render()});
+async function gimgPut(sid,f){if(!canEdit())return toast('보기 전용 권한이라 수정할 수 없습니다.','crit');if(!sid)return toast('먼저 이미지를 넣을 장면 칸을 클릭하세요.','crit');
+  try{const data=await fileToDataUrl(f,960,960,'image/jpeg',0.72);const imgs={...(A.gimgs||{}),[sid]:data};const size=Object.values(imgs).reduce((a,b)=>a+String(b).length,0);
     if(size>950000)return toast('이 가이드의 이미지가 너무 많습니다. 다른 장면 이미지를 지우거나 더 작은 이미지를 넣어 주세요.','crit');
-    await DB.set('guideimg/'+A.gid,{imgs,updatedAt:T_NOW()});A.gimgs=imgs;render();toast('장면 이미지를 넣었습니다.')}catch(err){console.error(err);toast('이미지를 넣지 못했습니다.','crit')}});
+    await DB.set('guideimg/'+A.gid,{imgs,updatedAt:T_NOW()});A.gimgs=imgs;A.gpaste='';render();toast('장면 이미지를 넣었습니다.')}catch(err){console.error(err);toast('이미지를 넣지 못했습니다.','crit')}}
+/* 장면 칸 클릭 → 선택, Ctrl+V → 클립보드 이미지 넣기 */
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-gpaste]');if(!b||e.target.closest('button,label,input'))return;A.gpaste=b.dataset.gpaste;render();setTimeout(()=>{const el=document.querySelector(`[data-gpaste="${A.gpaste}"]`);if(el)el.focus({preventScroll:true})},0)});
+document.addEventListener('paste',e=>{if(A.view!=='guides'||!A.gid)return;const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'))return;
+  const items=[...((e.clipboardData&&e.clipboardData.items)||[])];const it=items.find(x=>x.kind==='file'&&/^image\//.test(x.type));
+  if(!it){if(A.gpaste)toast('복사한 이미지가 없습니다. 이미지에서 마우스 오른쪽 클릭 → 「이미지 복사」를 한 뒤 다시 붙여넣어 주세요.','crit');return}
+  e.preventDefault();gimgPut(A.gpaste||'',it.getAsFile())});
+ACT.gimgClip=async a=>{try{const its=await navigator.clipboard.read();for(const it of its){const ty=it.types.find(x=>/^image\//.test(x));if(ty){const bl=await it.getType(ty);return gimgPut(a.dataset.k,new File([bl],'paste.'+ty.split('/')[1],{type:ty}))}}toast('복사한 이미지가 없습니다. 이미지를 먼저 복사해 주세요.','crit')}catch(err){A.gpaste=a.dataset.k;render();toast('브라우저가 바로 붙여넣기를 막았어요. 장면 칸을 클릭한 뒤 Ctrl+V를 눌러 주세요.')}};
+document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.gimg||!t.files||!t.files[0])return;const f=t.files[0];t.value='';if(!canEdit())return;gimgPut(t.dataset.gimg,f)});
 Object.assign(ACT,{
   async guideNew(){const cid=($('#g-newc')||{}).value||'';const c=cid?A.campaigns[cid]:null;const g=newGuide(c);if(c)g.cid=cid;const id=uid();try{await DB.set('guides/'+id,g);A.guides=A.guides||{};A.guides[id]=g;A.gid=id;render();window.scrollTo(0,0)}catch(e){saveErr(e)}},
   guideOpen(a){A.gid=a.dataset.g;A.confirm=null;render();window.scrollTo(0,0)},
@@ -244,17 +256,19 @@ Object.assign(ACT,{
   async pointAdd(){const g=curG();g.product=g.product||{};g.product.points=g.product.points||[];g.product.points.push({t:'',d:''});await gSave('product',g);render()},
   async gimgDel(a){const im={...(A.gimgs||{})};delete im[a.dataset.k];try{await DB.set('guideimg/'+A.gid,{imgs:im,updatedAt:T_NOW()});A.gimgs=im;render()}catch(e){saveErr(e)}},
   async canvaGo(a){const g=curG();const s=g.concepts[+a.dataset.c].scenes[+a.dataset.s];const pr=s.prompt||[s.shot,s.point].filter(Boolean).join(' / ')||'제품을 들고 있는 인플루언서, 밝은 실내, 9:16 세로 구도';
-    const text=`${pr}\n(세로 9:16, 실사 사진 느낌, ${g.brand||''} ${(g.product||{}).name||''} 제품 촬영 참고용 장면)`;await copyText(text);window.open('https://www.canva.com/','_blank','noopener');toast('이미지 프롬프트를 복사했습니다. Canva에서 AI 이미지(Magic Media)로 만든 뒤 다운로드해 「이미지 넣기」로 올려 주세요.')},
+    const text=`${pr}\n(세로 9:16, 실사 사진 느낌, ${g.brand||''} ${(g.product||{}).name||''} 제품 촬영 참고용 장면, 실존 인물·다른 브랜드 로고 없이)`;await copyText(text);A.gpaste=s.id;render();
+    const to=a.dataset.to||'canva';if(to==='canva')window.open('https://www.canva.com/ai','_blank','noopener');else if(to==='gemini')window.open('https://gemini.google.com/app','_blank','noopener');
+    toast(to==='copy'?'이미지 프롬프트를 복사했습니다. 이미지를 만든 뒤 복사해 와서 이 장면 칸에 Ctrl+V 하세요.':'프롬프트를 복사했습니다. 붙여넣어 이미지를 만들고 「이미지 복사」 → 여기서 Ctrl+V 하면 이 장면에 들어갑니다.')},
   gotoReview(){A.rvGid=A.gid;A.view='review';A.rvOpen='';render();window.scrollTo(0,0)},
   async guideAi(a){const g=curG();if(!g||A.gaiBusy||gAiRunning(g))return;const mode=a.dataset.m;const links=(g.links||[]).slice(0,3);if(!links.length&&!String(g.memo||'').trim())return toast('광고주 링크나 상품 정보를 먼저 넣어 주세요.','crit');
-    const cn=+(($('#g-ain')||{}).value||2);A.gain=cn;const base={advertiser:g.advertiser,brand:g.brand,platform:g.platform,length:g.length,conceptN:cn,productName:(g.product||{}).name||''};
+    const cn=+(($('#g-ain')||{}).value||2);A.gain=cn;const base={advertiser:g.advertiser,brand:g.brand,platform:g.platform,length:g.length,conceptN:cn,level:gLevel(g),productName:(g.product||{}).name||''};
     if(DB.mode==='demo'){A.gaiBusy=true;render();await new Promise(r=>setTimeout(r,900));await gAiApply(A.gid,g,{guide:mockGuide(base),pages:links.map(u=>({url:u,ok:true}))},mode);A.gaiBusy=false;render();return}
     const job=uid();A.gaiBusy=true;render();
     try{await DB.update('guides/'+A.gid,{aiStatus:'진행 중',aiJob:job,aiMode:mode,aiAt:T_NOW(),aiError:DB.DEL,aiResult:DB.DEL});await aiFetch('/api/guide',{gid:A.gid,job,links,memo:g.memo||'',base});toast('AI가 가이드를 만드는 중입니다. 30초~2분 걸리고, 끝나면 자동으로 채워집니다.')}
     catch(e){DB.update('guides/'+A.gid,{aiStatus:'실패',aiError:String(e.message||e)}).catch(()=>{});toast('AI 가이드를 시작하지 못했습니다: '+(e.message||e),'crit')}finally{A.gaiBusy=false;render()}}
 });
 function gAiRunning(g){return g&&g.aiStatus==='진행 중'&&g.aiAt&&(Date.now()-new Date(g.aiAt).getTime()<6*60*1000)}
-async function gAiApply(gid,g,j,mode){const out=mergeGuide(g,j.guide||{},mode);const tops=['title','advertiser','brand','summary','product','concepts','text','words','shoot','cuts','upload'];
+async function gAiApply(gid,g,j,mode){const out=mergeGuide(g,j.guide||{},mode);const tops=['title','advertiser','brand','summary','product','concepts','text','words','shoot','cuts','upload','submit'];
   await DB.update('guides/'+gid,{...Object.fromEntries(tops.map(k=>[k,clone(out[k])])),aiStatus:'적용됨',aiResult:DB.DEL,updatedAt:T_NOW(),by:A.user.email});if(A.guides)A.guides[gid]={...out,aiStatus:'적용됨'};
   const bad=(j.pages||[]).filter(p=>!p.ok);toast(`AI가 가이드를 ${mode==='replace'?'새로 만들었습니다':'채웠습니다'}.${bad.length?` 읽지 못한 링크 ${bad.length}개는 상품 정보를 붙여넣어 주세요.`:''} 내용을 꼭 검토하세요.`)}
 /* 백그라운드 AI 결과가 들어오면, 편집 권한이 있는 사람이 열어 둔 화면에서 한 번만 적용 */
@@ -277,7 +291,12 @@ function mergeGuide(g,ai,mode){const o=clone(g);const R=mode==='replace';const p
   if(ai.concepts&&ai.concepts.length&&(R||conceptsEmpty(o.concepts)))o.concepts=normConcepts(ai.concepts);
   const Tx=ai.text||{};['keywords','tagsRec','ngNames'].forEach(k=>put('text.'+k,Tx[k]));['account','brandName','productName'].forEach(k=>put('text.'+k,Tx[k]));
   if(Tx.tagsMust&&Tx.tagsMust.length){const m=[...new Set(['#협찬',...(R?[]:o.text.tagsMust||[]),...Tx.tagsMust.map(x=>'#'+String(x).replace(/^#/,''))])];o.text.tagsMust=m}
-  if(ai.words&&ai.words.length){const ex=R?[]:(o.words||[]);const nw=ai.words.filter(w=>w&&w.no&&!ex.some(x=>x.no===w.no)).map(w=>({no:String(w.no),yes:String(w.yes||'')}));o.words=[...ex,...nw].slice(0,12)}
+  {const D=newGuide(null);const same=(a,b)=>JSON.stringify(a||[])===JSON.stringify(b||[]);
+    if(ai.words&&ai.words.length){const nw=ai.words.filter(w=>w&&w.no).map(w=>({no:String(w.no),yes:String(w.yes||'')}));const base_=(R||!(o.words||[]).length||same(o.words,D.words))?[]:(o.words||[]);const out=[...base_];nw.forEach(w=>{if(!out.some(x=>simTxt(x.no,w.no)>=0.6))out.push(w)});o.words=out.slice(0,10)}
+    const shoot=ai.shoot||[],up=ai.upload||[],how=ai.submitHow||[];
+    if(shoot.length)o.shoot=(R||same(o.shoot,D.shoot)||!(o.shoot||[]).length)?dedupeL(shoot).slice(0,10):dedupeL([...o.shoot,...shoot]).slice(0,12);
+    if(up.length)o.upload=(R||same(o.upload,D.upload)||!(o.upload||[]).length)?dedupeL(up).slice(0,8):dedupeL([...o.upload,...up]).slice(0,10);
+    if(how.length){o.submit=o.submit||{};o.submit.how=(R||same(o.submit.how,D.submit.how)||!(o.submit.how||[]).length)?dedupeL(how).slice(0,6):o.submit.how}}
   put('text.closing',Tx.closing);
   if(ai.cuts&&ai.cuts.length){const def=JSON.stringify(G_CUTS.map(x=>x[0]));const cur=JSON.stringify((o.cuts||[]).map(x=>x.name));if(R||!(o.cuts||[]).length||cur===def)o.cuts=ai.cuts.slice(0,6).map(k=>({id:tid('k'),name:String(k.name||''),desc:String(k.desc||''),need:['필수','권장','선택'].includes(k.need)?k.need:'권장'}))}
   if(ai.uploadExtra&&ai.uploadExtra.length){o.upload=o.upload||[...G_UPLOAD];o.upload=dedupeL([...o.upload,...ai.uploadExtra]).slice(0,10)}
@@ -291,7 +310,7 @@ function mockGuide(b){const nm=b.productName||'예시 제품';return {advertiser
      {part:'바디',time:'15~25초',shot:'메이크업을 올리고 밀리지 않는 모습을 보여 주세요.',say:'위에 화장해도 하나도 안 밀려요.',sub:'화장 밀림 없음',point:'화잘먹',prompt:'쿠션을 두드리는 손, 매끈한 피부결'},
      {part:'아웃트로',time:'25~30초',shot:'제품을 들고 웃으며 마무리해 주세요.',say:'끈적임 싫은 분들은 꼭 써 보세요!',sub:'지금 할인 중',point:'구매 유도',prompt:'제품을 들고 미소 짓는 여성, 밝은 배경'}]})),
   text:{keywords:[nm,'3초 흡수','속보습'],closing:'끈적임 싫은 분들은 꼭 써 보세요!',tagsMust:['#협찬','#'+nm.replace(/\s/g,'')],tagsRec:['#세럼추천','#속보습','#데일리세럼'],account:'@example_official',brandName:b.brand||'예시 브랜드',productName:nm,ngNames:[]},
-  words:[{no:'주름이 없어져요',yes:'피부가 매끈해 보여요'}],cuts:[{name:'썸네일',desc:'세럼을 든 밝은 얼굴 컷',need:'권장'},{name:'인트로 (후킹)',desc:'세럼 방울이 떨어지는 클로즈업',need:'필수'},{name:'흡수 장면',desc:'얼굴 반쪽 비교',need:'필수'},{name:'아웃트로',desc:'제품을 들고 마무리 멘트',need:'필수'}],shootExtra:['세럼 제형이 잘 보이게 손등 클로즈업을 꼭 넣어 주세요.']}}
+  words:[{no:'주름이 없어져요',yes:'피부가 매끈해 보여요'}],cuts:[{name:'썸네일',desc:'세럼을 든 밝은 얼굴 컷',need:'권장'},{name:'인트로 (후킹)',desc:'세럼 방울이 떨어지는 클로즈업',need:'필수'},{name:'흡수 장면',desc:'얼굴 반쪽 비교',need:'필수'},{name:'아웃트로',desc:'제품을 들고 마무리 멘트',need:'필수'}],shoot:['9:16 세로, 1080px 이상으로 찍어 주세요.','밝은 곳에서 흔들리지 않게 찍어 주세요.','보정 필터는 쓰지 말아 주세요.','세럼 제형이 잘 보이게 손등 클로즈업을 꼭 넣어 주세요.'],upload:['#협찬은 본문 맨 앞에 넣어 주세요.','제품명 오타가 없는지 확인해 주세요.','검수 승인 후 업로드해 주세요.'],submitHow:['가이드 보고 촬영','초안 영상 보내기','링컴즈 검수','승인 후 업로드','게시물 링크 전달']}}
 
 /* ---- 가이드 PPT·PDF ---- */
 function ringImg(color){const cv=document.createElement('canvas');cv.width=cv.height=600;const x=cv.getContext('2d');x.strokeStyle=color;x.globalAlpha=.18;x.lineWidth=46;x.beginPath();x.arc(230,300,190,0,7);x.stroke();x.globalAlpha=.12;x.beginPath();x.arc(390,300,190,0,7);x.stroke();return cv.toDataURL('image/png')}
@@ -413,17 +432,77 @@ async function ringLogo(color){if(!ringLogo.white){try{const b=await (await fetc
   const white=ringLogo.white;if(!white)return {white:null,tint:null};
   const tint=await new Promise(r=>{const im=new Image();im.onload=()=>{const cv=document.createElement('canvas');cv.width=im.naturalWidth;cv.height=im.naturalHeight;const x=cv.getContext('2d');x.drawImage(im,0,0);x.globalCompositeOperation='source-in';x.fillStyle=color;x.fillRect(0,0,cv.width,cv.height);r(cv.toDataURL('image/png'))};im.onerror=()=>r(null);im.src=white});
   return {white,tint}}
-async function guideExport(out){const g=curG();if(!g||guideExport.busy)return;guideExport.busy=true;const PDF=out==='pdf';const name=`${(g.title||'콘텐츠 가이드').replace(/[\\/:*?"<>|]/g,'')}_${today().replace(/-/g,'')}`;
+/* Light 가이드: 5장 이내 (표지 · 꼭 지켜 주세요+제품 · 장면 · 꼭 넣을 것·금지·주의 · 제출 방법) */
+async function guideDeckLight(pptx,g,imgs,PDF){
+  const W=13.333,H=7.5,X0=0.6,CW=W-1.2;const hx=v=>String(v||'#7A1E2C').replace('#','').toUpperCase();const TH=hx(g.color);
+  const mix=(h,t)=>{const c=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16));return c.map(v=>Math.round(v+(255-v)*t).toString(16).padStart(2,'0')).join('').toUpperCase()};
+  const SOFT=mix(TH,.9),DARK='1B1E27',MUT='6B7280',LINE='E3E5EA',GREEN='157A3C',RED='C22727';
+  const FT='Pretendard ExtraBold',FL='Pretendard Light',FB='Pretendard';const B=PDF;
+  const P=g.product||{},S=g.summary||{},Tx=g.text||{},Sb=g.submit||{};const ym=new Date();const cr=`COPYRIGHT ⓒ RINGCOMS  |  ${ym.getFullYear()}.${String(ym.getMonth()+1).padStart(2,'0')}`;let pg=0;
+  const ring=ringImg('#FFFFFF');const LG=await ringLogo('#'+TH);const LW_=1.75,LH_=LW_*182/900;
+  const T=(s,text,o)=>s.addText(text,{fontFace:FB,valign:'middle',margin:0,charSpacing:0,...o});
+  const logo=(s,white)=>{const d=white?LG.white:LG.tint;if(d)s.addImage({data:d,x:W-0.6-LW_,y:0.42,w:LW_,h:LH_});else T(s,'RINGCOMS',{x:W-2.9,y:0.42,w:2.3,h:0.36,fontFace:FT,bold:B,fontSize:15,color:white?'FFFFFF':TH,align:'right'})};
+  const head=(s,label,title,sub)=>{pg++;s.background={color:'FFFFFF'};T(s,label,{x:X0,y:0.38,w:7,h:0.3,fontFace:FL,fontSize:12,color:TH});T(s,title,{x:X0,y:0.66,w:9.6,h:0.62,fontFace:FT,bold:B,fontSize:26,color:DARK,fit:'shrink'});
+    if(sub)T(s,sub,{x:X0,y:1.28,w:11.6,h:0.36,fontFace:FL,fontSize:13,color:MUT,fit:'shrink'});logo(s,false);s.addShape(pptx.ShapeType.rect,{x:0,y:H-0.06,w:W,h:0.06,fill:{color:TH},line:{color:TH,width:0}});
+    T(s,cr,{x:X0,y:H-0.42,w:5,h:0.26,fontSize:8.5,color:'9AA0AA'});T(s,String(pg),{x:W-1.2,y:H-0.42,w:0.6,h:0.26,fontSize:9,color:'9AA0AA',align:'right'})};
+  const card=(s,x,y,w,h,fill,line)=>s.addShape(pptx.ShapeType.roundRect,{x,y,w,h,fill:{color:fill||'FFFFFF'},line:{color:line||LINE,width:line===null?0:0.75},rectRadius:PDF?0.12:0.06});
+  const put=async(s,data,x,y,w,h)=>{if(!data)return false;const d=await new Promise(r=>{const im=new Image();im.onload=()=>r([im.naturalWidth,im.naturalHeight]);im.onerror=()=>r(null);im.src=data});if(!d)return false;const k=Math.min(w/d[0],h/d[1]);s.addImage({data,x:x+(w-d[0]*k)/2,y:y+(h-d[1]*k)/2,w:d[0]*k,h:d[1]*k});return true};
+  const runs=(arr,mark,color)=>(arr||[]).flatMap((t,i)=>[{text:mark+' ',options:{bold:true,color}},{text:String(t),options:{breakLine:i<arr.length-1}}]);
+  // 1 표지
+  {const s=pptx.addSlide();pg++;s.background={color:TH};s.addImage({data:ring,x:W-6.4,y:0.6,w:6.3,h:6.3});logo(s,true);
+    T(s,'CONTENT GUIDE · LIGHT',{x:X0+0.1,y:1.9,w:8,h:0.4,fontFace:FL,fontSize:15,color:'FFFFFF'});
+    T(s,[g.brand&&P.name&&P.name.replace(/\s/g,'').startsWith(g.brand.replace(/\s/g,''))?'':g.brand,P.name].filter(Boolean).join(' ')||g.title||'콘텐츠 가이드',{x:X0+0.1,y:2.35,w:9.2,h:1.3,fontFace:FT,bold:B,fontSize:40,color:'FFFFFF',fit:'shrink'});
+    T(s,`${g.platform||''} 콘텐츠 가이드`,{x:X0+0.1,y:3.7,w:9,h:0.55,fontFace:FL,fontSize:22,color:'FFFFFF'});
+    if(S.one){card(s,X0+0.1,4.5,8.6,0.8,'FFFFFF',null);T(s,[{text:'핵심 메시지   ',options:{fontSize:12,bold:true,color:TH}},{text:S.one,options:{fontSize:18,bold:true,color:DARK}}],{x:X0+0.4,y:4.5,w:8.1,h:0.8,fontFace:FT,fit:'shrink'})}
+    T(s,[`영상 길이 ${g.length||'-'}`,`화면 ${g.ratio||'9:16 세로'}`,Sb.uploadDue?`업로드 ${Sb.uploadDue}`:''].filter(Boolean).join('   ·   '),{x:X0+0.1,y:5.55,w:10,h:0.4,fontSize:13,color:'FFFFFF'});
+    T(s,`${today().replace(/-/g,'.')}  ·  링컴즈 MCN 사업부 광고콘텐츠팀`,{x:X0+0.1,y:H-1.0,w:9,h:0.35,fontFace:FL,fontSize:12,color:'FFFFFF'})}
+  // 2 꼭 지켜 주세요 + 제품 핵심
+  {const s=pptx.addSlide();head(s,'CHECK FIRST',`이것만 꼭 지켜 주세요!`,`${P.name||'제품'} · ${brk(P.intro||'').replace(/\n/g,' ')}`);
+    const lw=6.9;[[S.must,'✅  꼭 해 주세요',GREEN,'✔','F3FAF5'],[S.dont,'❌  하지 말아 주세요',RED,'✕','FFF6F6']].forEach(([arr,t,col,mk,bg],i)=>{const y=1.85+i*2.45;card(s,X0,y,lw,2.3,bg,null);
+      T(s,t,{x:X0+0.3,y:y+0.08,w:lw-0.6,h:0.45,fontFace:FT,bold:B,fontSize:15,color:col});T(s,(arr||[]).length?runs(arr.slice(0,i?4:5),mk,col):'-',{x:X0+0.3,y:y+0.55,w:lw-0.6,h:1.65,fontSize:12.5,color:DARK,paraSpaceAfter:4,fit:'shrink'})});
+    const px=X0+lw+0.3,pw=CW-lw-0.3;const pts=(P.points||[]).filter(x=>x.t||x.d).slice(0,3);T(s,'제품 핵심 특징',{x:px,y:1.85,w:pw,h:0.4,fontFace:FT,bold:B,fontSize:15,color:TH});
+    const ph=pts.length?Math.min(1.35,(4.25-(pts.length-1)*0.12)/pts.length):1;pts.forEach((pt,i)=>{const y=2.35+i*(ph+0.12);card(s,px,y,pw,ph,SOFT,null);
+      T(s,[{text:`${i+1}. ${pt.t||''}`,options:{bold:true,fontSize:14,color:DARK,breakLine:true}},{text:brk(pt.d||''),options:{fontSize:11.5,color:'394253'}}],{x:px+0.2,y,w:pw-0.4,h:ph,fit:'shrink'})});
+    const pr=[P.sale?`판매가 ${P.sale}`:'',P.option?`옵션 ${P.option}`:''].filter(Boolean).join('  ·  ');if(pr)T(s,pr,{x:px,y:6.65,w:pw,h:0.35,fontSize:11,color:MUT})}
+  // 3 장면 가이드 (첫 컨셉)
+  {const c=(g.concepts||[]).find(x=>x.name||(x.scenes||[]).length)||{};const sc=(c.scenes||[]).slice(0,4);const s=pptx.addSlide();
+    head(s,'SCENE GUIDE',c.name||'장면 가이드',c.hook?`첫 마디 · “${c.hook}”`:'멘트는 예시예요. 본인 말투로 자연스럽게 말해 주세요.');
+    const n_=Math.max(1,sc.length),gap=0.2,cw=(CW-(n_-1)*gap)/n_;
+    for(let i=0;i<sc.length;i++){const sx=sc[i],x=X0+i*(cw+gap),y=1.82;card(s,x,y,cw,4.85,'FFFFFF');s.addShape(pptx.ShapeType.rect,{x,y,w:cw,h:0.42,fill:{color:TH},line:{color:TH,width:0}});
+      T(s,[{text:`#${i+1} ${sx.part||''}`,options:{bold:true}},{text:sx.time?`   ${sx.time}`:'',options:{fontSize:11}}],{x:x+0.15,y,w:cw-0.3,h:0.42,fontSize:13,color:'FFFFFF',fontFace:FT});
+      const iy=y+0.52,ih=1.6;if(!(await put(s,imgs[sx.id],x+0.12,iy,cw-0.24,ih))){card(s,x+0.12,iy,cw-0.24,ih,'F4F5F7',null);T(s,'참고 이미지',{x:x+0.12,y:iy,w:cw-0.24,h:ih,fontSize:10,color:'A0A6B0',align:'center'})}
+      T(s,[{text:'📷 이렇게 찍어요',options:{bold:true,fontSize:10.5,color:TH,breakLine:true}},{text:brk(sx.shot)||'-',options:{fontSize:11.5,color:DARK}}],{x:x+0.15,y:iy+ih+0.08,w:cw-0.3,h:1.15,fit:'shrink'});
+      T(s,[{text:'🎙 이렇게 말해요',options:{bold:true,fontSize:10.5,color:TH,breakLine:true}},{text:(brk(sx.say)||'-')+(sx.sub?`\n[자막] ${sx.sub}`:''),options:{fontSize:11.5,color:DARK}}],{x:x+0.15,y:iy+ih+1.25,w:cw-0.3,h:1.35,fit:'shrink'})}
+    if(Tx.closing)T(s,`마무리 멘트 · “${Tx.closing}”`,{x:X0,y:6.72,w:CW,h:0.3,fontSize:11,bold:true,color:TH})}
+  // 4 꼭 넣을 것 · 금지 표현 · 촬영/업로드 주의
+  {const s=pptx.addSlide();head(s,'MUST · DO NOT','꼭 넣을 것과 주의할 것','본문·자막·멘트에 아래를 지키고, 촬영·업로드 전에 한 번 더 확인해 주세요.');const cw=(CW-0.3)/2;
+    card(s,X0,1.85,cw,2.3,SOFT,null);T(s,'꼭 넣어 주세요',{x:X0+0.3,y:1.93,w:cw-0.6,h:0.4,fontFace:FT,bold:B,fontSize:15,color:TH});
+    T(s,[{text:'키워드  ',options:{bold:true,color:TH}},{text:(Tx.keywords||[]).join(' · ')||'-',options:{breakLine:true}},{text:'해시태그  ',options:{bold:true,color:TH}},{text:(Tx.tagsMust||['#협찬']).join(' ')+'  (#협찬은 맨 앞)',options:{breakLine:true}},{text:'계정 태그  ',options:{bold:true,color:TH}},{text:Tx.account||'-',options:{breakLine:true}},{text:'바른 표기  ',options:{bold:true,color:TH}},{text:[Tx.brandName,Tx.productName].filter(Boolean).join(' / ')||'-'}],{x:X0+0.3,y:2.38,w:cw-0.6,h:1.7,fontSize:12,color:DARK,paraSpaceAfter:3,fit:'shrink'});
+    const ws=(g.words||[]).slice(0,4);card(s,X0+cw+0.3,1.85,cw,2.3,'FFF6F6',null);T(s,'이렇게 말하면 안 돼요',{x:X0+cw+0.6,y:1.93,w:cw-0.6,h:0.4,fontFace:FT,bold:B,fontSize:15,color:RED});
+    T(s,ws.length?ws.flatMap((w,i)=>[{text:'✕ '+(w.no||''),options:{color:RED,bold:true}},{text:'  →  ⭕ '+(w.yes||''),options:{color:GREEN,breakLine:i<ws.length-1}}]):'-',{x:X0+cw+0.6,y:2.38,w:cw-0.6,h:1.7,fontSize:12,paraSpaceAfter:4,fit:'shrink'});
+    [['📷  촬영할 때',(g.shoot||[]).slice(0,5)],['📤  업로드할 때',(g.upload||[]).slice(0,5)]].forEach(([t,L],j)=>{const x=X0+j*(cw+0.3);card(s,x,4.35,cw,2.3,'FFFFFF');T(s,t,{x:x+0.3,y:4.43,w:cw-0.6,h:0.4,fontFace:FT,bold:B,fontSize:15,color:TH});
+      T(s,L.length?L.flatMap((x2,i)=>[{text:`${i+1}  `,options:{bold:true,color:TH}},{text:x2,options:{breakLine:i<L.length-1}}]):'-',{x:x+0.3,y:4.88,w:cw-0.6,h:1.7,fontSize:11.5,color:DARK,paraSpaceAfter:3,fit:'shrink'})})}
+  // 5 제출 방법 · 마무리
+  {const s=pptx.addSlide();head(s,'HOW TO SUBMIT','제출 방법과 일정','순서대로 진행해 주세요. 업로드는 검수 승인 후에 해 주세요!');const st=(Sb.how||[]).slice(0,5);const n_=Math.max(1,st.length),gap=0.35,cw=(CW-(n_-1)*gap)/n_;
+    st.forEach((t,i)=>{const x=X0+i*(cw+gap),last=i===st.length-1;card(s,x,1.95,cw,2.2,last?TH:SOFT,null);T(s,`STEP ${i+1}`,{x:x+0.2,y:2.05,w:cw-0.4,h:0.42,fontFace:FT,bold:B,fontSize:14,color:last?'FFFFFF':TH});
+      T(s,brk(t),{x:x+0.2,y:2.5,w:cw-0.4,h:1.55,fontSize:13,color:last?'FFFFFF':DARK,fit:'shrink'});if(!last)T(s,'›',{x:x+cw,y:2.8,w:gap,h:0.5,fontSize:24,color:TH,align:'center'})});
+    const info=[Sb.draftDue?['초안 제출',md(Sb.draftDue)]:null,Sb.uploadDue?['업로드 일정',Sb.uploadDue]:null,Sb.form?['제출 링크',Sb.form]:null].filter(Boolean);
+    info.forEach(([k,v],i)=>T(s,[{text:k+'   ',options:{bold:true,color:TH}},{text:String(v),options:{color:DARK,...(k==='제출 링크'?{hyperlink:{url:v}}:{})}}],{x:X0,y:4.4+i*0.42,w:CW,h:0.38,fontSize:14}));
+    if(Sb.extra)T(s,'📌 '+Sb.extra,{x:X0,y:4.4+info.length*0.42+0.05,w:CW,h:0.8,fontSize:12,color:'394253',fit:'shrink'});
+    card(s,X0,6.1,CW,0.62,TH,null);T(s,'궁금한 점은 담당자에게 편하게 물어봐 주세요  ·  링컴즈 MCN 사업부 광고콘텐츠팀  ·  ac@ringcoms.com',{x:X0,y:6.1,w:CW,h:0.62,fontSize:12.5,bold:true,color:'FFFFFF',align:'center'})}
+}
+async function guideExport(out){const g=curG();if(!g||guideExport.busy)return;guideExport.busy=true;const PDF=out==='pdf';const name=`${(g.title||'콘텐츠 가이드').replace(/[\\/:*?"<>|]/g,'')}${gLevel(g)==='light'?'_Light':''}_${today().replace(/-/g,'')}`;
   try{toast(PDF?'PDF를 만드는 중입니다… 인쇄 창이 열리면 「PDF로 저장」을 고르세요.':'PPT를 만드는 중입니다…');
     if(!PDF&&!window.PptxGenJS)await loadScript('/vendor/pptxgen.bundle.js');
     if(PDF&&!document.getElementById('pretendard-css')){const l=document.createElement('link');l.id='pretendard-css';l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css';document.head.appendChild(l);
       const st=document.createElement('style');st.textContent="#deck-print .dk-page{font-family:'Pretendard','Malgun Gothic',sans-serif!important}";document.head.appendChild(st);await new Promise(r=>{l.onload=r;l.onerror=r;setTimeout(r,2500)})}
     const deck=PDF?new HtmlDeck():new PptxGenJS();deck.layout='LAYOUT_WIDE';deck.title=g.title||'Content Guide';if(!PDF)deck.author='RINGCOMS MCN';
-    await guideDeck(deck,g,A.gimgs||{},PDF);if(PDF)await deck.print(name);else await deck.writeFile({fileName:name+'.pptx'})}
+    await (gLevel(g)==='light'?guideDeckLight:guideDeck)(deck,g,A.gimgs||{},PDF);if(PDF)await deck.print(name);else await deck.writeFile({fileName:name+'.pptx'})}
   catch(e){console.error(e);toast((PDF?'PDF':'PPT')+'를 만들지 못했습니다: '+(e.message||e),'crit')}finally{guideExport.busy=false}}
 ACT.guidePpt=()=>guideExport('pptx');ACT.guidePdf=()=>guideExport('pdf');
 
 /* ============ 영상 검수 ============ */
+/* 검수 화면을 떠나면 장면 구독 해제 */
 const RV_ST={'대기':'','영상 받는 중':'accent','분석 중':'accent','완료':'ok','실패':'crit'};
 function rvRes(r){if(!r||!r.resultJson)return null;try{return JSON.parse(r.resultJson)}catch(e){return null}}
 function rvStale(r){return ['영상 받는 중','분석 중','대기'].includes(r.status)&&r.createdAt&&(Date.now()-new Date(r.createdAt).getTime()>16*60*1000)}
@@ -445,21 +524,27 @@ function viewReview(){ensureToolWatch();const gs=Object.entries(A.guides||{}).so
   ${L.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>인플루언서</th><th>가이드</th><th>영상</th><th>결과</th><th>상태</th><th>요청</th></tr></thead><tbody>${L.map(([id,r])=>{const res=rvRes(r);const st=rvStale(r)?'시간 초과':r.status;
      return `<tr class="click" data-act="revOpen" data-r="${esc(id)}"><td class="bold">${esc(r.infl||'–')}</td><td class="small">${esc((A.guides&&A.guides[r.gid]&&A.guides[r.gid].title)||r.gtitle||'')}</td><td class="small">${esc(linkKind(r.url))}</td><td>${res?`<span class="pill ${res.verdict==='통과'?'ok':res.verdict==='재촬영 필요'?'crit':'warn'}">${esc(res.verdict||'')}${res.score!=null?' · '+res.score+'점':''}</span>`:'–'}</td><td><span class="pill ${st==='시간 초과'?'crit':RV_ST[st]||''}">${esc(st||'')}</span></td><td class="small">${esc(String(r.createdAt||'').slice(5,16).replace('T',' '))}</td></tr>`}).join('')}</tbody></table></div>`
   :`<div class="panel empty">${A.reviewsLoaded?'아직 검수한 영상이 없습니다.':'불러오는 중…'}</div>`}`}
-function reviewDetail(id,r){const res=rvRes(r);const st=rvStale(r)?'시간 초과':r.status;const busy=['대기','영상 받는 중','분석 중'].includes(st);
+function watchRvFrames(id){if(A.rvfFor===id)return;if(A.unsubRvf){A.unsubRvf();A.unsubRvf=null}A.rvfFor=id;A.rvFrames=null;
+  A.unsubRvf=DB.watchDoc('guideimg/rv_'+id,d=>{let f=[];try{f=d&&d.frames?JSON.parse(d.frames):[]}catch(e){}A.rvFrames=f;scheduleRender()},()=>{A.rvFrames=[];scheduleRender()})}
+function rvFramesHtml(r){const f=A.rvFrames;if(f===null)return '<p class="small muted" style="margin:10px 0 0">주요 장면 불러오는 중…</p>';
+  if(!f.length)return ['대기','영상 받는 중'].includes(r.status)?'<p class="small muted" style="margin:10px 0 0">영상을 받으면 주요 장면 10컷이 여기에 나와요.</p>':'';
+  return `<div class="rv-frames">${f.map((x,i)=>`<figure><a href="${esc(x.src)}" target="_blank" rel="noopener"><img src="${esc(x.src)}" alt="${i+1}번째 장면 ${esc(x.t||'')}" loading="lazy"></a><figcaption>${i+1}. ${esc(x.t||'')}</figcaption></figure>`).join('')}</div>`}
+function reviewDetail(id,r){watchRvFrames(id);const res=rvRes(r);const st=rvStale(r)?'시간 초과':r.status;const busy=['대기','영상 받는 중','분석 중'].includes(st);
   const sc={ok:['ok','지켜짐'],fix:['warn','수정 필요'],miss:['crit','빠짐'],na:['','확인 불가']};const pill=k=>{const x=sc[k]||sc.na;return `<span class="pill ${x[0]}">${x[1]}</span>`};
   return `<div class="page-h"><div><button class="btn sm ghost" data-act="revBack">← 검수 기록</button><h1 style="margin-top:6px">${esc(r.infl||'인플루언서')} 영상 검수</h1><div class="sub">${esc(r.gtitle||'')}${r.concept?' · '+esc(r.concept):''} · <a href="${esc(r.url)}" target="_blank" rel="noopener">영상 열기 ↗</a> · 요청 ${esc(String(r.createdAt||'').slice(0,16).replace('T',' '))} ${esc(r.by||'')}</div></div>
    <div class="row">${canEdit()?`<button class="btn" data-act="revRetry" data-r="${esc(id)}">다시 검수</button><button class="btn danger" data-act="revDel" data-r="${esc(id)}">${A.confirm==='rd'+id?'한 번 더 누르면 삭제':'삭제'}</button>`:''}</div></div>
-  ${busy?`<div class="panel empty"><b>${esc(st)}…</b><br><span class="small muted">영상 길이에 따라 1~5분 걸립니다. 끝나면 이 화면이 자동으로 바뀝니다.</span></div>`:''}
+  ${busy?`<div class="panel empty"><b>${esc(st)}…</b><br><span class="small muted">영상 길이에 따라 1~5분 걸립니다. 끝나면 이 화면이 자동으로 바뀝니다.</span>${rvFramesHtml(r)}</div>`:''}
   ${st==='실패'||st==='시간 초과'?`<div class="banner" style="margin:0"><b>검수하지 못했습니다.</b> ${esc(r.error||'시간이 너무 오래 걸렸습니다. 다시 시도해 주세요.')}</div>`:''}
   ${res?`<div class="stack">
-   <section class="panel"><div class="row" style="gap:14px;align-items:flex-start"><div class="rv-score ${res.verdict==='통과'?'ok':res.verdict==='재촬영 필요'?'crit':'warn'}"><b>${res.score!=null?res.score:'–'}</b><span>${esc(res.verdict||'')}</span></div><div class="grow"><h2 style="font-size:16px;margin-bottom:6px">한 줄 요약</h2><p style="margin:0">${esc(res.summary||'')}</p>${res.duration?`<p class="small muted" style="margin:6px 0 0">영상 길이 ${esc(res.duration)}${res.ratio?' · '+esc(res.ratio):''}</p>`:''}</div></div></section>
+   <section class="panel"><div class="row" style="gap:14px;align-items:flex-start"><div class="rv-score ${res.verdict==='통과'?'ok':res.verdict==='재촬영 필요'?'crit':'warn'}"><b>${res.score!=null?res.score:'–'}</b><span>${esc(res.verdict||'')}</span></div><div class="grow"><h2 style="font-size:16px;margin-bottom:6px">한 줄 요약</h2><p style="margin:0">${esc(res.summary||'')}</p>${res.duration?`<p class="small muted" style="margin:6px 0 0">영상 길이 ${esc(res.duration)}${res.ratio?' · '+esc(res.ratio):''}</p>`:''}</div></div>
+    <h3 style="font-size:14px;margin:16px 0 0">주요 장면 <span class="small muted" style="font-weight:400">영상을 구간별로 나눠 캡처 · 누르면 크게 보기</span></h3>${rvFramesHtml(r)}</section>
    ${(res.fixes||[]).length?`<section class="panel"><div class="panel-h"><h2>수정 요청 사항</h2><span class="sub">중요한 순서</span></div><div class="tblwrap"><table class="tbl"><thead><tr><th>중요도</th><th>위치</th><th>무엇이 문제인가요</th><th>이렇게 고쳐 주세요</th></tr></thead><tbody>${res.fixes.map(f=>`<tr><td><span class="pill ${f.priority==='필수'?'crit':f.priority==='권장'?'warn':''}">${esc(f.priority||'')}</span></td><td class="small" style="white-space:nowrap">${esc(f.time||'')}</td><td>${esc(f.what||'')}</td><td>${esc(f.how||'')}</td></tr>`).join('')}</tbody></table></div></section>`:''}
    ${res.message?`<section class="panel"><div class="panel-h"><div><h2>인플루언서에게 보낼 메시지</h2><div class="sub">그대로 복사해 DM·카톡으로 보낼 수 있게 정리했습니다.</div></div><button class="btn sm primary" data-act="revCopy" data-r="${esc(id)}">복사</button></div><pre class="rv-msg">${esc(res.message)}</pre></section>`:''}
    ${(res.structure||[]).length?`<section class="panel"><div class="panel-h"><h2>장면 구성 비교</h2></div><div class="tblwrap"><table class="tbl"><thead><tr><th>장면</th><th>가이드</th><th>실제 영상</th><th>판정</th></tr></thead><tbody>${res.structure.map(x=>`<tr><td class="small bold" style="white-space:nowrap">${esc(x.part||'')}</td><td class="small">${esc(x.expected||'')}</td><td class="small">${esc(x.actual||'')}</td><td>${pill(x.status)}</td></tr>`).join('')}</tbody></table></div></section>`:''}
    ${(res.checks||[]).length?`<section class="panel"><div class="panel-h"><h2>체크리스트</h2><span class="sub">필수 표현·자막·나레이션·표기·금지 표현·촬영 규칙</span></div><div class="tblwrap"><table class="tbl"><thead><tr><th>항목</th><th>판정</th><th>근거 (시간)</th></tr></thead><tbody>${res.checks.map(x=>`<tr><td>${esc(x.item||'')}</td><td>${pill(x.status)}</td><td class="small">${esc(x.evidence||'')}</td></tr>`).join('')}</tbody></table></div></section>`:''}
    <div class="grid2">${res.narration?`<section class="panel"><div class="panel-h"><h2>나레이션 (말한 내용)</h2></div><p class="small" style="white-space:pre-wrap;margin:0">${esc(res.narration)}</p></section>`:''}${res.subtitles?`<section class="panel"><div class="panel-h"><h2>자막 (화면 글자)</h2></div><p class="small" style="white-space:pre-wrap;margin:0">${esc(res.subtitles)}</p></section>`:''}</div>
    <p class="small muted" style="margin:0">AI 검수 결과는 참고용입니다. 캡션·해시태그는 영상만으로 확인할 수 없어, 업로드 후 게시물에서 한 번 더 확인해 주세요.</p></div>`:''}`}
-async function revStart(id,data){if(DB.mode==='demo'){setTimeout(()=>DB.update('reviews/'+id,{status:'완료',doneAt:T_NOW(),resultJson:JSON.stringify(mockReview(data))}),1500);return}
+async function revStart(id,data){if(DB.mode==='demo'){DB.set('guideimg/rv_'+id,{frames:JSON.stringify(Array.from({length:10},(_,i)=>({t:'0:'+String(i*3+1).padStart(2,'0'),src:ringImg(['#7A1E2C','#2F5BEA','#157A3C'][i%3])})))});setTimeout(()=>DB.update('reviews/'+id,{status:'완료',doneAt:T_NOW(),resultJson:JSON.stringify(mockReview(data))}),1500);return}
   await aiFetch('/api/review',{id,...data})}
 function revPayload(g,ci){const G=clone(g);delete G.memo;delete G.links;return {guide:G,concept:ci===''?null:+ci}}
 function mockReview(d){return {verdict:'수정 필요',score:78,duration:'0:31',ratio:'9:16',summary:'전체 흐름과 제품 소개는 가이드대로 잘 나왔지만, 첫 3초 후킹이 약하고 필수 키워드 1개가 빠졌어요.',
@@ -514,6 +599,9 @@ document.addEventListener('change',e=>{const d=e.target&&e.target.dataset;if(!d)
 .scene-img{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;min-height:120px;border:1px dashed var(--line2,var(--line));border-radius:10px;padding:8px;background:var(--surface)}
 .scene-img img{max-width:100%;max-height:220px;border-radius:8px;object-fit:contain}
 .ai-box{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.scene-img{cursor:pointer;outline:none}.scene-img.paste-on,.scene-img:focus{border-color:var(--accent);border-style:solid;box-shadow:0 0 0 3px var(--accent-soft)}
+.rv-frames{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}.rv-frames figure{margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface2)}.rv-frames img{display:block;width:100%;aspect-ratio:9/16;object-fit:cover;background:#000}.rv-frames figcaption{font-size:11.5px;font-weight:600;padding:4px 6px;color:var(--ink2)}
+@media (max-width:720px){.rv-frames{grid-template-columns:repeat(3,1fr)}}
 .rv-score{display:flex;flex-direction:column;align-items:center;justify-content:center;width:96px;height:96px;border-radius:50%;border:4px solid var(--line);flex:none}.rv-score b{font-size:28px;line-height:1}.rv-score span{font-size:12px;font-weight:600}
 .rv-score.ok{border-color:var(--ok);color:var(--ok)}.rv-score.warn{border-color:var(--warn);color:var(--warn)}.rv-score.crit{border-color:var(--crit);color:var(--crit)}
 .rv-msg{white-space:pre-wrap;font-family:var(--font);font-size:13.5px;background:var(--surface2);border-radius:10px;padding:12px 14px;margin:0}

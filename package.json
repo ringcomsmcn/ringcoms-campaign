@@ -3,5 +3,10 @@
   "private": true,
   "type": "module",
   "description": "RINGCOMS MCN 광고콘텐츠팀 인플루언서 캠페인 관리",
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0"
+  }
 }

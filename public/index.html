@@ -1242,10 +1242,11 @@ function shell(){
 /* 메뉴 구성 (권한별) */
 function navItems(){
   if(isClientView())return clientNav();
-  const ads={t:'광고관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'}]};
-  const tools={t:'도구',items:[{v:'guides',l:'콘텐츠 가이드',ms:'가이드',ic:'guide',m:1},{v:'review',l:'영상 검수',ms:'검수',ic:'review',m:1},{v:'aivideo',l:'AI 영상 제작',ic:'aivideo'},{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'}]};
+  const ads={t:'광고 관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'}]};
+  const tools={t:'도구',items:[{v:'guides',l:'콘텐츠 가이드',ms:'가이드',ic:'guide',m:1},{v:'review',l:'영상 검수',ms:'검수',ic:'review',m:1},{v:'aivideo',l:'AI 영상 제작',ic:'aivideo'}]};
+  const infl={t:'인플루언서 관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'}]};
   const comp={t:'구성요소 관리',items:[{v:'team',tt:'members',l:'팀원·권한',ic:'team'},{v:'team',tt:'accts',l:'광고주 계정',ic:'acct'},{v:'team',tt:'int',l:'연동 관리',ic:'int'},{v:'updates',l:'업데이트 제안',badge:updBadge()},{v:'history',l:'업데이트 이력'}]};
-  return [ads,tools,comp]}
+  return [ads,infl,tools,comp]}
 function viewBody(){const v=A.view;return v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
 function homeView(k){return isClientView()?'cv':kindView(k||'seed')}
 
@@ -2260,9 +2261,9 @@ function viewTeam(){if(A.settingsErr&&!viewTeam.busy){viewTeam.busy=true;loadSet
   if(tt==='int')return head+`<div class="stack" style="max-width:860px">${typeof aiIntPanel==='function'?aiIntPanel():''}${integrationPanel()}${connectionPanel()}</div>`;
   if(tt==='accts')return head+viewAccounts();
   return head+`<div class="stack" style="max-width:860px">
-  ${canEdit()?`<section class="panel"><div class="panel-h"><h2>팀원 추가</h2></div><div class="row"><input type="email" id="new-admin" placeholder="teammate@gmail.com" style="max-width:300px"><select id="new-admin-role" style="width:auto">${opts.map(r=>`<option value="${r}" ${r==='manager'?'selected':''}>${ROLES[r]}</option>`).join('')}</select><button class="btn primary" data-act="addAdmin">팀원 추가</button></div>${!isMaster()?'<p class="small muted" style="margin:8px 0 0">매니저는 매니저·뷰어 권한으로만 추가할 수 있습니다. 마스터 권한은 마스터가 부여합니다.</p>':''}</section>`:''}
+  ${canEdit()?`<section class="panel"><div class="panel-h"><h2>팀원 추가</h2></div><div class="row"><input type="email" id="new-admin" placeholder="teammate@gmail.com" style="max-width:260px"><input type="text" id="new-admin-memo" placeholder="누구 계정인지 (예: 홍길동 매니저)" style="max-width:220px"><select id="new-admin-role" style="width:auto">${opts.map(r=>`<option value="${r}" ${r==='manager'?'selected':''}>${ROLES[r]}</option>`).join('')}</select><button class="btn primary" data-act="addAdmin">팀원 추가</button></div>${!isMaster()?'<p class="small muted" style="margin:8px 0 0">매니저는 매니저·뷰어 권한으로만 추가할 수 있습니다. 마스터 권한은 마스터가 부여합니다.</p>':''}</section>`:''}
   <section class="panel"><div class="panel-h"><h2>권한 안내</h2></div><dl class="kv" style="grid-template-columns:auto 1fr">${['master','manager','viewer','client','clientAdmin'].map(r=>`<dt><span class="pill ${r==='master'?'ok':r==='manager'?'accent':'warn'}">${ROLES[r]}</span></dt><dd style="text-align:left;font-weight:400">${ROLE_DESC[r]}${EXT_ROLES.includes(r)?' · <a href="#" data-act="teamTab" data-t="accts">광고주 계정에서 초대</a>':''}</dd>`).join('')}</dl></section>
-  <div class="tblwrap"><table class="tbl"><thead><tr><th>이메일</th><th>권한</th><th>등록일시</th><th>등록한 사람</th><th></th></tr></thead><tbody>${list.map(([e,a])=>{const r=a.role||'viewer';return `<tr><td class="bold">${esc(e)}${e===me?' <span class="pill">나</span>':''}</td>
+  <div class="tblwrap"><table class="tbl"><thead><tr><th>이메일 (Gmail)</th><th>메모 · 계정 주인</th><th>권한</th><th>등록일시</th><th>등록한 사람</th><th></th></tr></thead><tbody>${list.map(([e,a])=>{const r=a.role||'viewer';return `<tr><td class="bold">${esc(e)}${e===me?' <span class="pill">나</span>':''}</td><td>${isMaster()?`<input type="text" id="am_${esc(e)}" data-amemo="${esc(e)}" value="${esc(a.memo||'')}" placeholder="예: 홍길동 매니저" style="min-width:150px;padding:5px 8px">`:`<span class="small">${esc(a.memo||'–')}</span>`}</td>
    <td>${isMaster()&&e!==me?`<select data-role-e="${esc(e)}" style="width:auto;padding:4px 8px">${['master','manager','viewer'].map(x=>`<option value="${x}" ${x===r?'selected':''}>${ROLES[x]}</option>`).join('')}</select>`:`<span class="pill ${r==='master'?'ok':r==='manager'?'accent':'warn'}">${ROLES[r]||r}</span>`}</td>
    <td style="white-space:nowrap">${fmtDT(a.addedAt)}</td><td class="small muted">${esc(a.addedBy||'')}</td>
    <td class="n">${isMaster()&&e!==me?`<button class="btn sm danger" data-act="delAdmin" data-e="${esc(e)}">${A.confirm==='da'+e?'한 번 더 누르면 삭제':'삭제'}</button>`:''}</td></tr>`}).join('')}</tbody></table></div>
@@ -2769,7 +2770,7 @@ const ACT={
   pptx(a){exportPptx(a.dataset.mode)},
   async addAdmin(){const e=($('#new-admin').value||'').trim().toLowerCase();const role=($('#new-admin-role')||{}).value||'manager';if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))return toast('이메일 주소를 확인하세요.','crit');
     if(A.admins[e])return toast('이미 등록된 팀원입니다. 권한은 목록에서 바꿀 수 있습니다.','crit');if(role==='master'&&!isMaster())return toast('마스터 권한은 마스터만 부여할 수 있습니다.','crit');
-    try{await DB.set('admins/'+e,{addedAt:new Date().toISOString(),addedBy:A.user.email,role,acct:TEAM});toast(`${e} 을(를) ${ROLES[role]}(으)로 추가했습니다.`)}catch(er){saveErr(er)}},
+    const memo=String(($('#new-admin-memo')||{}).value||'').trim();try{await DB.set('admins/'+e,{addedAt:new Date().toISOString(),addedBy:A.user.email,role,acct:TEAM,...(memo?{memo}:{})});toast(`${e} 을(를) ${ROLES[role]}(으)로 추가했습니다.`)}catch(er){saveErr(er)}},
   async delAdmin(a){const e=a.dataset.e;if(!isMaster())return toast('팀원 삭제는 마스터만 할 수 있습니다.','crit');if(e===A.user.email)return toast('나 자신은 삭제할 수 없습니다.','crit');if(A.confirm!=='da'+e){A.confirm='da'+e;render();return}A.confirm=null;try{await DB.del('admins/'+e);toast('삭제했습니다.')}catch(er){saveErr(er)}},
 };
 /* 링크 트래킹 버튼·입력 */
@@ -2798,6 +2799,7 @@ document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(
   if(!['delCampaign','delRow','bulkDel','shareRegen','delAdmin','demoReset','poolDel','poolResync','delGroup','delYtKey','logoReset','delAcct','delMember','updDel','updBulk',...(window.CONFIRM_ACTS||[])].includes(k))A.confirm=null;
   if(a.tagName!=='INPUT')e.preventDefault();ACT[k](a,e)});
 document.addEventListener('change',e=>{if(A.view==='share'||!A.user||canEdit())return;const d=(e.target&&e.target.dataset)||{};if(d.trk||d.trkb||d.row||d.cf||d.cb||d.gf||d.sh||d.shm||d.pf||d.rename||d.upload||d.roleE||d.thumb||d.advlogo!==undefined){e.stopImmediatePropagation();toast('보기 전용(뷰어) 권한이라 수정할 수 없습니다.','crit');render()}},true);
+document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||t.dataset.amemo===undefined)return;if(!isMaster())return toast('메모는 마스터만 고칠 수 있습니다.','crit');const em=t.dataset.amemo;try{await DB.update('admins/'+em,{memo:String(t.value||'').trim()});toast('메모를 저장했습니다.')}catch(er){saveErr(er)}});
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.roleE)return;const em=t.dataset.roleE,v=t.value;
   if(!isMaster()){toast('권한 변경은 마스터만 할 수 있습니다.','crit');render();return}if(em===A.user.email){toast('내 권한은 바꿀 수 없습니다.','crit');render();return}
   {const ext=((A.admins[em]||{}).acct||TEAM)!==TEAM;if(ext!==EXT_ROLES.includes(v)){toast('팀원과 광고주 계정 권한은 서로 바꿀 수 없습니다.','crit');render();return}}
@@ -3174,6 +3176,6 @@ service cloud.firestore {
   }
 }
 </script>
-<script src="/tools.js?v=0.14.3"></script>
+<script src="/tools.js?v=0.15.0"></script>
 </body>
 </html>
