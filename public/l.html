@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="format-detection" content="telephone=no">
+<title>바로가기</title>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" media="print" onload="this.media='all'">
+<style>
+/* RINGCOMS 인플루언서 전용 링크 · 브릿지 페이지
+   /l/{코드} → 이 페이지. 링크 설정(links/{코드})을 읽어 화면을 그리고,
+   방문·버튼 클릭을 linkstat/{코드}_{슬롯} 에 +1 합니다 (로그인 없음, 보안 규칙으로 +1만 허용). */
+:root{--c:#2347D4;--ink:#fff}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#EEF0F4;color:#161B26;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:460px;min-height:100vh;min-height:100dvh;margin:0 auto;background:#fff;display:flex;flex-direction:column}
+.hd{height:128px;background:var(--c);flex:none}
+.lg{width:84px;height:84px;border-radius:50%;object-fit:contain;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.14);display:block;margin:-42px auto 0;position:relative}
+.lg0{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:32px;background:var(--c);color:var(--ink)}
+.bd{padding:18px 22px 28px;text-align:center;flex:1;display:flex;flex-direction:column}
+h1{font-size:22px;font-weight:800;line-height:1.35;letter-spacing:-.02em;word-break:keep-all}
+.sub{font-size:15px;line-height:1.55;color:#5B6273;margin-top:8px;white-space:pre-line;word-break:keep-all}
+.im{width:100%;border-radius:16px;margin-top:18px;display:block}
+.btns{display:grid;gap:10px;margin-top:22px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:14px 16px;border-radius:14px;background:var(--c);color:var(--ink);font:inherit;font-size:16px;font-weight:700;text-decoration:none;border:0;cursor:pointer;transition:transform .08s,filter .15s;word-break:keep-all}
+.btn:active{transform:scale(.98);filter:brightness(.95)}
+.btn svg{width:18px;height:18px;flex:none}
+.btn.ld{opacity:.7;pointer-events:none}
+.ft{margin-top:auto;padding-top:28px;font-size:12px;color:#9AA1AE}
+.msg{margin:auto;text-align:center;padding:40px 24px;color:#5B6273;font-size:15px;line-height:1.6}
+.spin{width:34px;height:34px;border-radius:50%;border:3px solid #E6E8EE;border-top-color:var(--c);margin:0 auto 16px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.pv{position:sticky;top:0;z-index:2;background:#161B26;color:#fff;font-size:12px;text-align:center;padding:7px 10px}
+a.go{color:var(--c);font-weight:700}
+</style>
+</head>
+<body>
+<main class="wrap" id="app"><div class="msg"><div class="spin"></div></div></main>
+<script>
+(function(){
+  var P='ringcoms-campaign',KEY='AIzaSyBNaWeb6ul2agnfe5ILD1ur5zu_FyVciuA';
+  var DOCS='https://firestore.googleapis.com/v1/projects/'+P+'/databases/(default)/documents';
+  var qs=new URLSearchParams(location.search);
+  var code=(qs.get('c')||location.pathname.split('/').filter(Boolean).pop()||'').replace(/\.html$/,'').replace(/[^A-Za-z0-9]/g,'');
+  var DEMO=qs.get('demo')==='1',PREVIEW=qs.get('preview')==='1',DK='ringcoms_campaign_demo_v1';
+  var ua=navigator.userAgent||'';
+  /* 링크 미리보기 수집기·검색 로봇은 세지 않음 (카카오톡 인앱 브라우저 KAKAOTALK 은 사람) */
+  var BOT=/bot|crawl|spider|slurp|facebookexternalhit|kakaotalk-scrap|Slackbot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Yeti|Daumoa|HeadlessChrome|Lighthouse|preview/i.test(ua)||navigator.webdriver;
+  var COUNT=!PREVIEW&&!BOT;
+  var IOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),AOS=/Android/i.test(ua);
+  var app=document.getElementById('app');
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function okUrl(u){return /^https?:\/\//i.test(String(u||''))}
+  function val(v){if(!v)return null;if('stringValue'in v)return v.stringValue;if('integerValue'in v)return +v.integerValue;if('doubleValue'in v)return v.doubleValue;if('booleanValue'in v)return v.booleanValue;if('timestampValue'in v)return v.timestampValue;
+    if('mapValue'in v){var o={},f=v.mapValue.fields||{};for(var k in f)o[k]=val(f[k]);return o}if('arrayValue'in v)return (v.arrayValue.values||[]).map(val);return null}
+  function demoData(){try{return JSON.parse(localStorage.getItem(DK)||'{}')||{}}catch(e){return {}}}
+  function getLink(){
+    if(DEMO)return Promise.resolve(demoData()['links/'+code]||null);
+    return fetch(DOCS+'/links/'+encodeURIComponent(code)+'?key='+KEY).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j)return null;var o={},f=j.fields||{};for(var k in f)o[k]=val(f[k]);return o});
+  }
+  /* 같은 브라우저 재방문은 고유 수에 넣지 않음 */
+  function first(k){try{var K='rcl_'+code+'_'+k;if(localStorage.getItem(K))return false;localStorage.setItem(K,'1');return true}catch(e){return true}}
+  function hit(slot,uniq){
+    if(!COUNT)return Promise.resolve();
+    if(DEMO){try{var d=demoData(),p='linkstat/'+code+'_'+slot;if(d[p]){d[p].n=(d[p].n||0)+1;if(uniq)d[p].u=(d[p].u||0)+1;d[p].last=new Date().toISOString();localStorage.setItem(DK,JSON.stringify(d))}}catch(e){}return Promise.resolve()}
+    var ft=[{fieldPath:'n',increment:{integerValue:'1'}}];if(uniq)ft.push({fieldPath:'u',increment:{integerValue:'1'}});ft.push({fieldPath:'last',setToServerValue:'REQUEST_TIME'});
+    return fetch(DOCS+':commit?key='+KEY,{method:'POST',keepalive:true,headers:{'content-type':'application/json'},
+      body:JSON.stringify({writes:[{transform:{document:'projects/'+P+'/databases/(default)/documents/linkstat/'+code+'_'+slot,fieldTransforms:ft},currentDocument:{exists:true}}]})}).catch(function(){});
+  }
+  /* 광고주 분석 도구용 구분값: 일반 주소는 쿼리에 추가(이미 있으면 유지), Google Play 는 referrer 로, App Store 는 그대로 */
+  function withParams(u,p){
+    if(!p||!u)return u;
+    try{var x=new URL(u),h=x.hostname;
+      if(/(^|\.)apps\.apple\.com$|(^|\.)itunes\.apple\.com$/.test(h))return u;
+      if(h==='play.google.com'){if(!x.searchParams.get('referrer'))x.searchParams.set('referrer',p);return x.toString()}
+      new URLSearchParams(p).forEach(function(v,k){if(!x.searchParams.has(k))x.searchParams.set(k,v)});return x.toString();
+    }catch(e){return u}
+  }
+  function target(b){if(b.kind==='app'){if(IOS&&okUrl(b.ios))return b.ios;if(AOS&&okUrl(b.aos))return b.aos;return okUrl(b.url)?b.url:(okUrl(b.aos)?b.aos:b.ios)}return b.url}
+  function ink(hex){var m=/^#?([0-9a-f]{6})$/i.exec(hex||'');if(!m)return '#fff';var n=parseInt(m[1],16),r=n>>16&255,g=n>>8&255,b=n&255;
+    var L=function(c){c/=255;return c<=.03928?c/12.92:Math.pow((c+.055)/1.055,2.4)};var l=.2126*L(r)+.7152*L(g)+.0722*L(b);return (1.05/(l+.05))>=2.6?'#fff':'#161B26'}
+  function fail(t){document.title='링크 안내';app.innerHTML='<div class="msg">'+t+'</div>'}
+  var ICON_APP='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
+  var ICON_GO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
+  if(!code)return fail('링크 주소가 올바르지 않습니다.');
+  getLink().then(function(L){
+    if(!L)return fail('링크를 찾을 수 없습니다.<br>주소를 다시 확인해 주세요.');
+    var pg=L.page||{},col=/^#[0-9a-f]{6}$/i.test(pg.color||'')?pg.color:'#2347D4';
+    document.documentElement.style.setProperty('--c',col);document.documentElement.style.setProperty('--ink',ink(col));
+    var pv=PREVIEW?'<div class="pv">미리보기 · 방문·클릭이 집계되지 않습니다</div>':'';
+    /* 바로 이동 */
+    if(L.mode==='direct'){
+      var to=withParams(L.dest,L.params);if(!okUrl(to))return fail('이동할 주소가 아직 등록되지 않았습니다.');
+      document.title=pg.brand||'바로가기';
+      app.innerHTML=pv+'<div class="msg"><div class="spin"></div>이동 중입니다…<br><a class="go" href="'+esc(to)+'">이동하지 않으면 여기를 누르세요</a></div>';
+      if(PREVIEW)return;
+      var done=false,goNow=function(){if(!done){done=true;location.replace(to)}};
+      Promise.race([hit('v',first('v')),new Promise(function(r){setTimeout(r,700)})]).then(goNow);
+      return;
+    }
+    /* 브릿지 페이지 */
+    var bs=(pg.btns||[]).filter(function(b){return b&&b.label&&target(b)});
+    document.title=pg.title||pg.brand||'바로가기';
+    var lg=pg.logo?'<img class="lg" src="'+esc(pg.logo)+'" alt="">':'<div class="lg lg0">'+esc(String(pg.title||pg.brand||'·').trim().charAt(0))+'</div>';
+    app.innerHTML=pv+'<div class="hd"></div>'+lg+'<div class="bd"><h1>'+esc(pg.title||'')+'</h1>'+(pg.sub?'<p class="sub">'+esc(pg.sub)+'</p>':'')+
+      (okUrl(pg.img)?'<img class="im" src="'+esc(pg.img)+'" alt="" onerror="this.remove()">':'')+
+      '<div class="btns">'+bs.map(function(b,i){return '<a class="btn" href="'+esc(withParams(target(b),L.params))+'" data-i="'+i+'">'+(b.kind==='app'?ICON_APP:'')+'<span>'+esc(b.label)+'</span>'+(b.kind==='app'?'':ICON_GO)+'</a>'}).join('')+'</div>'+
+      (pg.brand?'<div class="ft">'+esc(pg.brand)+'</div>':'')+'</div>';
+    hit('v',first('v'));
+    app.addEventListener('click',function(e){
+      var a=e.target.closest&&e.target.closest('a.btn');if(!a)return;var b=bs[+a.dataset.i];if(!b)return;
+      if(PREVIEW||!COUNT)return; /* 미리보기는 그냥 이동 */
+      if(e.metaKey||e.ctrlKey||e.shiftKey)return;
+      e.preventDefault();var href=a.getAttribute('href');a.classList.add('ld');
+      var fc=first('c'),fb=first(b.id);
+      Promise.race([Promise.all([hit(b.id,fb),hit('c',fc)]),new Promise(function(r){setTimeout(r,800)})]).then(function(){location.href=href;setTimeout(function(){a.classList.remove('ld')},1500)});
+    });
+  }).catch(function(){fail('잠시 후 다시 시도해 주세요.')});
+})();
+</script>
+</body>
+</html>

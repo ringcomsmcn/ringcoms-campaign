@@ -483,6 +483,44 @@ body.pm .rp .tbl{font-size:calc(10px*var(--pk,1));width:100%} body.pm .rp .tbl t
 .btn.warn-b{background:var(--warn-soft);color:var(--warn);border-color:var(--warn);font-weight:600}.btn.danger.on{background:var(--crit-soft);border-color:var(--crit);font-weight:600}
 .gcard.click:hover{border-color:var(--line2);box-shadow:var(--shadow)}
 @media print{.lnb,.mnav,.msheet,.msheet-bg,.lb,.lb-bg{display:none!important}.layout{display:block!important}}
+/* 링크 트래킹 */
+.trk-flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.trk-flow span{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 10px 5px 5px;color:var(--ink,inherit)}
+.trk-flow b{width:18px;height:18px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+.trk-flow i{font-style:normal;opacity:.5}
+.trk-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start;margin-top:14px}
+.trk-f{display:grid;gap:12px;min-width:0}
+.trk-f .fl{display:grid;gap:5px;font-size:12px;color:var(--muted);font-weight:600}
+.trk-b{border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;gap:8px;min-width:0}
+.trk-bh{display:flex;gap:6px;align-items:center;min-width:0}
+.trk-bh input{flex:1}.trk-bh select{width:auto;flex:none}
+.trk-2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.trk-n{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none}
+.trk-pv{position:sticky;top:12px;display:grid;gap:8px;justify-items:center}
+.trk-ph{width:100%;max-width:290px;border:8px solid #161B26;border-radius:32px;overflow:hidden;background:#fff;box-shadow:0 8px 28px rgba(0,0,0,.12)}
+.trk-ph-in{min-height:500px;background:#fff;color:#161B26;font-family:inherit}
+.trk-ph-go{display:flex;align-items:center;justify-content:center;text-align:center;padding:28px}
+.trk-spin{width:30px;height:30px;border-radius:50%;border:3px solid #E6E8EE;margin:0 auto}
+.trk-hd{height:92px}
+.trk-lg{width:64px;height:64px;border-radius:50%;object-fit:contain;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.14);display:block;margin:-32px auto 0;position:relative}
+.trk-lg0{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:24px}
+.trk-bd{padding:12px 16px 18px;text-align:center}
+.trk-t{font-size:17px;font-weight:800;line-height:1.35;word-break:keep-all}
+.trk-s{font-size:12.5px;color:#5B6273;margin-top:6px;white-space:pre-line;word-break:keep-all}
+.trk-im{width:100%;border-radius:12px;margin-top:12px;display:block}
+.trk-btn{margin-top:9px;border-radius:12px;padding:13px 10px;font-weight:700;font-size:14px}
+.trk-ft{margin-top:16px;font-size:11px;color:#9AA1AE}
+.trk-lk{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.trk-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.trk-h4{font-size:13px;margin:16px 0 8px}
+.trk-bars{display:grid;gap:10px}
+.trk-bl{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.trk-bl em{font-style:normal;font-weight:400;color:var(--muted);font-size:12px}
+.trk-bar i{display:block;height:8px;border-radius:4px;background:var(--line);margin-top:5px;overflow:hidden}
+.trk-bar u{display:block;height:100%;background:var(--th-acc,var(--accent));border-radius:4px}
+@media(max-width:900px){.trk-grid{grid-template-columns:1fr}.trk-pv{position:static}}
+.trk-tbl td,.trk-tbl th{white-space:nowrap}
+@media(max-width:600px){.trk-2{grid-template-columns:1fr}.trk-flow i{display:none}.trk-bh{flex-wrap:wrap}.trk-bh input{flex:1 1 calc(100% - 30px)}.trk-bh select{flex:1}}
 </style>
 </head>
 <body>
@@ -562,7 +600,7 @@ function applyHide(R,H){if(!H.size)return;const T=R.T;H.forEach(k=>{if(HIDE_TARG
   delete T[k];(HIDE_DERIV[k]||[]).forEach(x=>delete T[x]);R.rows.forEach(r=>delete r[k]);['byGroup','byCh','byTier','byType'].forEach(a=>(R[a]||[]).forEach(o=>delete o[k]))});R.meta.hidden=[...H]}
 function applyReadOnly(){if(A.view==='share'||!A.user||canEdit())return;const app=$('#app');
   app.querySelectorAll('[data-act]').forEach(el=>{if(WRITE_ACTS.has(el.dataset.act))el.style.display='none'});
-  app.querySelectorAll('input,select,textarea').forEach(el=>{const d=el.dataset;if(d.row||d.cf||d.cb||d.gf||d.sh||d.shm||d.pf||d.rename||d.upload||d.roleE||d.thumb||d.advlogo!==undefined||['new-group','new-admin','new-admin-role','insight','bulk-stage','ptarget','p1target','yt-key'].includes(el.id))el.disabled=true})}
+  app.querySelectorAll('input,select,textarea').forEach(el=>{const d=el.dataset;if(d.trk||d.trkb||d.row||d.cf||d.cb||d.gf||d.sh||d.shm||d.pf||d.rename||d.upload||d.roleE||d.thumb||d.advlogo!==undefined||['new-group','new-admin','new-admin-role','insight','bulk-stage','ptarget','p1target','yt-key'].includes(el.id))el.disabled=true})}
 function fmtDT(v){if(!v)return '–';let x=String(v);const m=x.match(/^(\d{4}-\d{2}-\d{2})\1$/);if(m)x=m[1];const p2=k=>String(k).padStart(2,'0');
   if(/^\d{4}-\d{2}-\d{2}T/.test(x)){const d=new Date(x);if(!isNaN(d))return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`}
   return esc(x)+' <span class="muted small">(시간 기록 없음)</span>'}
@@ -766,6 +804,7 @@ async function firebaseStore(){
     watchCol:(c,cb,err)=>fs.collection(c).onSnapshot(q=>{const m={};q.forEach(d=>m[d.id]=d.data());cb(m)},err),
     watchQuery:(c,fld,val,cb,err,f2,v2)=>{let q=fs.collection(c).where(fld,'==',val);if(f2)q=q.where(f2,'==',v2);return q.onSnapshot(q=>{const m={};q.forEach(d=>m[d.id]=d.data());cb(m)},err)},
     watchDoc:(p,cb,err)=>fs.doc(p).onSnapshot(d=>cb(d.exists?d.data():null),err),
+    query:(c,fld,val)=>fs.collection(c).where(fld,'==',val).get().then(q=>{const m={};q.forEach(d=>m[d.id]=d.data());return m}),
     get:p=>fs.doc(p).get().then(d=>d.exists?d.data():null),
     set:(p,d)=>fs.doc(p).set(d),update:(p,d)=>fs.doc(p).update(d),del:p=>fs.doc(p).delete(),
     onAuth:cb=>au.onAuthStateChanged(u=>cb(u?{email:(u.email||'').toLowerCase(),name:u.displayName||u.email}:null)),
@@ -784,6 +823,7 @@ function demoStore(){
     watchDoc(p,cb){const s=()=>cb(data[p]?clone(data[p]):null);subs.add(s);setTimeout(s,0);return()=>subs.delete(s)},
     watchQuery(c,fld,val,cb,err,f2,v2){const s=()=>{const m={};for(const p in data){const i=p.indexOf('/');if(p.slice(0,i)===c&&data[p]&&data[p][fld]===val&&(!f2||data[p][f2]===v2))m[p.slice(i+1)]=clone(data[p])}cb(m)};subs.add(s);setTimeout(s,0);return()=>subs.delete(s)},
     get:p=>Promise.resolve(data[p]?clone(data[p]):null),
+    query(c,fld,val){const m={};for(const p in data){const i=p.indexOf('/');if(p.slice(0,i)===c&&data[p]&&data[p][fld]===val)m[p.slice(i+1)]=clone(data[p])}return Promise.resolve(m)},
     set(p,d){data[p]=clone(d);save();return Promise.resolve()},
     update(p,o){if(!data[p])return Promise.reject({code:'not-found'});for(const k in o){const ks=k.split('.');let t=data[p];for(let i=0;i<ks.length-1;i++){if(!isObj(t[ks[i]]))t[ks[i]]={};t=t[ks[i]]}const last=ks[ks.length-1];if(o[k]===DEL)delete t[last];else t[last]=clone(o[k])}save();return Promise.resolve()},
     del(p){delete data[p];save();return Promise.resolve()},
@@ -963,6 +1003,7 @@ function buildReport(c,rows,admin,groupLabel,mode){
   const REP={v:2,updatedAt:new Date().toISOString(),meta:{theme:themeOf(c),advLogo:c.advLogo||'',name:c.name||'',advertiser:c.advertiser||'',brand:c.brand||'',ctype:c.ctype||'',status:c.status||'',objective:c.objective||'조회수',convType:c.convType||'',convLabel,start:c.start||'',end:c.end||'',asof:c.asof||'',usageMonths:c.usageMonths||'',
       kind:kindOf(c),trial:TR,targets:(admin||sh.showTargets!==false)?tg:{},metrics:M,eng:E,costLevel,showLinks,showProgress:admin||sh.progOn===true,reachOn:!shHidden(sh,'reach'),insight:c.insight||'',groupLabel:groupLabel||'',fee:{mode,rate:!trial&&(admin||sh.feeToggle!==false)?feeRate(c):null,toggle:!trial&&!admin&&sh.feeToggle!==false}},
     T,sales:SALES,byGroup:groupsOf(c).length?grp(r=>groupName(c,r.group)||'그룹 미지정',groupsOf(c).map(g=>g.name)):[],byCh:grp(r=>r.ch,CHANNELS),byTier:grp(r=>tierGroup(c,calc.get(r).tier),c.tierSplit?TIERS:TIERS_M),byType:grp(r=>r.ctype,CTYPES),stages,drop:rows.filter(r=>r.name&&r.stage===DROP).length,progress,rows:out};
+  {const TK=(admin||(c.track&&c.track.report!==false))?trkAgg(c,rows,showNames,admin):null;if(TK)REP.track=TK}
   if(!admin){applyHide(REP,new Set(shareMetricsFor(c).map(x=>x[0]).filter(k=>shHidden(sh,k))))}
   return REP;
 }
@@ -979,6 +1020,7 @@ function scheduleSync(cid){if(!cid||A.view==='create')return;clearTimeout(SYNC[c
 async function syncNow(cid,fromSeed){
   const c=fromSeed?await DB.get('campaigns/'+cid):A.campaigns[cid];if(!c)return;
   const rd=(A.cid===cid&&A.unsubRows&&A.rowsDoc&&!fromSeed)?A.rowsDoc:await DB.get('rows/'+cid);const rows=rowsArr(rd);
+  if(c.track&&c.track.codes&&Object.keys(c.track.codes).length&&(c.share||{}).enabled&&!(A.cid===cid&&A.unsubLstat)&&DB.query){try{Object.assign(LSTAT,await DB.query('linkstat','cid',cid))}catch(e){console.warn('linkstat',e)}}
   try{
     await DB.update('campaigns/'+cid,{summary:summaryOf(c,rows),updatedAt:new Date().toISOString()});
     const sh=c.share||{};if(sh.enabled&&sh.token){const fm=sh.feeMode||'incl';const sc=shareScope(c,rows);const snap=buildReport(c,sc.rows,false,sc.label,fm);if(!isTrial(c)&&sh.feeToggle!==false&&(sh.costLevel||'row')!=='none')snap.alt=buildReport(c,sc.rows,false,sc.label,fm==='incl'?'excl':'incl');snap.acct=acctOf(c);await DB.set('shares/'+sh.token,snap);
@@ -1051,6 +1093,7 @@ function openCampaign(cid,tab){
   A.cid=cid;A.view='campaign';A.tab=tab||'overview';A.sel.clear();A.stageF='';A.rq='';A.drawer=null;A.rowsDoc=null;
   if(A.unsubConf){A.unsubConf();A.unsubConf=null}A.cconf=null;A.confCid=null;ensureConfWatch(cid);
   if(A.unsubThumbs){A.unsubThumbs();A.unsubThumbs=null}A.thumbs={};A.thumbAuto={};A.unsubThumbs=DB.watchDoc('thumbs/'+cid,d=>{A.thumbs=(d&&d.t)||{};A.thumbAuto=(d&&d.a)||{};scheduleRender()},()=>{});
+  if(A.unsubLstat){A.unsubLstat();A.unsubLstat=null}A.lstatSum=null;A.unsubLstat=DB.watchQuery('linkstat','cid',cid,m=>{Object.assign(LSTAT,m);const sm=Object.values(m).reduce((t,x)=>t+n(x&&x.n),0);if(A.lstatSum!=null&&sm!==A.lstatSum)trkAutoSync(cid);A.lstatSum=sm;scheduleRender()},()=>{});
   A.unsubRows=DB.watchDoc('rows/'+cid,d=>{A.rowsDoc=d||{rows:{}};if(canEdit()){const up={};Object.entries(A.rowsDoc.rows||{}).forEach(([id,r])=>{if(r&&OLD_STAGE[r.stage])up[`rows.${id}.stage`]=OLD_STAGE[r.stage]});
     const c=A.campaigns[cid];const au=c?autoStageUp(c,rowsArr(A.rowsDoc)):{};const an=Object.keys(au).length;Object.entries(au).forEach(([id,s])=>up[`rows.${id}.stage`]=s);
     if(Object.keys(up).length)DB.update('rows/'+cid,up).then(()=>{scheduleSync(cid);if(an)toast(`일정에 맞춰 ${an}명의 진행 상황을 바꿨습니다 (${[...new Set(Object.values(au))].join('·')}).`)}).catch(()=>{})}scheduleRender()},e=>{toast('인플루언서 목록을 불러오지 못했습니다.','crit')});
@@ -1396,8 +1439,8 @@ function langChips(cur,act){return `<div class="chips langsw" role="group" aria-
 function viewCampaign(){
   const c=curC();if(!c)return A.campsLoaded?`<div class="panel empty">캠페인을 찾을 수 없습니다. 삭제되었거나 볼 수 있는 권한이 없습니다. <button class="btn sm" data-act="nav" data-v="${homeView()}">목록으로</button></div>`:'<div class="panel empty">불러오는 중…</div>';const TRL=isTrial(c);const KD=kindOf(c),KM=KINDS[KD];
   const rows=curRows();const al=rows.filter(r=>alertOf(r,c)).length;
-  const tabs=[['settings','캠페인 설정'],['overview','개요'],['grid','진행관리'],['status','진행 현황',al],['report','성과 리포트'],['share','광고주 공유']];
-  const body={overview:tabOverview,grid:tabGrid,status:tabStatus,report:tabReport,settings:tabSettings,share:tabShare}[A.tab]||tabOverview;
+  const tabs=[['settings','캠페인 설정'],['overview','개요'],['grid','진행관리'],['status','진행 현황',al],['report','성과 리포트'],['track','링크 트래킹'],['share','광고주 공유']];
+  const body={overview:tabOverview,grid:tabGrid,status:tabStatus,report:tabReport,track:tabTrack,settings:tabSettings,share:tabShare}[A.tab]||tabOverview;
   return `<div class="page-h"><div><div class="row small"><button class="btn sm ghost" data-act="back" data-v="${KM.view}">← ${KM.label} 목록</button>${KM.pill?`<span class="pill ok">${KM.pill}</span>`:''}${TRL&&c.trial&&c.trial.cat?`<span class="pill">${esc(c.trial.cat)}</span>`:''}${isCom(c)&&c.com&&c.com.cat?`<span class="pill">${esc(c.com.cat)}</span>`:''}${isCom(c)?'':`<span class="pill accent">${esc(c.objective||'')}${c.objective==='전환'&&c.convType?' · '+esc(c.convType):''}</span>`}<span class="pill ${STATUS_CLS[campStatus(c)]||''}">${esc(campStatus(c))}</span>${groupsOf(c).length?`<span class="pill">그룹 ${groupsOf(c).length}개</span>`:''}${c.share&&c.share.enabled?'<span class="pill ok">광고주 공유 중</span>':''}</div>
   <h1 style="margin-top:6px">${nameEdit('c',A.cid,'',c.name||'',esc(c.name||'이름 없음'))}</h1><div class="sub">${esc(c.advertiser||'광고주 미입력')}${c.start?' · '+md(c.start)+' ~ '+md(c.end):''}</div></div>
   <div class="row"><button class="btn" data-act="xlsx" data-mode="admin">엑셀 다운로드</button></div></div>
@@ -1618,6 +1661,7 @@ function renderReport(R,o){
   ${objTiles?`<section><h3 class="rp-h2">${t('캠페인 목적 성과','Objective KPIs')} · ${esc(V(m.objective))}</h3><p class="rp-desc">${t('목표를 설정한 지표는 달성률을 함께 표시합니다.','Achievement rates are shown for metrics with a target.')}</p><div class="tiles">${objTiles}</div>${m.objective==='전환'&&!M.conv&&!M.revenue?`<p class="small muted">${t('전환 데이터 입력이 꺼져 있습니다. 캠페인 설정에서 켤 수 있습니다.','Conversion data is not being tracked for this campaign.')}</p>`:''}</section>`:''}
   ${noContent?'':`<section><h3 class="rp-h2">${COM?t('홍보 콘텐츠 성과','Promotional Content'):t('전체 성과 요약','Performance Summary')}</h3><p class="rp-desc">${COM?t('공구·방송을 알린 인플루언서 콘텐츠의 성과입니다. 콘텐츠 링크가 등록된 콘텐츠만 집계합니다.','Performance of promotional posts. Only content with a registered link is counted.'):t('캠페인에 참여한 인플루언서 및 콘텐츠의 성과 요약입니다. 콘텐츠 링크가 등록된 콘텐츠만 집계합니다.','Summary of participating influencers and their content. Only content with a registered link is counted.')}</p><div class="tiles">${sum.map(([l,v,s])=>tile(l,v,s)).join('')}</div></section>`}
   ${conv.length&&!COM?`<section><h3 class="rp-h2">${t('유입·전환 성과','Traffic & Conversions')}</h3><p class="rp-desc">${t('트래킹 링크·프로모코드·광고주 데이터 기준으로 입력된 값입니다.','Based on tracking links, promo codes and advertiser data.')}</p><div class="tiles">${conv.map(([l,v,s])=>tile(l,v,s)).join('')}</div></section>`:''}
+  ${R.track?trkSection(R.track,t):''}
   ${m.showProgress?`<section class="rp-prog"><h3 class="rp-h2">${t('진행 현황','Progress')}</h3><p class="rp-desc">${t('인플루언서별 현재 진행 단계입니다.','Current stage for each influencer.')}</p><div class="panel">${stageBar(R.stages,totalSC,true,en)}
    ${R.progress.length?`<div class="mcards show-m" style="margin-top:12px">${R.progress.map(p=>`<div class="mcard"><div class="mh"><div class="grow"><div class="mt">${lk(p.chlink,esc(V(p.name)),t('채널로 이동','Open channel'))}</div><div class="ms">${esc([V(p.group),V(p.ch),V(p.ctype)].filter(Boolean).join(' · '))}</div></div><span class="pill ${isDone(p.stage)?'ok':'accent'}">${esc(V(p.stage)||'-')}</span></div>
      <div class="row small"><span class="muted">${t('예정','Planned')} ${md(p.due)} · ${t('업로드','Posted')} ${md(p.up)}</span><span class="grow"></span>${m.showLinks!==false?upl(p.clink,26,p.rid):''}</div></div>`).join('')}</div><div class="tblwrap hide-m" style="margin-top:14px;max-height:420px"><table class="tbl"><thead><tr>${pg?`<th>${t('그룹','Group')}</th>`:''}<th>${t('인플루언서','Influencer')}</th><th>${t('채널','Channel')}</th><th>${t('콘텐츠 유형','Content Type')}</th><th>${t('진행 상황','Status')}</th><th>${t('업로드 예정일','Planned Date')}</th><th>${t('업로드일','Posted Date')}</th>${m.showLinks!==false?`<th>${t('업로드 콘텐츠','Posted Content')}</th>`:''}</tr></thead><tbody>${R.progress.map(p=>`<tr>${pg?`<td class="small">${esc(V(p.group)||'–')}</td>`:''}<td class="bold">${lk(p.chlink,esc(V(p.name)),t('채널로 이동','Open channel'))}</td><td>${lk(p.chlink,esc(V(p.ch)),t('채널로 이동','Open channel'))}</td><td>${esc(V(p.ctype))}</td><td><span class="pill ${isDone(p.stage)?'ok':'accent'}">${esc(V(p.stage)||'-')}</span></td><td>${md(p.due)}</td><td>${md(p.up)}</td>${m.showLinks!==false?`<td>${upl(p.clink,28,p.rid)}</td>`:''}</tr>`).join('')}</tbody></table></div>`:''}</div></section>`:''}
@@ -1947,6 +1991,136 @@ function tabShare(c,rows){
    <label class="toggle" style="margin-top:10px"><input type="checkbox" id="sh_feeToggle" data-sh="feeToggle" ${sh.feeToggle!==false?'checked':''} ${on?'':'disabled'}><div><b>광고주가 포함 / 미포함을 직접 바꿔 볼 수 있게 허용</b><span>켜면 광고주 화면에 전환 버튼이 생기고 두 기준 수치와 수수료율이 모두 전달됩니다. 끄면 위에서 고른 기준 하나로만 보이고, 다른 기준 수치와 수수료율은 광고주에게 전달되지 않습니다.</span></div></label></section>`}
   <section class="rp-host"><div class="panel-h noprint"><div><h2 style="font-size:15px">광고주 화면 미리보기 · 내보내기</h2><div class="sub">현재 설정 기준${isTrial(c)?'':' · '+((sh.feeMode||'incl')==='incl'?'수수료 포함':'수수료 미포함')+' · '+(A.pvat==='incl'?'VAT 포함':'VAT 별도')} · 진행 현황은 PPT·PDF에 들어가지 않습니다</div></div><div class="row">${isTrial(c)||(sh.costLevel||'row')==='none'?'':`<div class="chips"><span class="chip ${A.pvat!=='incl'?'on':''}" data-act="pvat" data-k="">VAT 별도</span><span class="chip ${A.pvat==='incl'?'on':''}" data-act="pvat" data-k="incl">VAT 포함</span></div>`}${langChips(A.plang,'plang')}<button class="btn sm" data-act="pptx" data-mode="preview">PPT</button><button class="btn sm" data-act="print" data-mode="preview">PDF</button><button class="btn sm" data-act="cxlsx" data-mode="preview" title="콘텐츠별 결과 표만 엑셀로">콘텐츠별 결과 엑셀</button></div></div><div class="panel">${renderReport(previewR(),{admin:false,lang:A.plang,thumbs:A.thumbs,editLogo:canEdit()})}</div></section>
   </div>`;
+}
+
+
+/* ============ 링크 트래킹: 인플루언서별 전용 단축 링크 · 브릿지 페이지 ============
+   links/{code}            링크 설정 (브릿지 페이지가 로그인 없이 한 건씩 읽음)
+   linkstat/{code}_{slot}  집계 (v=방문, c=버튼을 누른 방문자, 버튼 id=버튼별 클릭) — 방문자는 n·u를 +1만 할 수 있음
+   campaigns/{id}.track    방식·버튼·파라미터 설정, codes{행 id: 코드} */
+const TRK_MAXB=8;
+const TRK_KIND=[['web','웹 페이지'],['app','앱 다운로드']];
+const TRK_PRESETS=['브랜드 홈페이지 확인하기','이벤트 참여하기','상품 보러 가기','앱 다운로드 받기'];
+const TRK_PARAM0='utm_source=ringcoms&utm_medium=influencer&utm_campaign={campaign}&utm_content={code}';
+const LSTAT={};const TRKS={};
+['trkMode','trkAddBtn','trkDelBtn','trkUpBtn','trkParam','trkSave','trkGen','trkReport','trkToClicks'].forEach(k=>WRITE_ACTS.add(k));
+function trkBase(){return DB&&DB.mode==='demo'?location.origin+location.pathname.replace(/[^/]*$/,'')+'l.html?demo=1&c=':'https://ad.ringcoms.com/l/'}
+function trkUrl(code){return trkBase()+code}
+function trkPrev(code){const u=trkUrl(code);return u+(u.includes('?')?'&':'?')+'preview=1'}
+function trkId(){return 'b'+token().slice(0,5)}
+function trkDefault(c){return {mode:'bridge',dest:'',utm:true,params:TRK_PARAM0,page:{title:c.brand||c.advertiser||'',sub:'',img:'',color:themeOf(c).acc,btns:[{id:trkId(),label:'브랜드 홈페이지 확인하기',kind:'web',url:'',ios:'',aos:''}]},codes:{}}}
+function trkCfg(c){const d=trkDefault(c);const t=c.track||{};return {...d,...t,page:{...d.page,...(t.page||{}),btns:(t.page&&Array.isArray(t.page.btns))?t.page.btns:d.page.btns},codes:t.codes||{}}}
+/* 화면에서 고치는 초안 — 「저장」을 눌러야 반영 */
+function trkDraft(c){const T=A.trk;const ver=c.track&&c.track.savedAt;if(!T||T.cid!==A.cid||(!T.dirty&&ver&&T.ver!==ver))A.trk={cid:A.cid,d:clone(trkCfg(c)),dirty:false,ver};return A.trk}
+function trkBtns(cfg){return cfg.mode==='bridge'?(cfg.page.btns||[]).filter(b=>String(b.label||'').trim()):[]}
+function trkSlots(cfg){return cfg.mode==='bridge'?['v','c',...trkBtns(cfg).map(b=>b.id)]:['v']}
+function trkParams(cfg,c,code,r){if(cfg.utm===false)return '';return String(cfg.params||'').trim().replace(/^[?&]+/,'').replace(/\{code\}/g,code).replace(/\{name\}/g,encodeURIComponent((r&&(r.acct||r.name))||'')).replace(/\{campaign\}/g,encodeURIComponent(c.name||''))}
+function trkLinkDoc(c,cid,cfg,code,r){const lg=c.advLogo&&c.advLogo.length<60000?c.advLogo:'';const p=cfg.page||{};
+  return {cid,rid:r.id,code,name:r.name||'',acct:acctOf(c),mode:cfg.mode==='direct'?'direct':'bridge',dest:String(cfg.dest||'').trim(),params:trkParams(cfg,c,code,r),
+    page:{title:p.title||'',sub:p.sub||'',img:p.img||'',logo:lg,color:p.color||themeOf(c).acc,brand:c.brand||c.advertiser||'',btns:trkBtns(cfg).map(b=>({id:b.id,label:String(b.label).trim(),kind:b.kind==='app'?'app':'web',url:String(b.url||'').trim(),ios:String(b.ios||'').trim(),aos:String(b.aos||'').trim()}))},updatedAt:new Date().toISOString()}}
+function trkValidate(d){const ok=u=>/^https?:\/\/\S+$/i.test(String(u||'').trim());
+  if(d.mode==='direct')return ok(d.dest)?'':'이동할 주소를 https:// 로 시작하게 입력하세요.';
+  if(!String(d.page.title||'').trim())return '브릿지 페이지 제목을 입력하세요.';
+  if(d.page.img&&!ok(d.page.img))return '대표 이미지 주소는 https:// 로 시작해야 합니다.';
+  const bs=trkBtns(d);if(!bs.length)return '버튼을 1개 이상 만들어 주세요.';
+  for(const b of bs){if(b.kind==='app'){if(![b.url,b.ios,b.aos].some(ok))return `「${b.label}」 버튼에 앱 링크를 하나 이상 입력하세요.`;if([b.url,b.ios,b.aos].some(u=>String(u||'').trim()&&!ok(u)))return `「${b.label}」 버튼의 앱 링크는 https:// 로 시작해야 합니다.`}
+    else if(!ok(b.url))return `「${b.label}」 버튼의 이동 주소를 https:// 로 시작하게 입력하세요.`}
+  return ''}
+async function trkNewCode(){for(let i=0;i<6;i++){const k=token().slice(0,6);const ex=await DB.get('links/'+k).catch(()=>null);if(!ex)return k}throw new Error('링크 코드를 만들지 못했습니다.')}
+/* 집계 문서는 없을 때만 0으로 만듦 (기존 숫자는 절대 덮어쓰지 않음) */
+async function trkEnsure(c,cid,code,rid,slots){for(const s of slots){const id=code+'_'+s;if(LSTAT[id])continue;const ex=await DB.get('linkstat/'+id);if(ex){LSTAT[id]=ex;continue}const d={cid,code,rid,slot:s,acct:acctOf(c),n:0,u:0};await DB.set('linkstat/'+id,d);LSTAT[id]=d}}
+async function trkPush(c,cid,cfg){const byId=Object.fromEntries(curRows().map(r=>[r.id,r]));const ents=Object.entries(cfg.codes||{});const slots=trkSlots(cfg);
+  for(let i=0;i<ents.length;i+=8)await Promise.all(ents.slice(i,i+8).map(async([rid,code])=>{let r=byId[rid];if(!r){const old=await DB.get('links/'+code).catch(()=>null);r={id:rid,name:(old&&old.name)||''}}
+    await DB.set('links/'+code,trkLinkDoc(c,cid,cfg,code,r));await trkEnsure(c,cid,code,rid,slots)}))}
+async function trkSaveCfg(silent){const c=curC();const cid=A.cid;if(!c||!cid)return null;const T=trkDraft(c);const d=T.d;
+  const err=trkValidate(d);if(err){toast(err,'crit');return null}
+  const now=new Date().toISOString();const tr=s=>String(s||'').trim();
+  const page={title:tr(d.page.title),sub:tr(d.page.sub),img:tr(d.page.img),color:d.page.color||themeOf(c).acc,btns:(d.page.btns||[]).filter(b=>tr(b.label)||tr(b.url)).map(b=>({id:b.id,label:tr(b.label),kind:b.kind==='app'?'app':'web',url:tr(b.url),ios:tr(b.ios),aos:tr(b.aos)}))};
+  const cfg={...d,dest:tr(d.dest),utm:d.utm!==false,params:tr(d.params),page,codes:(c.track&&c.track.codes)||{}};
+  A.trkBusy='push';render();
+  try{await cUpdate({'track.mode':cfg.mode==='direct'?'direct':'bridge','track.dest':cfg.dest,'track.utm':cfg.utm,'track.params':cfg.params,'track.page':page,'track.savedAt':now});
+    T.dirty=false;T.ver=now;T.d=clone({...cfg});
+    const nl=Object.keys(cfg.codes).length;if(nl)await trkPush(c,cid,cfg);
+    if(!silent)toast(nl?`저장하고 이미 나간 링크 ${nl}개에 반영했습니다.`:'저장했습니다. 이제 인플루언서별 링크를 만들 수 있습니다.');return cfg}
+  catch(e){saveErr(e);return null}finally{A.trkBusy=null;render()}}
+async function trkGenerate(){if(A.trkBusy)return;const cid=A.cid;let c=curC();const T=trkDraft(c);
+  const cfg=(!T.dirty&&c.track&&c.track.savedAt)?trkCfg(c):await trkSaveCfg(true);if(!cfg)return;
+  const err=trkValidate(cfg);if(err){toast(err,'crit');return}
+  c=A.campaigns[cid]||c;const codes={...((c.track&&c.track.codes)||cfg.codes||{})};
+  const todo=curRows().filter(r=>r.name&&r.stage!==DROP&&!codes[r.id]);if(!todo.length){toast('모든 인플루언서에게 이미 링크가 있습니다.');return}
+  A.trkBusy='gen';render();const up={};
+  try{for(const r of todo){const code=await trkNewCode();await DB.set('links/'+code,trkLinkDoc(c,cid,cfg,code,r));await trkEnsure(c,cid,code,r.id,trkSlots(cfg));up['track.codes.'+r.id]=code}
+    await DB.update('campaigns/'+cid,up);toast(`인플루언서 ${todo.length}명의 전용 링크를 만들었습니다.`)}
+  catch(e){saveErr(e);if(Object.keys(up).length)DB.update('campaigns/'+cid,up).catch(()=>{})}
+  finally{A.trkBusy=null;render()}}
+/* 집계 (어드민·광고주 리포트 공용) */
+function trkAgg(c,rows,showNames,admin){const t=c.track;if(!t||!t.codes)return null;const codes=t.codes;const cfg=trkCfg(c);const BR=cfg.mode!=='direct';
+  const rs=rows.filter(r=>r.name&&codes[r.id]);if(!rs.length)return null;
+  const bs=trkBtns(cfg);const g=(code,s)=>LSTAT[code+'_'+s]||{n:0,u:0};let j=0;
+  const T={v:0,u:0,clk:0,cu:0};const B=Object.fromEntries(bs.map(b=>[b.id,{id:b.id,label:b.label,kind:b.kind||'web',n:0,u:0}]));
+  const out=rs.map(r=>{const code=codes[r.id];const v=g(code,'v'),cc=BR?g(code,'c'):v;
+    const o={rid:r.id,name:showNames?r.name:`인플루언서 ${++j}`,group:groupName(c,r.group)||'',v:n(v.n),u:n(v.u),clk:n(cc.n),cu:n(cc.u),b:{}};if(admin)o.code=code;
+    if(BR){o.clk=0;bs.forEach(b=>{const x=g(code,b.id);o.b[b.id]=n(x.n);o.clk+=n(x.n);B[b.id].n+=n(x.n);B[b.id].u+=n(x.u)})}
+    o.ctr=BR&&o.u?Math.min(1,o.cu/o.u):null;T.v+=o.v;T.u+=o.u;T.clk+=o.clk;T.cu+=o.cu;return o}).sort((a,b)=>b.clk-a.clk||b.v-a.v);
+  T.ctr=BR&&T.u?Math.min(1,T.cu/T.u):null;
+  return {mode:BR?'bridge':'direct',T,btns:Object.values(B),rows:out}}
+function trkSummary(K,t){const T=K.T,BR=K.mode==='bridge';
+  const tl=BR?[[t('링크 방문','Link Visits'),fmt(T.v),t(`고유 방문자 ${fmt(T.u)}명`,`${fmt(T.u)} unique visitors`)],[t('버튼 클릭','Button Clicks'),fmt(T.clk),t(`버튼을 누른 방문자 ${fmt(T.cu)}명`,`${fmt(T.cu)} unique clickers`)],[t('클릭률','Click-through Rate'),pct(T.ctr,1),t('고유 방문자 중 버튼을 누른 비율','Unique clickers / unique visitors')],[t('링크 수','Links'),fmt(K.rows.length),t('인플루언서별 전용 링크','Dedicated influencer links')]]
+    :[[t('링크 클릭','Link Clicks'),fmt(T.v),t(`고유 클릭 ${fmt(T.u)}명`,`${fmt(T.u)} unique`)],[t('링크 수','Links'),fmt(K.rows.length),t('인플루언서별 전용 링크','Dedicated influencer links')]];
+  const mx=Math.max(1,...K.btns.map(b=>b.n));
+  const bars=BR&&K.btns.length?`<h4 class="trk-h4">${t('버튼별 클릭','Clicks by Button')}</h4><div class="trk-bars">${K.btns.map(b=>`<div class="trk-bar"><div class="trk-bl"><span>${esc(b.label)}${b.kind==='app'?` <span class="pill">${t('앱','App')}</span>`:''}</span><b>${fmt(b.n)}<em> · ${pct(T.clk?b.n/T.clk:null,1)}</em></b></div><i><u style="width:${(b.n/mx*100).toFixed(1)}%"></u></i></div>`).join('')}</div>`:'';
+  return `<div class="tiles">${tl.map(([l,v,s])=>tile(l,v,s)).join('')}</div>${bars}`}
+function trkTable(K,t,o){o=o||{};const BR=K.mode==='bridge';const hasG=K.rows.some(r=>r.group);const bs=BR?K.btns:[];
+  return `<div class="tblwrap"><table class="tbl trk-tbl"><thead><tr><th>${t('인플루언서','Influencer')}</th>${hasG?`<th>${t('그룹','Group')}</th>`:''}${o.links?`<th>${t('전용 링크','Link')}</th>`:''}<th class="n">${BR?t('방문','Visits'):t('클릭','Clicks')}</th><th class="n">${BR?t('고유 방문','Unique Visitors'):t('고유 클릭','Unique')}</th>${BR?`<th class="n">${t('버튼 클릭','Clicks')}</th><th class="n">${t('클릭률','CTR')}</th>`:''}${bs.map(b=>`<th class="n" title="${esc(b.label)}">${esc(b.label.length>10?b.label.slice(0,10)+'…':b.label)}</th>`).join('')}</tr></thead>
+  <tbody>${(o.rows||K.rows).map(r=>`<tr><td class="bold">${esc(r.name)}</td>${hasG?`<td>${esc(r.group||'')}</td>`:''}${o.links?`<td>${o.links(r)}</td>`:''}<td class="n">${r.v==null?'':fmt(r.v)}</td><td class="n">${r.u==null?'':fmt(r.u)}</td>${BR?`<td class="n">${r.clk==null?'':fmt(r.clk)}</td><td class="n">${r.v==null?'':pct(r.ctr,1)}</td>`:''}${bs.map(b=>`<td class="n">${r.b&&r.b[b.id]!=null?fmt(r.b[b.id]):''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
+/* 리포트 섹션 (renderReport 안에서 사용) */
+function trkSection(K,t){const BR=K.mode==='bridge';
+  return `<section class="rp-long"><h3 class="rp-h2">${t('링크 트래킹 성과','Link Tracking')}</h3><p class="rp-desc">${BR?t('인플루언서별 전용 링크로 들어온 방문과 랜딩 페이지 버튼 클릭을 자동 집계했습니다. 앱 설치·회원가입·구매 등 이후 전환은 광고주 분석 도구(GA4·MMP) 기준으로 확인합니다.','Visits through each influencer\'s dedicated link and button clicks on the landing page, collected automatically. Installs, sign-ups and purchases after the click are measured in the advertiser\'s analytics (GA4 / MMP).'):t('인플루언서별 전용 링크 클릭을 자동 집계했습니다. 앱 설치·회원가입·구매 등 이후 전환은 광고주 분석 도구(GA4·MMP) 기준으로 확인합니다.','Clicks on each influencer\'s dedicated link, collected automatically. Conversions after the click are measured in the advertiser\'s analytics (GA4 / MMP).')}</p>
+  ${trkSummary(K,t)}<h4 class="trk-h4">${t('인플루언서별 링크 성과','By Influencer')}</h4>${trkTable(K,t)}</section>`}
+function trkPhone(d,c){const col=(d.page&&d.page.color)||themeOf(c).acc;const ink=contrast(col,'#FFFFFF')>=2.6?'#FFFFFF':'#161B26';const lg=c.advLogo&&c.advLogo.length<60000?c.advLogo:'';
+  if(d.mode==='direct')return `<div class="trk-ph"><div class="trk-ph-in trk-ph-go"><div><div class="trk-spin" style="border-top-color:${col}"></div><div class="small muted" style="margin-top:14px">링크를 누르면 클릭만 기록하고 바로 이동</div><div class="bold small" style="margin-top:6px;word-break:break-all">${esc(d.dest||'이동할 주소 미입력')}</div></div></div></div>`;
+  const bs=(d.page.btns||[]).filter(b=>String(b.label||'').trim());const title=d.page.title||'페이지 제목';
+  return `<div class="trk-ph"><div class="trk-ph-in"><div class="trk-hd" style="background:${col}"></div>${lg?`<img class="trk-lg" src="${esc(lg)}" alt="">`:`<div class="trk-lg trk-lg0" style="background:${col};color:${ink}">${esc(String(title).trim().slice(0,1)||'B')}</div>`}
+   <div class="trk-bd"><div class="trk-t">${esc(title)}</div>${d.page.sub?`<div class="trk-s">${esc(d.page.sub)}</div>`:''}${/^https?:\/\//i.test(d.page.img||'')?`<img class="trk-im" src="${esc(d.page.img)}" alt="" onerror="this.style.display='none'">`:''}
+   ${bs.map(b=>`<div class="trk-btn" style="background:${col};color:${ink}">${b.kind==='app'?'<span aria-hidden="true">↓</span> ':''}${esc(b.label)}</div>`).join('')||'<div class="small muted" style="padding:14px 0">버튼을 추가하세요</div>'}
+   <div class="trk-ft">${esc(c.brand||c.advertiser||'')}</div></div></div></div>`}
+function trkAutoSync(cid){const c=A.campaigns[cid];if(!c||!canEdit()||!(c.share&&c.share.enabled)||!c.track||c.track.report===false||TRKS[cid])return;TRKS[cid]=setTimeout(()=>{TRKS[cid]=0;syncNow(cid)},60000)}
+function tabTrack(c,rows){
+  if(A.view==='create')return '<div class="panel empty">캠페인을 만든 뒤 링크를 만들 수 있습니다.</div>';
+  const T=trkDraft(c),d=T.d,ed=canEdit(),BR=d.mode!=='direct',dis=ed?'':'disabled',busy=A.trkBusy;
+  const codes=(c.track&&c.track.codes)||{};const made=Object.keys(codes).length;
+  const live=rows.filter(r=>r.name&&r.stage!==DROP);const need=live.filter(r=>!codes[r.id]).length;
+  const K=trkAgg(c,rows,true,true);const inp=(k,v,ph)=>`<input type="text" data-trk="${k}" value="${esc(v||'')}" placeholder="${esc(ph||'')}" ${dis}>`;
+  const flow=`<div class="trk-flow">${['광고주 링크 등록','인플루언서별 링크 생성','인플루언서에게 전달','방문·버튼 클릭 자동 집계','광고주 리포트 반영'].map((s,i)=>`<span><b>${i+1}</b>${s}</span>`).join('<i>›</i>')}</div>`;
+  const btnEd=(d.page.btns||[]).map((b,i)=>`<div class="trk-b"><div class="trk-bh"><span class="trk-n">${i+1}</span><input type="text" data-trkb="${b.id}" data-f="label" value="${esc(b.label||'')}" placeholder="버튼 문구 (예: 이벤트 참여하기)" ${dis}><select data-trkb="${b.id}" data-f="kind" ${dis}>${TRK_KIND.map(([k,l])=>`<option value="${k}" ${(b.kind||'web')===k?'selected':''}>${l}</option>`).join('')}</select>${ed?`<button class="btn sm ghost" data-act="trkUpBtn" data-id="${b.id}" ${i?'':'disabled'} title="위로 올리기" aria-label="위로">↑</button><button class="btn sm ghost" data-act="trkDelBtn" data-id="${b.id}" title="버튼 삭제" aria-label="삭제">✕</button>`:''}</div>
+    ${b.kind==='app'?`<input type="text" data-trkb="${b.id}" data-f="url" value="${esc(b.url||'')}" placeholder="앱 원링크 (AppsFlyer·Adjust·Airbridge 등 — 기기별 자동 이동)" ${dis}><div class="trk-2"><input type="text" data-trkb="${b.id}" data-f="ios" value="${esc(b.ios||'')}" placeholder="iOS 앱스토어 주소 (선택)" ${dis}><input type="text" data-trkb="${b.id}" data-f="aos" value="${esc(b.aos||'')}" placeholder="Google Play 주소 (선택)" ${dis}></div>`
+      :`<input type="text" data-trkb="${b.id}" data-f="url" value="${esc(b.url||'')}" placeholder="https:// 이동할 페이지 주소" ${dis}>`}</div>`).join('');
+  const cfgP=`<section class="panel"><div class="panel-h"><div><h2>링크 방식 · 브릿지 페이지</h2><div class="sub">인플루언서 전용 링크를 눌렀을 때 보여줄 화면과 이동할 주소를 정합니다. 모든 인플루언서 링크에 같은 화면이 쓰입니다.</div></div>${T.dirty?'<span class="pill warn">저장 안 됨</span>':''}</div>
+   <div class="chips">${[['bridge','브릿지 페이지 · 버튼 여러 개'],['direct','바로 이동 · 원링크/웹 주소 1개']].map(([k,l])=>`<span class="chip ${(BR?'bridge':'direct')===k?'on':''}" ${ed?`data-act="trkMode" data-k="${k}"`:''}>${l}</span>`).join('')}</div>
+   <p class="small muted" style="margin:8px 0 0">${BR?'브릿지 페이지에서는 어떤 버튼(홈페이지·이벤트·상품·앱 다운로드)을 눌렀는지까지 집계됩니다. 이후 전환 확인은 아래 파라미터로 광고주 분석 도구에 넘깁니다.':'중간 화면 없이 곧바로 이동하고, 어떤 인플루언서 링크로 몇 번 눌렸는지만 집계됩니다.'}</p>
+   <div class="trk-grid"><div class="trk-f">
+    ${BR?`<label class="fl">페이지 제목${inp('page.title',d.page.title,'예: 스킨에고 10월 신제품 이벤트')}</label>
+     <label class="fl">설명 (선택)<textarea data-trk="page.sub" rows="2" placeholder="예: 인플루언서 전용 혜택 — 지금 참여하면 샘플 키트 증정" ${dis}>${esc(d.page.sub||'')}</textarea></label>
+     <label class="fl">대표 이미지 주소 (선택)${inp('page.img',d.page.img,'https:// 배너·상품 이미지 주소')}</label>
+     <div class="fl">버튼 색<div class="row"><input type="color" data-trk="page.color" value="${esc(/^#[0-9a-f]{6}$/i.test(d.page.color||'')?d.page.color:'#2347D4')}" style="width:44px;height:32px;padding:2px" ${dis}><span class="small muted">로고는 성과 리포트 → 리포트 테마의 광고주 로고를 씁니다</span></div></div>
+     <div class="fl">버튼 (${(d.page.btns||[]).length}/${TRK_MAXB})</div>${btnEd}
+     ${ed&&(d.page.btns||[]).length<TRK_MAXB?`<div class="chips">${TRK_PRESETS.map(l=>`<span class="chip" data-act="trkAddBtn" data-l="${esc(l)}">+ ${esc(l)}</span>`).join('')}<span class="chip" data-act="trkAddBtn" data-l="">+ 빈 버튼</span></div>`:''}`
+    :`<label class="fl">이동할 주소${inp('dest',d.dest,'https:// 앱 원링크 또는 웹 페이지 주소')}</label>`}
+    <div class="trk-b"><label class="toggle" style="margin:0;padding:0;border:0"><input type="checkbox" data-trk="utm" ${d.utm!==false?'checked':''} ${dis}><div><b>광고주 분석 도구용 구분값 자동 추가</b><span>이동 주소 뒤에 인플루언서 구분값을 붙여, 광고주 GA4·MMP(앱 설치 측정 도구)에서 인플루언서별 가입·구매·설치를 나눠 볼 수 있게 합니다. Google Play 주소는 설치 리퍼러로 전달됩니다.</span></div></label>
+     ${d.utm!==false?`${inp('params',d.params,TRK_PARAM0)}${ed?`<div class="chips"><span class="chip" data-act="trkParam" data-k="utm">UTM 기본값</span><span class="chip" data-act="trkParam" data-k="af">+ AppsFlyer (af_sub1)</span><span class="chip" data-act="trkParam" data-k="adj">+ Adjust (label)</span></div>`:''}<span class="small muted">{code} 인플루언서 링크 코드 · {name} 인플루언서 계정 · {campaign} 캠페인명</span>`:''}</div>
+    ${ed?`<div class="row"><button class="btn ${T.dirty||!c.track?'primary':''}" data-act="trkSave" ${busy?'disabled':''}>${busy==='push'?'반영 중…':made?'저장하고 모든 링크에 반영':'저장'}</button>${T.dirty?'<button class="btn ghost" data-act="trkUndo">변경 취소</button>':''}${made?`<span class="small muted">이미 나간 링크 ${made}개는 주소 그대로, 화면·이동 주소만 바뀝니다.</span>`:''}</div>`:''}
+   </div><div class="trk-pv"><div class="small muted bold">미리보기</div>${trkPhone(d,c)}</div></div></section>`;
+  const KR=K?Object.fromEntries(K.rows.map(r=>[r.rid,r])):{};
+  const lrows=rows.filter(r=>r.name&&(r.stage!==DROP||codes[r.id])).map(r=>KR[r.id]||{rid:r.id,name:r.name,group:groupName(c,r.group)||'',v:null,u:null,clk:null,b:null,ctr:null}).sort((a,b)=>(b.clk||0)-(a.clk||0)||(b.v||0)-(a.v||0));
+  const lcell=r=>{const code=codes[r.rid];return code?`<div class="trk-lk"><span class="trk-code">${esc(trkUrl(code).replace(/^https?:\/\//,''))}</span><button class="btn sm" data-act="trkCopy" data-code="${code}">복사</button><a class="btn sm ghost" href="${esc(trkPrev(code))}" target="_blank" rel="noopener" title="미리보기로 열면 집계되지 않습니다">열기 ↗</a></div>`:'<span class="small muted">미생성</span>'};
+  const KS=K||{mode:(c.track&&c.track.mode)==='direct'?'direct':'bridge',btns:trkBtns(trkCfg(c)).map(b=>({id:b.id,label:b.label,kind:b.kind})),rows:[]};
+  const linkP=`<section class="panel"><div class="panel-h"><div><h2>인플루언서별 전용 링크</h2><div class="sub">진행관리에 등록된 인플루언서마다 짧은 전용 링크를 만듭니다. 인플루언서는 이 링크를 프로필·스토리 링크 스티커·고정 댓글에 넣으면 됩니다.</div></div>
+    <div class="row">${made?'<button class="btn sm" data-act="trkCopyAll" title="엑셀·메신저에 붙여넣기 좋게 「이름 탭 링크」로 복사">이름+링크 전체 복사</button>':''}${ed?`<button class="btn ${need?'primary':''}" data-act="trkGen" ${busy||!need?'disabled':''}>${busy==='gen'?'만드는 중…':need?`인플루언서별 링크 생성 (${need}명)`:'모두 생성됨'}</button>`:''}</div></div>
+    ${lrows.length?trkTable(KS,x=>x,{links:lcell,rows:lrows}):'<div class="empty">진행관리에 인플루언서를 먼저 추가하세요.</div>'}
+    ${made?'<p class="small muted" style="margin:8px 0 0">같은 브라우저에서 다시 들어오면 방문 수만 늘고 고유 방문자는 늘지 않습니다. 「열기」는 미리보기로 열려 집계되지 않습니다. 카카오톡·인스타그램 미리보기 수집은 방문으로 세지 않습니다.</p>':''}</section>`;
+  const sumP=K?`<section class="panel"><div class="panel-h"><div><h2>링크 성과</h2><div class="sub">실시간 집계 · 광고주 공유가 켜져 있으면 이 화면을 연 동안 1분마다 광고주 리포트에도 반영됩니다</div></div>
+    <div class="row">${ed?`<button class="btn sm" data-act="trkToClicks" title="인플루언서별 ${K.mode==='bridge'?'버튼 클릭':'링크 클릭'} 수를 진행관리 「클릭」 칸에 채웁니다 (CTR·CPC 계산에 사용)">${A.confirm==='trkClicks'?'한 번 더 누르면 덮어쓰기':'클릭 수를 성과 지표에 반영'}</button><button class="btn sm ${c.track.report!==false?'':'primary'}" data-act="trkReport">${c.track.report!==false?'광고주 리포트에 포함 중 · 빼기':'광고주 리포트에 넣기'}</button>`:''}</div></div>${trkSummary(K,x=>x)}</section>`:'';
+  return `<div class="stack">${flow}${made?sumP+linkP+cfgP:cfgP+linkP}</div>`;
 }
 
 /* ============ 광고주 화면 ============ */
@@ -2535,11 +2709,32 @@ const ACT={
     try{await DB.set('admins/'+e,{addedAt:new Date().toISOString(),addedBy:A.user.email,role,acct:TEAM});toast(`${e} 을(를) ${ROLES[role]}(으)로 추가했습니다.`)}catch(er){saveErr(er)}},
   async delAdmin(a){const e=a.dataset.e;if(!isMaster())return toast('팀원 삭제는 마스터만 할 수 있습니다.','crit');if(e===A.user.email)return toast('나 자신은 삭제할 수 없습니다.','crit');if(A.confirm!=='da'+e){A.confirm='da'+e;render();return}A.confirm=null;try{await DB.del('admins/'+e);toast('삭제했습니다.')}catch(er){saveErr(er)}},
 };
+/* 링크 트래킹 버튼·입력 */
+Object.assign(ACT,{
+  trkMode(a){const T=trkDraft(curC());T.d.mode=a.dataset.k==='direct'?'direct':'bridge';T.dirty=true;render()},
+  trkAddBtn(a){const T=trkDraft(curC());const bs=T.d.page.btns=T.d.page.btns||[];if(bs.length>=TRK_MAXB)return toast(`버튼은 ${TRK_MAXB}개까지 만들 수 있습니다.`,'crit');const l=a.dataset.l||'';bs.push({id:trkId(),label:l,kind:/앱/.test(l)?'app':'web',url:'',ios:'',aos:''});T.dirty=true;render()},
+  trkDelBtn(a){const T=trkDraft(curC());T.d.page.btns=(T.d.page.btns||[]).filter(b=>b.id!==a.dataset.id);T.dirty=true;render()},
+  trkUpBtn(a){const T=trkDraft(curC());const bs=T.d.page.btns||[];const i=bs.findIndex(b=>b.id===a.dataset.id);if(i>0){[bs[i-1],bs[i]]=[bs[i],bs[i-1]];T.dirty=true;render()}},
+  trkParam(a){const T=trkDraft(curC());const k=a.dataset.k;let p=String(T.d.params||'').trim();if(k==='utm')p=TRK_PARAM0;else{const add=k==='af'?'af_sub1={code}':'label={code}';if(!p.includes(add))p=(p?p+'&':'')+add}T.d.params=p;T.d.utm=true;T.dirty=true;render()},
+  trkUndo(){A.trk=null;render()},
+  trkSave(){if(!A.trkBusy)trkSaveCfg(false)},
+  trkGen(){trkGenerate()},
+  trkCopy(a){copyText(trkUrl(a.dataset.code))},
+  trkCopyAll(){const c=curC();const codes=(c.track&&c.track.codes)||{};const L=curRows().filter(r=>r.name&&codes[r.id]).map(r=>`${r.name}${r.acct?' ('+r.acct+')':''}\t${trkUrl(codes[r.id])}`);if(!L.length)return toast('만든 링크가 없습니다.','crit');copyText(L.join('\n'))},
+  trkReport(){const c=curC();const on=!(c.track&&c.track.report===false);patchC('track.report',!on);toast(on?'광고주 리포트에서 링크 성과를 뺐습니다.':'광고주 리포트에 링크 성과를 넣었습니다.')},
+  trkToClicks(){if(A.confirm!=='trkClicks'){A.confirm='trkClicks';render();toast('한 번 더 누르면 진행관리 「클릭」 칸을 링크 집계로 덮어씁니다.');return}A.confirm=null;
+    const c=curC();const K=trkAgg(c,curRows(),true,true);if(!K)return;const up={};K.rows.forEach(r=>{up[`rows.${r.rid}.clicks`]=r.clk});
+    const M=settings(c).M;DB.update('rows/'+A.cid,up).then(()=>{scheduleSync(A.cid);toast(`${K.rows.length}명의 클릭 수를 반영했습니다.`+(M.clicks?'':' 캠페인 설정에서 「클릭」 지표를 켜면 리포트에 보입니다.'))}).catch(saveErr);render()}
+});
+document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||(!t.dataset.trk&&!t.dataset.trkb))return;if(!canEdit())return;const c=curC();if(!c)return;const T=trkDraft(c);
+  if(t.dataset.trk){setPath(T.d,t.dataset.trk,t.type==='checkbox'?t.checked:t.value)}
+  else{const b=(T.d.page.btns||[]).find(x=>x.id===t.dataset.trkb);if(b)b[t.dataset.f]=t.value}
+  T.dirty=true;render()});
 document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a)return;if(a.disabled)return;const k=a.dataset.act;if(!ACT[k])return;
   if(A.view!=='share'&&A.user&&!canEdit()&&WRITE_ACTS.has(k)){toast('보기 전용(뷰어) 권한이라 수정할 수 없습니다.','crit');return}
   if(!['delCampaign','delRow','bulkDel','shareRegen','delAdmin','demoReset','poolDel','poolResync','delGroup','delYtKey','logoReset','delAcct','delMember','updDel','updBulk'].includes(k))A.confirm=null;
   if(a.tagName!=='INPUT')e.preventDefault();ACT[k](a,e)});
-document.addEventListener('change',e=>{if(A.view==='share'||!A.user||canEdit())return;const d=(e.target&&e.target.dataset)||{};if(d.row||d.cf||d.cb||d.gf||d.sh||d.shm||d.pf||d.rename||d.upload||d.roleE||d.thumb||d.advlogo!==undefined){e.stopImmediatePropagation();toast('보기 전용(뷰어) 권한이라 수정할 수 없습니다.','crit');render()}},true);
+document.addEventListener('change',e=>{if(A.view==='share'||!A.user||canEdit())return;const d=(e.target&&e.target.dataset)||{};if(d.trk||d.trkb||d.row||d.cf||d.cb||d.gf||d.sh||d.shm||d.pf||d.rename||d.upload||d.roleE||d.thumb||d.advlogo!==undefined){e.stopImmediatePropagation();toast('보기 전용(뷰어) 권한이라 수정할 수 없습니다.','crit');render()}},true);
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.roleE)return;const em=t.dataset.roleE,v=t.value;
   if(!isMaster()){toast('권한 변경은 마스터만 할 수 있습니다.','crit');render();return}if(em===A.user.email){toast('내 권한은 바꿀 수 없습니다.','crit');render();return}
   {const ext=((A.admins[em]||{}).acct||TEAM)!==TEAM;if(ext!==EXT_ROLES.includes(v)){toast('팀원과 광고주 계정 권한은 서로 바꿀 수 없습니다.','crit');render();return}}

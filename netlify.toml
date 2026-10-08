@@ -14,3 +14,14 @@
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+# 인플루언서 전용 단축 링크: ad.ringcoms.com/l/{코드} → 브릿지 페이지 (주소는 그대로 유지)
+[[redirects]]
+  from = "/l/*"
+  to = "/l.html"
+  status = 200
+
+[[headers]]
+  for = "/l.html"
+  [headers.values]
+    Cache-Control = "public, max-age=300"

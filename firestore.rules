@@ -119,6 +119,24 @@ service cloud.firestore {
       allow read: if isTeam() || isClientAdmin();
       allow write: if isMaster();
     }
+    // 인플루언서 전용 링크 설정: 브릿지 페이지가 로그인 없이 한 건씩 읽기, 목록은 팀원, 수정은 마스터·매니저(광고주 관리자는 자기 캠페인)
+    match /links/{code} {
+      allow get: if true;
+      allow list: if isTeam();
+      allow create, update: if canEdit() || ownsCamp(request.resource.data.cid);
+      allow delete: if canEdit() || ownsCamp(resource.data.cid);
+    }
+    // 링크 집계: 팀원 읽기 / 방문자(로그인 없음)는 n +1, u 0~+1, last(서버 시각)만 바꿀 수 있음 — 숫자 임의 수정·삭제 불가
+    match /linkstat/{id} {
+      allow get, list: if isTeam() || ownsCamp(resource.data.cid);
+      allow create: if (canEdit() || ownsCamp(request.resource.data.cid))
+        && request.resource.data.n == 0 && request.resource.data.u == 0;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['n', 'u', 'last'])
+        && request.resource.data.n == resource.data.n + 1
+        && (request.resource.data.u == resource.data.u || request.resource.data.u == resource.data.u + 1)
+        && request.resource.data.last is timestamp;
+      allow delete: if canEdit();
+    }
     // 프로필 이미지 등 공개 정보: 누구나 한 건씩 읽기, 마스터·매니저만 수정
     match /public/{id} {
       allow get: if true;
