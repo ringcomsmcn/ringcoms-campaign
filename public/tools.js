@@ -124,7 +124,7 @@ function newGuide(c){const d=today();return {title:c?(c.brand||c.advertiser||'')
   words:[{no:'치료돼요 / 완치돼요',yes:'관리에 도움이 돼요'},{no:'무조건 / 100% 효과',yes:'제가 써 보니 ~했어요'},{no:'(다른 브랜드)보다 훨씬 나아요',yes:'제가 써 본 것 중에 ~가 좋았어요'}],
   cuts:gCuts(),shoot:[...G_SHOOT],upload:[...G_UPLOAD],submit:{draftDue:'',uploadDue:'',how:[...G_SUBMIT],form:'',extra:''},createdAt:d,updatedAt:T_NOW(),by:A.user?A.user.email:''}}
 function ensureToolWatch(){if(ensureToolWatch.on||!isTeam())return;ensureToolWatch.on=true;
-  DB.watchCol('guides',m=>{A.guides=m;A.guidesLoaded=true;scheduleRender()},()=>{A.guidesLoaded=true;A.guidesErr=true;scheduleRender()});
+  DB.watchCol('guides',m=>{A.guides=m;A.guidesLoaded=true;gAiCheck();scheduleRender()},()=>{A.guidesLoaded=true;A.guidesErr=true;scheduleRender()});
   DB.watchCol('reviews',m=>{A.reviews=m;A.reviewsLoaded=true;scheduleRender()},()=>{A.reviewsLoaded=true;A.reviewsErr=true;scheduleRender()});aiStatus()}
 function curG(){return A.gid&&A.guides?A.guides[A.gid]:null}
 function watchGimg(){if(A.gimgFor===A.gid)return;if(A.unsubGimg){A.unsubGimg();A.unsubGimg=null}A.gimgFor=A.gid;A.gimgs={};if(!A.gid)return;A.unsubGimg=DB.watchDoc('guideimg/'+A.gid,d=>{A.gimgs=(d&&d.imgs)||{};scheduleRender()},()=>{})}
@@ -161,7 +161,7 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
   const tl=(p,l,o={})=>{const v=getIn(g,p)||[];return `<label class="f ${o.wide!==false?'wide':''}">${l}<textarea id="${id(p)}" data-gl="${p}" rows="${o.rows||Math.max(3,v.length+1)}" placeholder="${esc(o.ph||'한 줄에 하나씩')}">${esc(v.join('\n'))}</textarea><span class="hint">${o.hint||'한 줄에 하나씩 적어 주세요.'}</span></label>`};
   const sel=(p,l,opts)=>{const v=getIn(g,p);return `<label class="f">${l}<select id="${id(p)}" data-gv="${p}">${opts.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select></label>`};
   const camps=Object.entries(A.campaigns).sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
-  const P=g.product||{};const busy=A.gaiBusy;
+  const P=g.product||{};const busy=A.gaiBusy||gAiRunning(g);
   const sceneCard=(ci,si,s)=>{const b=`concepts.${ci}.scenes.${si}`;const im=A.gimgs[s.id];
     return `<div class="scene"><div class="scene-h"><b>#${si+1}</b><select id="${id(b+'.part')}" data-gv="${b}.part" style="width:auto">${G_PARTS.map(o=>`<option ${o===s.part?'selected':''}>${o}</option>`).join('')}</select><input type="text" id="${id(b+'.time')}" data-gv="${b}.time" value="${esc(s.time||'')}" placeholder="0~3초" style="width:90px"><span class="grow"></span>${ed?`<button class="btn sm ghost" data-act="sceneDel" data-c="${ci}" data-s="${si}" title="장면 삭제">${A.confirm==='sd'+s.id?'한 번 더 누르면 삭제':'✕'}</button>`:''}</div>
      <div class="scene-b"><div class="scene-img">${im?`<img src="${im}" alt="장면 ${si+1} 참고 이미지">`:'<span class="muted small">참고 이미지 없음</span>'}
@@ -179,7 +179,7 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
    <div class="fgrid">${tl('links','광고주 홈페이지 · 상품 링크',{rows:3,ph:'https://brand.com\nhttps://smartstore.naver.com/…',hint:'한 줄에 하나씩, 최대 3개. 네이버 스마트스토어처럼 내용을 읽기 어려운 페이지는 아래 칸에 상품 정보를 붙여넣어 주세요.'})}
    ${ta('memo','상품 정보 · 광고주 요청사항 붙여넣기 (선택)',{rows:4,ph:'상품 상세 문구, 광고주 브리프, 꼭 넣을 표현, 피해야 할 표현 등을 그대로 붙여넣어도 됩니다'})}
    <label class="f">컨셉 개수<select id="g-ain">${[1,2,3,4].map(x=>`<option ${x===(A.gain||2)?'selected':''}>${x}</option>`).join('')}</select></label></div>
-   <div class="row" style="margin-top:10px">${ed?`<button class="btn primary" data-act="guideAi" data-m="fill" ${busy?'disabled':''}>${busy?'AI가 가이드를 만드는 중… (20~60초)':'AI로 빈 칸 채우기'}</button><button class="btn" data-act="guideAi" data-m="replace" ${busy?'disabled':''}>AI로 새로 만들기 (내용 덮어쓰기)</button>`:''}<span class="small muted">결과는 초안입니다. 광고주 확인이 필요한 수치·효능 표현은 꼭 검토하세요.</span></div></section>
+   <div class="row" style="margin-top:10px">${ed?`<button class="btn primary" data-act="guideAi" data-m="fill" ${busy?'disabled':''}>${busy||gAiRunning(g)?'AI가 가이드를 만드는 중… (30초~2분)':'AI로 빈 칸 채우기'}</button><button class="btn" data-act="guideAi" data-m="replace" ${busy?'disabled':''}>AI로 새로 만들기 (내용 덮어쓰기)</button>`:''}<span class="small muted">결과는 초안입니다. 광고주 확인이 필요한 수치·효능 표현은 꼭 검토하세요.</span></div></section>
 
   <section class="panel"><div class="panel-h"><h2>② 기본 정보</h2></div><div class="fgrid">
    ${tx('title','가이드 제목')}${tx('advertiser','광고주')}${tx('brand','브랜드')}
@@ -246,15 +246,20 @@ Object.assign(ACT,{
   async canvaGo(a){const g=curG();const s=g.concepts[+a.dataset.c].scenes[+a.dataset.s];const pr=s.prompt||[s.shot,s.point].filter(Boolean).join(' / ')||'제품을 들고 있는 인플루언서, 밝은 실내, 9:16 세로 구도';
     const text=`${pr}\n(세로 9:16, 실사 사진 느낌, ${g.brand||''} ${(g.product||{}).name||''} 제품 촬영 참고용 장면)`;await copyText(text);window.open('https://www.canva.com/','_blank','noopener');toast('이미지 프롬프트를 복사했습니다. Canva에서 AI 이미지(Magic Media)로 만든 뒤 다운로드해 「이미지 넣기」로 올려 주세요.')},
   gotoReview(){A.rvGid=A.gid;A.view='review';A.rvOpen='';render();window.scrollTo(0,0)},
-  async guideAi(a){const g=curG();if(!g||A.gaiBusy)return;const mode=a.dataset.m;const links=(g.links||[]).slice(0,3);if(!links.length&&!String(g.memo||'').trim())return toast('광고주 링크나 상품 정보를 먼저 넣어 주세요.','crit');
-    const cn=+(($('#g-ain')||{}).value||2);A.gain=cn;A.gaiBusy=true;render();
-    try{const base={advertiser:g.advertiser,brand:g.brand,platform:g.platform,length:g.length,conceptN:cn,productName:(g.product||{}).name||''};
-      const j=DB.mode==='demo'?await new Promise(r=>setTimeout(()=>r({guide:mockGuide(base),pages:links.map(u=>({url:u,ok:true}))}),900)):await aiFetch('/api/ai',{action:'guide',links,memo:g.memo||'',base});
-      const out=mergeGuide(g,j.guide||{},mode);const tops=['title','advertiser','brand','summary','product','concepts','text','words','shoot','cuts','upload'];
-      await DB.update('guides/'+A.gid,{...Object.fromEntries(tops.map(k=>[k,clone(out[k])])),updatedAt:T_NOW(),by:A.user.email});A.guides[A.gid]=out;
-      const bad=(j.pages||[]).filter(p=>!p.ok);toast(`AI가 가이드를 ${mode==='replace'?'새로 만들었습니다':'채웠습니다'}.${bad.length?` 읽지 못한 링크 ${bad.length}개는 상품 정보를 붙여넣어 주세요.`:''} 내용을 꼭 검토하세요.`)}
-    catch(e){toast('AI 가이드를 만들지 못했습니다: '+(e.message||e),'crit')}finally{A.gaiBusy=false;render()}}
+  async guideAi(a){const g=curG();if(!g||A.gaiBusy||gAiRunning(g))return;const mode=a.dataset.m;const links=(g.links||[]).slice(0,3);if(!links.length&&!String(g.memo||'').trim())return toast('광고주 링크나 상품 정보를 먼저 넣어 주세요.','crit');
+    const cn=+(($('#g-ain')||{}).value||2);A.gain=cn;const base={advertiser:g.advertiser,brand:g.brand,platform:g.platform,length:g.length,conceptN:cn,productName:(g.product||{}).name||''};
+    if(DB.mode==='demo'){A.gaiBusy=true;render();await new Promise(r=>setTimeout(r,900));await gAiApply(A.gid,g,{guide:mockGuide(base),pages:links.map(u=>({url:u,ok:true}))},mode);A.gaiBusy=false;render();return}
+    const job=uid();A.gaiBusy=true;render();
+    try{await DB.update('guides/'+A.gid,{aiStatus:'진행 중',aiJob:job,aiMode:mode,aiAt:T_NOW(),aiError:DB.DEL,aiResult:DB.DEL});await aiFetch('/api/guide',{gid:A.gid,job,links,memo:g.memo||'',base});toast('AI가 가이드를 만드는 중입니다. 30초~2분 걸리고, 끝나면 자동으로 채워집니다.')}
+    catch(e){DB.update('guides/'+A.gid,{aiStatus:'실패',aiError:String(e.message||e)}).catch(()=>{});toast('AI 가이드를 시작하지 못했습니다: '+(e.message||e),'crit')}finally{A.gaiBusy=false;render()}}
 });
+function gAiRunning(g){return g&&g.aiStatus==='진행 중'&&g.aiAt&&(Date.now()-new Date(g.aiAt).getTime()<6*60*1000)}
+async function gAiApply(gid,g,j,mode){const out=mergeGuide(g,j.guide||{},mode);const tops=['title','advertiser','brand','summary','product','concepts','text','words','shoot','cuts','upload'];
+  await DB.update('guides/'+gid,{...Object.fromEntries(tops.map(k=>[k,clone(out[k])])),aiStatus:'적용됨',aiResult:DB.DEL,updatedAt:T_NOW(),by:A.user.email});if(A.guides)A.guides[gid]={...out,aiStatus:'적용됨'};
+  const bad=(j.pages||[]).filter(p=>!p.ok);toast(`AI가 가이드를 ${mode==='replace'?'새로 만들었습니다':'채웠습니다'}.${bad.length?` 읽지 못한 링크 ${bad.length}개는 상품 정보를 붙여넣어 주세요.`:''} 내용을 꼭 검토하세요.`)}
+/* 백그라운드 AI 결과가 들어오면, 편집 권한이 있는 사람이 열어 둔 화면에서 한 번만 적용 */
+function gAiCheck(){if(!canEdit()||!A.guides)return;Object.entries(A.guides).forEach(([gid,g])=>{if(g.aiStatus==='완료'&&g.aiResult&&!(gAiCheck.done||(gAiCheck.done=new Set())).has(g.aiJob)){gAiCheck.done.add(g.aiJob);let j=null;try{j=JSON.parse(g.aiResult)}catch(e){}
+    if(j)gAiApply(gid,g,j,g.aiMode||'fill').then(()=>scheduleRender()).catch(e=>saveErr(e))}else if(g.aiStatus==='실패'&&g.aiJob&&!(gAiCheck.done||(gAiCheck.done=new Set())).has('f'+g.aiJob)&&gid===A.gid&&Date.now()-new Date(g.aiAt||0).getTime()<10*60*1000){gAiCheck.done.add('f'+g.aiJob);toast('AI 가이드를 만들지 못했습니다: '+(g.aiError||''),'crit')}})}
 const isEmptyV=v=>v==null||v===''||(Array.isArray(v)&&!v.filter(x=>isObj(x)?Object.values(x).some(Boolean):Boolean(x)).length);
 function conceptsEmpty(cs){return !(cs||[]).some(c=>c.name||c.hook||(c.scenes||[]).some(s=>s.shot||s.say||s.sub||s.point))}
 function normConcepts(cs){return (cs||[]).slice(0,4).map(c=>({id:tid('c'),name:String(c.name||''),hook:String(c.hook||''),scenes:(c.scenes||[]).slice(0,8).map(s=>({id:tid('s'),part:G_PARTS.includes(s.part)?s.part:'바디',time:String(s.time||''),shot:String(s.shot||''),say:String(s.say||''),sub:String(s.sub||''),point:String(s.point||''),ref:String(s.ref||''),prompt:String(s.prompt||'')}))}))}

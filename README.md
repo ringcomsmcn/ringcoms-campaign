@@ -11,7 +11,9 @@
 | `netlify/functions/ops.mjs` | 업데이트 제안 읽기·승인 서버 함수 (`/api/ops`, GitHub `ops` 브랜치의 `ops/suggestions.json`) |
 | `public/tools.js` | 도구 화면: 콘텐츠 가이드 · 영상 검수 · AI 영상 제작(틀), 캠페인 만들기 4단계, 상단 계정 선택, 풀 선택 삭제 |
 | `public/img/ringcoms-wide.png` | 가로형 RINGCOMS 로고 (흰색, 가이드 PPT·PDF 우상단 · 광고주 색으로 자동 변환) |
-| `netlify/functions/ai.mjs` | 콘텐츠 가이드 AI (`/api/ai`): 광고주 링크 읽기 → Gemini로 표준 가이드 초안 |
+| `netlify/functions/ai.mjs` | AI 연결 상태 확인 (`/api/ai`) |
+| `netlify/functions/guide.mjs` | 콘텐츠 가이드 AI 백그라운드 함수 (`/api/guide`): 광고주 링크 읽기 → Gemini 표준 가이드 초안 → `guides/{id}.aiResult` → 화면이 자동 적용 |
+| `netlify/lib/guide.mjs` | 광고주 페이지 읽기·가이드 프롬프트 공용 모듈 |
 | `netlify/functions/review.mjs` | 영상 검수 백그라운드 함수 (`/api/review`, 최대 15분): 영상 → Gemini → `reviews/{id}`에 결과 |
 | `netlify/lib/gemini.mjs` | Gemini 호출·파일 업로드·팀원 확인 공용 모듈 (함수 폴더 밖이라 단독 배포 안 됨) |
 | `public/changelog.json` | 업데이트 이력 (버전별 변경 사항) — 배포할 때마다 맨 앞에 추가 |
