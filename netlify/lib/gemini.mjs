@@ -5,6 +5,7 @@
 export const PROJECT = process.env.FIREBASE_PROJECT_ID || 'ringcoms-campaign';
 export const GKEY = process.env.GEMINI_API_KEY || '';
 const API = 'https://generativelanguage.googleapis.com';
+const MAX_UPLOAD = 1024 * 1024 * 1024;
 export const MODELS = [...new Set([process.env.GEMINI_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest'].filter(Boolean))];
 export const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 
@@ -80,18 +81,43 @@ export async function gemini(parts, { temperature = 0.4, maxTokens = 8192, timeo
   throw last || new Error('사용 가능한 Gemini 모델이 없습니다.');
 }
 
-/* Files API: 영상 올리기 → ACTIVE까지 기다림 */
-export async function uploadFile(buf, mime, name) {
+/* Files API: 영상 올리기 → ACTIVE까지 기다림
+   src: Buffer 또는 웹 스트림(ReadableStream). 스트림은 8MB씩 나눠 올려 메모리를 거의 쓰지 않음 */
+const CHUNK = 8 * 1024 * 1024; // 256KB의 배수
+export async function uploadFile(src, mime, name, size = 0) {
+  const isBuf = Buffer.isBuffer(src);
+  const total = isBuf ? src.length : (+size || 0);
   const st = await fetch(`${API}/upload/v1beta/files`, {
     method: 'POST',
-    headers: { 'x-goog-api-key': GKEY, 'X-Goog-Upload-Protocol': 'resumable', 'X-Goog-Upload-Command': 'start', 'X-Goog-Upload-Header-Content-Length': String(buf.length), 'X-Goog-Upload-Header-Content-Type': mime, 'content-type': 'application/json' },
+    headers: { 'x-goog-api-key': GKEY, 'X-Goog-Upload-Protocol': 'resumable', 'X-Goog-Upload-Command': 'start', ...(total ? { 'X-Goog-Upload-Header-Content-Length': String(total) } : {}), 'X-Goog-Upload-Header-Content-Type': mime, 'content-type': 'application/json' },
     body: JSON.stringify({ file: { display_name: name || 'review-video' } })
   });
   const url = st.headers.get('x-goog-upload-url');
   if (!st.ok || !url) throw new Error('영상을 AI에 올리지 못했습니다 (' + st.status + ').');
-  const up = await fetch(url, { method: 'POST', headers: { 'Content-Length': String(buf.length), 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' }, body: buf });
-  const uj = await up.json().catch(() => ({}));
-  const f = uj.file || {};
+  const send = async (chunk, offset, last) => {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Length': String(chunk.length), 'X-Goog-Upload-Offset': String(offset), 'X-Goog-Upload-Command': last ? 'upload, finalize' : 'upload' }, body: chunk });
+    if (!r.ok) throw new Error('영상을 AI에 올리지 못했습니다 (' + r.status + ').');
+    return last ? r.json().catch(() => ({})) : null;
+  };
+  let uj = {};
+  if (isBuf) uj = await send(src, 0, true);
+  else {
+    const reader = src.getReader(); let parts = [], have = 0, offset = 0, done = false;
+    while (!done) {
+      const x = await reader.read(); done = x.done;
+      if (x.value) { parts.push(Buffer.from(x.value)); have += x.value.length; }
+      if (offset + have > MAX_UPLOAD) { try { reader.cancel(); } catch (e) {} throw new Error('영상이 너무 큽니다 (1GB 이하만 가능).'); }
+      while (have >= CHUNK && !(done && have === CHUNK)) {
+        const all = Buffer.concat(parts); const piece = all.subarray(0, CHUNK);
+        parts = [all.subarray(CHUNK)]; have = all.length - CHUNK;
+        await send(piece, offset, false); offset += CHUNK;
+      }
+    }
+    const rest = Buffer.concat(parts);
+    if (offset + rest.length < 20000) throw new Error('영상 파일이 아닙니다. 링크를 확인해 주세요.');
+    uj = await send(rest, offset, true);
+  }
+  const f = (uj && uj.file) || {};
   if (!f.name) throw new Error('영상을 AI에 올리지 못했습니다.');
   for (let i = 0; i < 60; i++) {
     const r = await fetch(`${API}/v1beta/${f.name}`, { headers: { 'x-goog-api-key': GKEY } });

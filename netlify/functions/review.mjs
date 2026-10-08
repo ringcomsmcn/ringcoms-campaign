@@ -9,24 +9,22 @@ import { gemini, uploadFile, deleteFile, checkEditor, fsPatch } from '../lib/gem
 const APIFY = 'https://api.apify.com/v2';
 const IG_ACTOR = process.env.APIFY_IG_ACTOR || 'apify~instagram-scraper';
 const TT_ACTOR = process.env.APIFY_TT_ACTOR || 'clockworks~tiktok-scraper';
-const MAX_BYTES = 300 * 1024 * 1024;
+const MAX_BYTES = 1024 * 1024 * 1024;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
 const ytId = u => (String(u).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{11})/) || [])[1] || '';
 const driveId = u => (String(u).match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:.*&)?id=)([A-Za-z0-9_-]{10,})/) || String(u).match(/[?&]id=([A-Za-z0-9_-]{10,})/) || [])[1] || '';
 
+/* 영상 주소 열기 → 스트림 그대로 넘김 (내려받은 영상을 메모리에 통째로 담지 않음) */
 async function download(url, headers = {}) {
   const r = await fetch(url, { redirect: 'follow', headers: { 'user-agent': UA, ...headers } });
   if (!r.ok) throw new Error('영상을 내려받지 못했습니다 (' + r.status + ').');
   const type = (r.headers.get('content-type') || '').split(';')[0].trim();
-  if (/text\/html/.test(type)) throw new Error('영상 대신 웹페이지가 열립니다. 구글 드라이브는 공유 설정을 「링크가 있는 모든 사용자」로 바꿔 주세요.');
+  if (/text\/html/.test(type)) { try { await r.body.cancel(); } catch (e) {} throw new Error('영상 대신 웹페이지가 열립니다. 구글 드라이브는 공유 설정을 「링크가 있는 모든 사용자」로 바꿔 주세요.'); }
   const len = +(r.headers.get('content-length') || 0);
-  if (len > MAX_BYTES) throw new Error('영상이 너무 큽니다 (300MB 이하만 가능).');
-  const buf = Buffer.from(await r.arrayBuffer());
-  if (buf.length > MAX_BYTES) throw new Error('영상이 너무 큽니다 (300MB 이하만 가능).');
-  if (buf.length < 20000) throw new Error('영상 파일이 아닙니다. 링크를 확인해 주세요.');
+  if (len > MAX_BYTES) { try { await r.body.cancel(); } catch (e) {} throw new Error('영상이 너무 큽니다 (1GB 이하만 가능).'); }
   const mime = /^video\//.test(type) ? type : 'video/mp4';
-  return { buf, mime };
+  return { stream: r.body, size: len, mime };
 }
 
 async function apifyItems(actor, input) {
@@ -59,7 +57,7 @@ async function videoPart(url) {
   } else {
     got = await download(url); kind = '영상 파일';
   }
-  const f = await uploadFile(got.buf, got.mime, 'ringcoms-review');
+  const f = await uploadFile(got.stream, got.mime, 'ringcoms-review', got.size);
   return { part: { fileData: { fileUri: f.uri, mimeType: f.mime } }, file: f.name, kind };
 }
 
