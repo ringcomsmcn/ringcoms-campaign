@@ -1,0 +1,12 @@
+:root{--kpi-radius:14px;--kpi-pad:14px 16px;--kpi-label:11.5px;--kpi-value:20px;--kpi-hero-value:28px;--kpi-bar:6px}
+.rp .tiles:not(:has(.hero)){gap:0;border:1px solid var(--line);border-radius:var(--kpi-radius);overflow:hidden;background:var(--surface)}
+.rp .tiles:not(:has(.hero))>.tile{border:0;border-radius:0;background:transparent;box-shadow:1px 0 0 var(--line),0 1px 0 var(--line);padding:var(--kpi-pad)}
+.rp .tile .l{font-size:var(--kpi-label);font-weight:600;letter-spacing:.01em;color:var(--muted)}
+.rp .tile .v{font-size:var(--kpi-value)}
+.rp .tile.hero{position:relative;border-color:var(--line);box-shadow:none;border-radius:var(--kpi-radius);padding:16px 16px 14px 20px}
+.rp .tile.hero::before{content:"";position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.rp .tile.hero .v{font-size:var(--kpi-hero-value);letter-spacing:-.03em}
+.rp .tile .tg{height:var(--kpi-bar);border-radius:99px;margin-top:10px}
+.rp .tile .tg i{border-radius:99px}
+.rp .tile .tg i.hit{background:var(--ok)}
+@media (max-width:720px){:root{--kpi-pad:11px 12px;--kpi-value:17px;--kpi-hero-value:22px}.rp .tile.hero{padding:12px 12px 12px 16px}.rp .tile.hero::before{top:12px;bottom:12px}}
