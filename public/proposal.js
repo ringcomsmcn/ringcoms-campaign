@@ -1,10 +1,11 @@
-/* RINGCOMS 캠페인 관리 · 제안 도구 — 광고 제안서 생성 (v0.16)
-   - 기초 정보(상품소개서 PDF·링크, 예산, 대행수수료, 집행 기간) → AI(Gemini)가 시장·컨셉·그룹별 가이드 문구 작성 (/api/proposal, 백그라운드)
-   - 숫자는 화면에서 계산: 예산 → 티어(메가·매크로·마이크로·나노) 인원·단가 자동 구성, 링컴즈 집행 실측(인플루언서 풀) 기반 예상 조회수·ER·CPV
-   - 섭외 후보: 인플루언서 풀에서 그룹 카테고리에 맞는 인플루언서 추천 → 선택
-   - 미리보기(브라우저) · PPT 본편(발표 노트 포함) · 7장 요약본 · PDF
-   저장 위치: guides/{id} (kind: 'proposal'), 이미지는 guideimg/{id} — 기존 보안 규칙 그대로 사용
-   index.html·tools.js의 전역(A, DB, ACT, render, esc, fmt, n, has, setIn, getIn, aiFetch, ringImg, ringLogo, HtmlDeck …)을 씁니다. */
+/* RINGCOMS 캠페인 관리 · 제안 도구 — 광고 제안서 생성 (v0.18)
+   - 새 제안서: 기초 정보 입력 → 「생성」을 눌러야 저장 (캠페인 만들기와 같은 방식)
+   - ① 기초 정보 (소개서 PDF·PPT, 예산·대행수수료·기간, 채널) → AI(Gemini): 시장 조사 + 소개서 이미지 분석(메인 컬러·로고 컬러·앱 화면·캐릭터 위치) + 제안서 문구
+   - ② 제안서 구성 수정: 장 묶음별 하위 탭 + 오른쪽에 그 장의 미리보기가 실시간으로 바뀜 (인플루언서 구성·예상 성과·섭외 후보 포함)
+   - ③ 미리보기 · 상단에서 PPT 본편(발표 노트) · 요약본 · PDF
+   - 장표 레이아웃은 ringcoms-influencer-proposal 스킬(build.js) 그대로 — proposal-deck.js (window.PPD)
+   - 대행수수료 = 예산 × 수수료율 (포함: 광고비 = 예산 − 수수료 / 별도: 광고비 = 예산), 티어 단가 × 인원 합계 = 광고비, 모든 금액 VAT 별도
+   저장: guides/{id} (kind: 'proposal') · 이미지 guideimg/{id}(직접 넣은 이미지) · __src(소개서에서 자른 이미지) · __pg(소개서 쪽) · __cut(컷 이미지) · __av(섭외 후보 프로필) */
 (function(){
 'use strict';
 const PT=['메가','매크로','마이크로','나노'];
@@ -16,8 +17,8 @@ const UNIT_R={메가:[8000000,15000000],매크로:[1500000,2500000],마이크로
 const BENCH0={name:'묵끄럽 마라곤약스낵 8월 시딩',views:{메가:70783,매크로:77525,마이크로:30289,나노:9000},er:{메가:0.0185,매크로:0.0162,마이크로:0.028,나노:0.028},cpv:{메가:152.6,매크로:10.8,마이크로:3.3,나노:3.3}};
 const OBJ=['브랜드 인지도 · 조회수','참여 · 확산','홈페이지 · 상세페이지 유입','앱 설치 · 회원가입','구매 전환'];
 const GKEYS=['A','B','C'];const GW={A:0.4,B:0.35,C:0.25};
-const SEQ=['cover','toc','market1','market2','direction','capability','umbrella','group:A','guide:A','group:B','guide:B','group:C','guide:C','features','categories','tiers','matrix','showcase','kpi','timeline','appx:0','appx:1','closing'];
-const SEQ_SUM=['cover','market1','umbrella','features','tiers','kpi','timeline','eod'];
+const SEQ=['cover','toc','market1','market2','direction','capability','umbrella','features','groupConcept:A','guide:A','groupConcept:B','guide:B','groupConcept:C','guide:C','categories','showcase','tiers','matrix','kpi','timeline','appendix:1','closing'];
+const SEQ_SUM=['cover','market1','umbrella','features','tiers','kpi','timeline','closing'];
 const won=v=>Math.round(+v||0).toLocaleString('ko-KR');
 const man=v=>{const x=Math.round((+v||0)/1e3)/10;return x.toLocaleString('ko-KR')+'만'};
 const cK=v=>v>=1e4?(Math.round(v/1e3)/10).toLocaleString('ko-KR')+'만':won(v);
@@ -25,31 +26,36 @@ const pc=(v,d=1)=>((+v||0)*100).toFixed(d)+'%';
 const N=v=>{const x=parseFloat(String(v??'').replace(/[^0-9.\-]/g,''));return isFinite(x)?x:0};
 const curP=()=>A.pid&&A.props?A.props[A.pid]:null;
 const lnz=s=>String(s||'').replace(/\r/g,'');
+const L_=a=>(Array.isArray(a)?a:[]).filter(Boolean);
 
 /* ============ 아이콘 · 메뉴 ============ */
 window.TOOL_IC=window.TOOL_IC||{};
 window.TOOL_IC.proposal='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M7 13l3-3 2.5 2.5L17 8M12 16.5V20M8.5 20h7"/></svg>';
-['ppDisc','ppNew','ppDel','ppDup','ppAi','ppAuto','ppTierAdd','ppPick','ppImgDel','ppPageUse','ppSrcClear','ppImgClip'].forEach(k=>WRITE_ACTS.add(k));
+['ppDisc','ppNew','ppCreate','ppDel','ppDup','ppAi','ppAuto','ppPick','ppImgDel','ppSrcClear','ppSlot','ppBg','ppCropSave','ppCropAdd','ppCropDel','ppCropEdit','ppThemeAuto','ppScreen','ppCanva'].forEach(k=>WRITE_ACTS.add(k));
 window.CONFIRM_ACTS=(window.CONFIRM_ACTS||[]).concat(['ppDel']);
 
-/* ============ 계산: 티어 구성 · 실측 기준 · 예상 성과 ============ */
-function fee0(I){return {rate:has(I.feeRate)?N(I.feeRate):20,mode:I.feeMode==='excl'?'excl':'incl'}}
-/* 집행 가능 광고비(대행수수료 제외) */
-function execMax(I){const B=N(I.budget);const f=fee0(I);return f.mode==='excl'?B:B/(1+f.rate/100)}
+/* ============ 계산: 예산 · 대행수수료 · 티어 · 예상 성과 ============ */
+function fee0(I){return {rate:has(I.feeRate)&&String(I.feeRate).trim()!==''?N(I.feeRate):20,mode:I.feeMode==='excl'?'excl':'incl'}}
+/* 대행수수료 = 예산 × 수수료율. 포함: 광고비 = 예산 − 수수료 (총 = 예산) / 별도: 광고비 = 예산 (총 = 예산 + 수수료) */
+function money(I){const B=N(I.budget),f=fee0(I);const fee=Math.round(B*f.rate/100);const ad=f.mode==='excl'?B:B-fee;return {B,fee,ad,total:ad+fee,rate:f.rate,mode:f.mode}}
 /* 예산 규모별 기본 인원 (총예산 기준 표: ~500만 / 1,000만 / 3,000만 / 5,000만+) */
 function baseCounts(B){const P=[[0,[0,0,4,6]],[5e6,[0,1,5,9]],[1e7,[0,2,8,15]],[3e7,[0,4,15,25]],[5e7,[1,6,20,30]]];
   if(B>=5e7){const k=B/5e7;return {메가:Math.max(1,Math.floor(k)),매크로:Math.round(6*k),마이크로:Math.round(20*k),나노:Math.round(30*k)}}
   let i=0;while(i<P.length-1&&B>P[i+1][0])i++;const [b0,c0]=P[i],[b1,c1]=P[Math.min(i+1,P.length-1)];const t=b1>b0?(B-b0)/(b1-b0):0;
   const c=c0.map((v,j)=>Math.round(v+(c1[j]-v)*t));return {메가:c[0],매크로:c[1],마이크로:c[2],나노:c[3]}}
-/* 예산 → 티어별 인원·단가 (단가는 1만 원 단위, 합계 = 광고비 ≤ 집행 가능액) */
-function autoMix(I){const X=execMax(I);if(!(X>0))return PT.map(t=>({tier:t,count:0,unit:UNIT0[t]}));
-  const c=baseCounts(N(I.budget));let R=PT.map(t=>({tier:t,count:c[t],unit:UNIT0[t]}));const sum=()=>R.reduce((a,r)=>a+r.count*r.unit,0);const get=t=>R.find(r=>r.tier===t);
+/* 남은 금액을 단가에 나눠 얹어 합계 = 광고비 정확히 (인원을 동전처럼 쓰는 동전 문제) */
+function exactFill(R,X){const sum=()=>R.reduce((a,r)=>a+r.count*r.unit,0);for(const step of [1e4,1e3,100]){let left=X-sum();if(left<=0)return;const n=Math.floor(left/step);if(!n)continue;if(n>40000)continue;
+    const coins=R.filter(r=>r.count>0);const dp=new Int16Array(n+1).fill(-1);dp[0]=99;for(let v=1;v<=n;v++){for(let i=0;i<coins.length;i++){const c=coins[i].count;if(c<=v&&dp[v-c]!==-1){dp[v]=i;break}}}
+    let v=n;while(v>0&&dp[v]===-1)v--;while(v>0){const i=dp[v];coins[i].unit+=step;v-=coins[i].count}}}
+/* 예산 → 티어별 인원·단가 (합계 = 광고비) */
+function autoMix(I){const X=money(I).ad;if(!(X>0))return PT.map(t=>({tier:t,count:0,unit:UNIT0[t]}));
+  const c=baseCounts(money(I).total);let R=PT.map(t=>({tier:t,count:c[t],unit:UNIT0[t]}));const sum=()=>R.reduce((a,r)=>a+r.count*r.unit,0);const get=t=>R.find(r=>r.tier===t);
   for(let it=0;it<60;it++){const s=sum();if(!s)break;const k=X/s;R.forEach(r=>{r.unit=Math.min(UNIT_R[r.tier][1],Math.max(UNIT_R[r.tier][0],Math.floor(r.unit*k/1e4)*1e4))});const s2=sum();
     if(s2>X){const o=['나노','마이크로','매크로','메가'].map(get).find(r=>r.count>(r.tier==='나노'?2:r.tier==='마이크로'?2:0));if(!o)break;o.count--;continue}
     if(s2<X*0.93&&R.filter(r=>r.count).every(r=>r.unit>=UNIT_R[r.tier][1])){const o=get(it%3===2?'마이크로':'나노');o.count++;continue}break}
   let left=X-sum();const order=['매크로','마이크로','나노','메가'];let guard=0;
   while(left>=1e4&&guard++<5000){let done=false;for(const t of order){const r=get(t);if(r.count&&r.unit+1e4<=UNIT_R[t][1]&&r.count*1e4<=left){r.unit+=1e4;left-=r.count*1e4;done=true;break}}if(!done)break}
-  return R}
+  exactFill(R,X);R.forEach(r=>{if(!r.count)r.unit=0});return R}
 function tierRows(P){const I=P.info||{};const L=(P.plan&&P.plan.tiers&&P.plan.tiers.length?P.plan.tiers:autoMix(I));return PT.map(t=>{const r=L.find(x=>x.tier===t)||{};return {tier:t,count:Math.max(0,Math.round(N(r.count))),unit:Math.max(0,N(r.unit))}})}
 /* 링컴즈 집행 실측: 인플루언서 풀의 캠페인 기록(조회·참여·비용)을 티어별로 모음 */
 function poolBench(cid){const acc={};PT.forEach(t=>acc[t]={n:0,views:0,eng:0,cost:0});const camps=new Set();
@@ -58,17 +64,22 @@ function poolBench(cid){const acc={};PT.forEach(t=>acc[t]={n:0,views:0,eng:0,cos
   const views={},er={},cpv={},src={};PT.forEach(t=>{const a=acc[t];const ok=a.n>=3&&a.views>0;views[t]=ok?a.views/a.n:BENCH0.views[t];er[t]=ok&&a.eng?a.eng/a.views:BENCH0.er[t];cpv[t]=ok&&a.cost?a.cost/a.views:BENCH0.cpv[t];src[t]=ok?`실측 ${a.n}개`:'기본값'});
   const tot=PT.reduce((o,t)=>{const a=acc[t];o.n+=a.n;o.views+=a.views;o.eng+=a.eng;o.cost+=a.cost;return o},{n:0,views:0,eng:0,cost:0});
   const real=PT.some(t=>src[t]!=='기본값');
-  const name=!real?BENCH0.name+' 실측':cid?((A.campaigns[cid]||{}).name||'선택 캠페인')+' 실측':`링컴즈 집행 캠페인 실측 (${camps.size}개 캠페인)`;
+  const name=!real?BENCH0.name:cid?((A.campaigns[cid]||{}).name||'선택 캠페인'):`링컴즈 집행 캠페인 ${camps.size}개`;
   return {views,er,cpv,src,acc,tot,real,name,camps:camps.size}}
 function benchCamps(){const s=new Map();Object.values(A.pool||{}).forEach(p=>Object.entries(p.campaigns||{}).forEach(([ek,e])=>{if(N(e.views)>0){const c=ek.split('__')[0];s.set(c,(s.get(c)||0)+1)}}));
   return [...s.entries()].filter(([c])=>A.campaigns[c]).sort((a,b)=>b[1]-a[1]).map(([c,k])=>[c,A.campaigns[c].name,k])}
-function ppCalc(P){const I=P.info||{},pl=P.plan||{};const R=tierRows(P);const bm=poolBench(pl.bench||'');const f=fee0(I);
-  const ad=R.reduce((a,r)=>a+r.count*r.unit,0);const fee=Math.round(ad*f.rate/100);const total=ad+fee;const people=R.reduce((a,r)=>a+r.count,0);
+function ppCalc(P){const I=P.info||{},pl=P.plan||{};const R=tierRows(P);const bm=poolBench(pl.bench||'');const mo=money(I);
+  const ad=R.reduce((a,r)=>a+r.count*r.unit,0);const fee=mo.fee;const total=ad+fee;const people=R.reduce((a,r)=>a+r.count,0);
   const views=R.reduce((a,r)=>a+r.count*bm.views[r.tier],0);const er=has(pl.er)&&N(pl.er)>0?N(pl.er)/100:0.02;const eng=views*er;
-  return {R,bm,f,ad,fee,total,people,views,er,eng,likes:eng*0.92,cpv:views?total/views:0,cpvExec:views?ad/views:0,budget:N(I.budget),execMax:execMax(I),over:f.mode==='incl'?total>N(I.budget)+1:ad>N(I.budget)+1}}
+  return {R,bm,mo,f:{rate:mo.rate,mode:mo.mode},ad,adTarget:mo.ad,diff:ad-mo.ad,fee,total,people,views,er,eng,likes:eng*0.92,cpv:views?total/views:0,cpvExec:views?ad/views:0,budget:mo.B}}
 /* 그룹 × 티어 인원 나누기 (A 40% · B 35% · C 25%, 큰 나머지 순) */
 function matrixOf(R){const M={A:{},B:{},C:{}};R.forEach(r=>{const raw=GKEYS.map(g=>r.count*GW[g]);const base=raw.map(Math.floor);let left=r.count-base.reduce((a,b)=>a+b,0);
   raw.map((v,i)=>[v-base[i],i]).sort((a,b)=>b[0]-a[0]).forEach(([,i])=>{if(left>0){base[i]++;left--}});GKEYS.forEach((g,i)=>M[g][r.tier]=base[i])});return M}
+/* 8주 일정 (W0~W7): 업로드 시작일이 있으면 그 주를 W4로 */
+function weeksOf(I){const d0=new Date();d0.setHours(0,0,0,0);let w4=I.start?new Date(I.start+'T00:00:00'):null;if(!w4||isNaN(w4)){w4=new Date(d0.getTime()+28*864e5)}
+  const dow=(w4.getDay()+6)%7;w4=new Date(w4.getTime()-dow*864e5);const w0=new Date(w4.getTime()-28*864e5);let last=7;
+  if(I.end){const e=new Date(I.end+'T00:00:00');const k=Math.floor((e-w0)/(7*864e5));if(k>last)last=Math.min(10,k)}
+  return {weeks:[...Array(last+1)].map((_,i)=>{const d=new Date(w0.getTime()+i*7*864e5);return `W${i}\n${d.getMonth()+1}/${d.getDate()}~`}),last}}
 
 /* ============ 섭외 후보: 인플루언서 풀에서 추천 ============ */
 const PLAT={yt:'유튜브',tt:'틱톡',ig:'인스타그램'};const PLAT_K={'인스타그램':'ig','틱톡':'tt','유튜브':'yt'};
@@ -87,179 +98,76 @@ function picksOf(P,gk){const ids=((P.picks||{})[gk])||[];return ids.map(id=>{con
   const p=(A.pool||{})[id];if(!p)return null;const ag=typeof poolAgg==='function'?poolAgg(p):{};
   return {id,p,name:p.name,sub:`${p.ch||''}${p.fol?' · '+cK(N(p.fol)):''}${p.acct?' · @'+String(p.acct).replace(/^@/,''):''}`,tier:TK[tierOf(p.fol)]||'',stat:ag.avgViews?`평균 조회 ${cK(ag.avgViews)}${ag.er?' · ER '+pc(ag.er):''}`:'신규 협업 후보',why:(P.pickWhy||{})[p.name]||['링컴즈 풀',p.cat,ag.lastCampaign?'최근 '+ag.lastCampaign:''].filter(Boolean).join(' · '),av:null}}).filter(Boolean)}
 
-/* ============ 덱 (PPT · PDF · 미리보기 공통) ============ */
-const DIM=new Map();
-function dims(src){if(DIM.has(src))return Promise.resolve(DIM.get(src));return new Promise(r=>{const im=new Image();im.onload=()=>{const d=[im.naturalWidth||1,im.naturalHeight||1];DIM.set(src,d);r(d)};im.onerror=()=>r(null);im.src=src})}
-const hx=v=>{const h=String(v||'').replace('#','').toUpperCase();return /^[0-9A-F]{6}$/.test(h)?h:'2F5BEA'};
-const mix=(h,t)=>{const c=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16));return c.map(v=>Math.round(v+(255-v)*t).toString(16).padStart(2,'0')).join('').toUpperCase()};
-const shade=(h,t)=>{const c=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16));return c.map(v=>Math.round(v*(1-t)).toString(16).padStart(2,'0')).join('').toUpperCase()};
-const lum=h=>{const c=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16)/255);return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]};
-function weekDates(I){const d0=new Date();d0.setHours(0,0,0,0);const st=I.start?new Date(I.start+'T00:00:00'):null;let w0=st?new Date(st.getTime()-28*864e5):new Date(d0.getTime()+7*864e5);if(w0<d0)w0=d0;
-  const up=st?Math.min(4,Math.max(2,Math.round((st-w0)/(7*864e5)))):4;let last=up+3;if(I.end){const e=new Date(I.end+'T00:00:00');const k=Math.ceil((e-w0)/(7*864e5));if(k>last)last=Math.min(10,k)}
-  const wk=i=>{const d=new Date(w0.getTime()+i*7*864e5);return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`};return {up,last,wk}}
 
-async function ppDeck(deck,P,seq,opt={}){
-  const PDF=!!opt.pdf,B=PDF,W=13.333,H=7.5,MX=0.6;const I=P.info||{},AI=P.ai||{},K=ppCalc(P),M=matrixOf(K.R);const imgs=opt.imgs||{};
-  const TH=hx(I.color||AI.color);const DARK='1B1E27',MUT='6B7280',LINE='E3E5EA',SOFT=mix(TH,.93),TINT=mix(TH,.82),DEEP=shade(TH,.32),ONC=lum(TH)>0.62?DARK:'FFFFFF';
-  const FT='Pretendard ExtraBold',FL='Pretendard Light',FB='Pretendard',FS='Pretendard SemiBold';
-  const BR=AI.brand||I.brand||I.advertiser||'Brand';const G={};((AI.groups)||[]).forEach(g=>{if(g&&g.key)G[g.key]=g});GKEYS.forEach(k=>{G[k]=G[k]||{key:k,name:`그룹 ${k}`,pillar:['공감·인지','참여·확산','확장·신규'][GKEYS.indexOf(k)]}});
-  const ring=ringImg('#FFFFFF');const LG=await ringLogo('#'+TH);const LW_=1.6,LH_=LW_*182/900;let pg=0,secNo=0;
-  const T=(s,text,o)=>s.addText(text,{fontFace:FB,valign:'middle',margin:0,charSpacing:0,color:DARK,...o});
-  const box=(s,x,y,w,h,fill,o={})=>s.addShape(deck.ShapeType.roundRect,{x,y,w,h,fill:{color:fill},line:{color:o.line||fill,width:o.line?0.75:0},rectRadius:o.r!=null?o.r:0.12});
-  const rect=(s,x,y,w,h,fill)=>s.addShape(deck.ShapeType.rect,{x,y,w,h,fill:{color:fill},line:{color:fill,width:0}});
-  const pill=(s,text,x,y,w,fill,col,size=11,h=0.34)=>{box(s,x,y,w,h,fill,{r:h/2});T(s,text,{x,y,w,h,fontFace:FS,bold:B,fontSize:size,color:col,align:'center'})};
-  const logo=(s,white)=>{const d=white?LG.white:LG.tint;if(d)s.addImage({data:d,x:W-MX-LW_,y:0.45,w:LW_,h:LH_});else T(s,'RINGCOMS',{x:W-3,y:0.42,w:2.4,h:0.36,fontFace:FT,bold:B,fontSize:14,color:white?'FFFFFF':TH,align:'right'})};
-  const pnum=(s,white)=>T(s,String(pg).padStart(2,'0'),{x:W-MX-0.6,y:H-0.45,w:0.6,h:0.25,fontSize:9,color:white?'FFFFFF':'A0A6B0',align:'right'});
-  const put=async(s,data,x,y,w,h,al='center')=>{if(!data)return null;const d=await dims(data);if(!d)return null;const k=Math.min(w/d[0],h/d[1]);const iw=d[0]*k,ih=d[1]*k;const ax=al==='left'?x:al==='right'?x+w-iw:x+(w-iw)/2;s.addImage({data,x:ax,y:y+(h-ih)/2,w:iw,h:ih});return {x:ax,w:iw}};
-  const SEC0={market:'01',direction:'02',capability:'03',concept:'04',strategy:'05',exec:'06',timeline:'07'};const sec=k=>opt.perSlideNo?String(secNo).padStart(2,'0'):SEC0[k];
-  const head=(s,label,title,sub,o={})=>{pg++;s.background={color:o.bg||'FFFFFF'};logo(s,false);
-    T(s,label,{x:MX,y:0.42,w:8.5,h:0.32,fontFace:FS,bold:B,fontSize:11,color:TH});
-    T(s,lnz(title),{x:MX,y:0.82,w:o.tw||10.2,h:1.2,fontFace:FT,bold:B,fontSize:27,color:DARK,lineSpacingMultiple:1.08,fit:'shrink'});
-    if(sub)T(s,lnz(sub),{x:MX,y:2.08,w:o.sw||11.6,h:0.66,fontFace:FL,fontSize:13.5,color:MUT,lineSpacingMultiple:1.12,fit:'shrink'});pnum(s,false)};
-  const source=(s,t)=>{if(t)T(s,lnz(t),{x:MX,y:H-0.5,w:10.8,h:0.3,fontSize:8.5,color:'A0A6B0',fit:'shrink'})};
-  const colorBg=(s)=>{pg++;s.background={color:TH};s.addImage({data:ring,x:W-6.2,y:0.9,w:6.6,h:6.6});logo(s,true)};
-  const L=a=>(a||[]).filter(Boolean);
-  const notes=(s,id)=>{const N_=AI.notes||{};let t=N_[id.replace(':','')]||N_[id]||'';
-    if(id==='tiers')t=(t?t+'\n':'')+`[숫자] 인플루언서 ${K.people}명 · 광고비 ${won(K.ad)}원 + 대행수수료 ${K.f.rate}% ${won(K.fee)}원 = 총 ${won(K.total)}원 (VAT 별도)`;
-    if(id==='kpi')t=(t?t+'\n':'')+`[숫자] 예상 조회수 ${cK(K.views)} · ER ${pc(K.er)} · 좋아요 약 ${cK(K.likes)} · CPV ${K.cpv.toFixed(1)}원`;
-    if(t&&s.addNotes)s.addNotes(String(t))};
 
-  const S={
-    async cover(s){colorBg(s);const C=AI.cover||{};
-      T(s,'INFLUENCER CAMPAIGN PROPOSAL',{x:0.8,y:1.05,w:8,h:0.32,fontFace:FL,fontSize:13,color:'FFFFFF'});
-      T(s,BR,{x:0.8,y:1.5,w:8,h:0.6,fontFace:FT,bold:B,fontSize:26,color:'FFFFFF'});
-      T(s,lnz(C.headline||`${BR} 인플루언서\n캠페인 제안`),{x:0.8,y:2.2,w:8.2,h:1.75,fontFace:FT,bold:B,fontSize:46,color:'FFFFFF',lineSpacingMultiple:1.05,fit:'shrink'});
-      T(s,lnz(C.sub||''),{x:0.8,y:4.05,w:8,h:0.55,fontFace:FL,fontSize:19,color:'FFFFFF',fit:'shrink'});
-      pill(s,`총 ${man(K.total)}원 · 인플루언서 ${K.people}명 · VAT 별도`,0.8,4.85,4.3,'FFFFFF',DEEP,12);
-      const per=[I.start,I.end].filter(Boolean).map(x=>x.replace(/-/g,'.')).join(' ~ ');
-      T(s,`${today().replace(/-/g,'.')}  ·  링컴즈 MCN 사업부 광고콘텐츠팀${per?'  ·  집행 '+per:''}`,{x:0.8,y:6.65,w:9.5,h:0.32,fontSize:11,color:'FFFFFF'});
-      const ci=imgs.cover||imgs.hero;if(ci)await put(s,ci,8.9,1.25,3.8,5.3)},
-    toc(s){pg++;s.background={color:'FFFFFF'};logo(s,false);T(s,'CONTENTS',{x:MX,y:0.42,w:4,h:0.32,fontFace:FS,bold:B,fontSize:11,color:TH});T(s,'목차',{x:MX,y:0.85,w:4,h:0.8,fontFace:FT,bold:B,fontSize:36,color:TH});
-      T(s,lnz(AI.umbrella&&AI.umbrella.name||''),{x:MX,y:4.6,w:4.8,h:1.2,fontFace:FT,bold:B,fontSize:22,color:DARK,fit:'shrink'});T(s,L(AI.umbrella&&AI.umbrella.hashtags).join('  '),{x:MX,y:5.85,w:4.8,h:0.35,fontFace:FS,bold:B,fontSize:12,color:TH});
-      const items=['시장 현황','브랜드가 나아갈 방향','링컴즈 인플루언서 마케팅 역량','캠페인 컨셉 · 콘텐츠 가이드','핵심 전략 · 인플루언서 카테고리','인플루언서 구성 · 예상 성과','타임라인 · 어펜딕스'];
-      items.forEach((t,i)=>{const y=1.15+i*0.74;rect(s,6.0,y,6.73,0.012,LINE);T(s,String(i+1).padStart(2,'0'),{x:6.15,y:y+0.12,w:0.6,h:0.5,fontFace:FS,bold:B,fontSize:13,color:TH});T(s,t,{x:6.95,y:y+0.12,w:5.7,h:0.5,fontFace:FS,bold:B,fontSize:17,color:DARK})});rect(s,6.0,1.15+items.length*0.74,6.73,0.012,LINE)},
-    market1(s){const m=AI.market||{};head(s,`${sec('market')} · MARKET`,m.title||'시장 현황',m.sub);const st=(m.stats||[]).slice(0,3);const n_=Math.max(1,st.length),gap=0.3,cw=(W-2*MX-gap*(n_-1))/n_;
-      st.forEach((x,i)=>{const X=MX+i*(cw+gap),Y=3.0,on=i===0;box(s,X,Y,cw,3.35,on?TH:SOFT);T(s,x.label||'',{x:X+0.3,y:Y+0.25,w:cw-0.6,h:0.45,fontFace:FS,bold:B,fontSize:14,color:on?ONC:DARK});
-        T(s,[{text:String(x.value||''),options:{fontSize:36,bold:true,color:on?ONC:TH}},{text:x.unit?' '+x.unit:'',options:{fontSize:17,bold:true,color:on?ONC:TH}}],{x:X+0.3,y:Y+0.8,w:cw-0.6,h:1.05,fontFace:FT,fit:'shrink'});
-        T(s,lnz(x.desc),{x:X+0.3,y:Y+1.95,w:cw-0.6,h:1.2,fontFace:FL,fontSize:13,color:on?ONC:MUT,lineSpacingMultiple:1.12,fit:'shrink'})});source(s,m.source)},
-    market2(s){const m=AI.market||{};head(s,`${sec('market')} · MARKET INSIGHT`,m.title2||'시장 인사이트',m.sub2);
-      (m.insights||[]).slice(0,3).forEach((x,i)=>{const Y=3.0+i*1.12;box(s,MX,Y,8.35,0.98,SOFT);T(s,x.kicker||'',{x:MX+0.3,y:Y+0.1,w:1.9,h:0.32,fontFace:FS,bold:B,fontSize:10.5,color:MUT});
-        T(s,x.value||'',{x:MX+0.3,y:Y+0.42,w:1.9,h:0.45,fontFace:FT,bold:B,fontSize:19,color:TH,fit:'shrink'});T(s,lnz(x.text),{x:MX+2.35,y:Y+0.08,w:5.8,h:0.82,fontSize:12,color:DARK,lineSpacingMultiple:1.12,fit:'shrink'})});
-      box(s,9.25,3.0,W-MX-9.25,3.22,TH);T(s,'INSIGHT',{x:9.55,y:3.18,w:3,h:0.32,fontFace:FS,bold:B,fontSize:11,color:ONC});T(s,lnz(m.takeaway),{x:9.55,y:3.6,w:W-MX-9.85,h:2.45,fontFace:FS,bold:B,fontSize:14,color:ONC,lineSpacingMultiple:1.18,fit:'shrink'});source(s,m.source2)},
-    async direction(s){const d=AI.direction||{};head(s,`${sec('direction')} · ${String(BR).toUpperCase()} DIRECTION`,d.title||'브랜드가 나아갈 방향',d.sub,{tw:9.2,sw:9.2});const hasImg=false;
-      (d.shifts||[]).slice(0,3).forEach((x,i)=>{const Y=3.05+i*0.88,w0=hasImg?9.2:W-2*MX;T(s,x.from||'',{x:MX,y:Y,w:1.9,h:0.5,fontFace:FL,fontSize:16,color:MUT,fit:'shrink'});T(s,'→',{x:MX+1.95,y:Y,w:0.4,h:0.5,fontFace:FS,bold:B,fontSize:18,color:TH,align:'center'});
-        pill(s,x.to||'',MX+2.45,Y+0.07,2.1,TINT,DEEP,13,0.38);T(s,lnz(x.desc),{x:MX+4.8,y:Y,w:w0-4.8,h:0.5,fontSize:13,color:DARK,fit:'shrink'})});
-      box(s,MX,5.95,W-2*MX,0.9,DARK);T(s,lnz(d.positioning),{x:MX+0.4,y:5.95,w:W-2*MX-0.8,h:0.9,fontFace:FT,bold:B,fontSize:18,color:'FFFFFF',fit:'shrink'})},
-    capability(s){head(s,`${sec('capability')} · RINGCOMS CAPABILITY`,'왜 링컴즈 MCN인가?\n섭외부터 리포트까지, 한 팀에서','크리에이터 섭외·계약·검수·성과 리포트를 한 팀이 끝까지 책임집니다.\n브랜드와 크리에이터 모두에게 득이 되는 구조로 섭외합니다.');
-      const pn=Object.values(A.pool||{}).filter(p=>!p.hidden).length;
-      const cards=[['크리에이터 네트워크',`링컴즈 MCN 소속·협업\n크리에이터${pn?` 풀 ${won(pn)}명`:''}.\n카테고리·티어별로\n빠르게 섭외합니다.`],['캠페인 관리 플랫폼','ad.ringcoms.com에서\n진행 현황·성과를\n실시간 리포트로\n공유합니다.'],['전환 트래킹','인플루언서별 전용 링크로\n방문·버튼 클릭을\n나눠 측정합니다.'],['2차 활용 · 광고 소재화','성과 상위 콘텐츠를\nMeta·유튜브 광고\n소재로 다시 씁니다.']];
-      const gap=0.25,cw=(W-2*MX-gap*3)/4;cards.forEach(([t,x],i)=>{const X=MX+i*(cw+gap),Y=3.0;box(s,X,Y,cw,2.45,SOFT);T(s,String(i+1).padStart(2,'0'),{x:X+0.28,y:Y+0.2,w:1,h:0.4,fontFace:FT,bold:B,fontSize:18,color:TH});
-        T(s,t,{x:X+0.28,y:Y+0.62,w:cw-0.5,h:0.42,fontFace:FT,bold:B,fontSize:15,color:DARK,fit:'shrink'});T(s,x,{x:X+0.28,y:Y+1.08,w:cw-0.45,h:1.25,fontSize:11,color:MUT,lineSpacingMultiple:1.12,fit:'shrink'})});
-      const bm=K.bm,t=bm.real?bm.tot:null;box(s,MX,5.65,W-2*MX,1.22,TINT);pill(s,'유사 볼륨 캠페인 레퍼런스',MX+0.3,5.8,2.6,TH,ONC,11,0.32);T(s,bm.name,{x:MX+0.3,y:6.2,w:4.4,h:0.32,fontFace:FS,bold:B,fontSize:12.5,color:DARK,fit:'shrink'});
-      T(s,'인플루언서 풀에 쌓인 캠페인 성과 기준',{x:MX+0.3,y:6.5,w:4.4,h:0.28,fontSize:10,color:MUT});
-      const stats=t?[['콘텐츠',won(t.n)+'개'],['총 조회',cK(t.views)],['ER',pc(t.views?t.eng/t.views:0,2)],['CPV',t.cost&&t.views?(t.cost/t.views).toFixed(1)+'원':'–']]:[['콘텐츠','16개'],['총 조회','95만'],['ER','1.86%'],['CPV','20.0원']];
-      stats.forEach(([l,v],i)=>{const X=5.3+i*1.85;T(s,l,{x:X,y:5.85,w:1.75,h:0.3,fontSize:11,color:MUT});T(s,v,{x:X,y:6.15,w:1.75,h:0.55,fontFace:FT,bold:B,fontSize:21,color:i?DEEP:DARK,fit:'shrink'})})},
-    umbrella(s){const u=AI.umbrella||{};colorBg(s);T(s,`${sec('concept')} · CAMPAIGN CONCEPT`,{x:MX,y:0.42,w:7,h:0.32,fontFace:FS,bold:B,fontSize:11,color:'FFFFFF'});
-      T(s,lnz(u.name||'캠페인 컨셉'),{x:MX,y:0.85,w:9.6,h:1.65,fontFace:FT,bold:B,fontSize:40,color:'FFFFFF',lineSpacingMultiple:1.04,fit:'shrink'});
-      T(s,[{text:L(u.hashtags).join('   '),options:{bold:true,fontSize:14}},{text:'',options:{breakLine:true}},{text:lnz(u.sub||''),options:{fontSize:13.5}}],{x:MX,y:2.55,w:11.6,h:0.95,fontFace:FL,color:'FFFFFF',fit:'shrink'});
-      const gap=0.3,cw=(W-2*MX-gap*2)/3;GKEYS.forEach((k,i)=>{const g=G[k],c=g.concept||{};const X=MX+i*(cw+gap),Y=3.7;box(s,X,Y,cw,2.95,'FFFFFF');pill(s,k,X+0.3,Y+0.3,0.42,TH,ONC,12);
-        T(s,`${g.name||''} · ${g.pillar||''}`,{x:X+0.82,y:Y+0.3,w:cw-1,h:0.34,fontFace:FS,bold:B,fontSize:12,color:DEEP,fit:'shrink'});T(s,lnz(c.name||''),{x:X+0.3,y:Y+0.8,w:cw-0.5,h:0.85,fontFace:FT,bold:B,fontSize:19,color:DARK,fit:'shrink'});
-        T(s,L(c.hashtags).join('  '),{x:X+0.3,y:Y+1.7,w:cw-0.5,h:0.32,fontFace:FS,bold:B,fontSize:11.5,color:TH,fit:'shrink'});T(s,lnz(c.keyMessage||''),{x:X+0.3,y:Y+2.05,w:cw-0.5,h:0.75,fontSize:12,color:MUT,lineSpacingMultiple:1.12,fit:'shrink'})});pnum(s,true)},
-    async group(s,k){const g=G[k],c=g.concept||{};colorBg(s);T(s,`${sec('concept')} · GROUP ${k} CONCEPT`,{x:MX,y:0.42,w:7,h:0.32,fontFace:FS,bold:B,fontSize:11,color:'FFFFFF'});
-      pill(s,`${k} · ${g.name||''}`,MX,0.95,3.2,'FFFFFF',DEEP,13);const two=String(c.name||'').includes('\n');
-      T(s,lnz(c.name||''),{x:MX,y:1.45,w:8.4,h:two?1.45:1.0,fontFace:FT,bold:B,fontSize:two?34:42,color:'FFFFFF',lineSpacingMultiple:1.04,fit:'shrink'});
-      T(s,L(c.hashtags).join('   '),{x:MX,y:two?2.95:2.5,w:8.2,h:0.38,fontFace:FS,bold:B,fontSize:15,color:mix(TH,.7)});
-      T(s,L(c.story).join('\n'),{x:MX,y:3.45,w:8.2,h:1.8,fontFace:FL,fontSize:15.5,color:'FFFFFF',lineSpacingMultiple:1.25,fit:'shrink'});
-      T(s,'KEY MESSAGE',{x:MX,y:5.38,w:3,h:0.3,fontFace:FS,bold:B,fontSize:10,color:mix(TH,.7)});T(s,lnz(c.keyMessage||''),{x:MX,y:5.7,w:8.4,h:0.55,fontFace:FT,bold:B,fontSize:20,color:'FFFFFF',fit:'shrink'});
-      T(s,'보여줄 기능 · '+(c.features||''),{x:MX,y:6.35,w:8.4,h:0.35,fontFace:FS,bold:B,fontSize:12,color:'FFFFFF',fit:'shrink'});
-      const im=imgs.divider;if(im)await put(s,im,9.0,1.15,3.7,5.6);pnum(s,true)},
-    async guide(s,k){const g=G[k],gd=g.guide||{};head(s,`${sec('concept')} · GROUP ${k} CONTENT GUIDE`,gd.title||`${g.name||''} 콘텐츠 가이드`,gd.sub);const cuts=(gd.cuts||[]).slice(0,4);const n_=Math.max(1,cuts.length),gap=0.2,cw=(W-2*MX-gap*(n_-1))/n_,Y=2.95,ch=2.55;const CI=opt.cimgs||{};
-      for(let i=0;i<cuts.length;i++){const c=cuts[i];const X=MX+i*(cw+gap);box(s,X,Y,cw,ch,i===n_-1?TINT:SOFT);T(s,[{text:`CUT ${i+1}  `,options:{bold:true,color:TH}},{text:`${c.step||''} · ${c.time||''}`,options:{bold:true,color:DARK}}],{x:X+0.2,y:Y+0.13,w:cw-0.4,h:0.32,fontFace:FT,fontSize:11.5,fit:'shrink'});
-        const im=CI[`${k}_${i}`];let tx=X+0.2,tw=cw-0.4;if(im){const ph=ch-0.65,pw=ph*9/16;const r=await put(s,im,X+0.15,Y+0.52,pw,ph);if(r){tx=X+0.15+pw+0.12;tw=X+cw-tx-0.12}}
-        const fz=im?10:11;T(s,'화면',{x:tx,y:Y+0.52,w:tw,h:0.22,fontFace:FS,bold:B,fontSize:9,color:MUT});T(s,lnz(c.scene),{x:tx,y:Y+0.75,w:tw,h:0.8,fontSize:fz,color:DARK,lineSpacingMultiple:1.05,fit:'shrink'});
-        T(s,'멘션 · 자막',{x:tx,y:Y+1.58,w:tw,h:0.22,fontFace:FS,bold:B,fontSize:9,color:MUT});T(s,lnz(c.line),{x:tx,y:Y+1.81,w:tw,h:0.64,fontFace:FS,bold:B,fontSize:fz,color:DEEP,lineSpacingMultiple:1.05,fit:'shrink'})}
-      const by=Y+ch+0.2,bh=7.0-by;box(s,MX,by,5.9,bh,'FFFFFF',{line:LINE});T(s,'캡션 예시',{x:MX+0.25,y:by+0.12,w:3,h:0.3,fontFace:FS,bold:B,fontSize:11,color:TH});T(s,lnz(gd.caption),{x:MX+0.25,y:by+0.45,w:5.4,h:bh-0.55,fontSize:10.5,color:DARK,lineSpacingMultiple:1.1,fit:'shrink'});
-      const bw=(W-2*MX-5.9-0.4)/2;[['MUST',gd.must,TH],["DON'T",gd.dont,'404040']].forEach(([h,it,col],j)=>{const X=MX+6.1+j*(bw+0.2);box(s,X,by,bw,bh,SOFT);T(s,h,{x:X+0.25,y:by+0.12,w:2,h:0.3,fontFace:FT,bold:B,fontSize:11.5,color:col});
-        T(s,L(it).slice(0,3).map(x=>'• '+x).join('\n'),{x:X+0.25,y:by+0.45,w:bw-0.4,h:bh-0.55,fontSize:10.5,color:DARK,lineSpacingMultiple:1.15,fit:'shrink'})})},
-    async features(s){head(s,`${sec('strategy')} · CORE STRATEGY`,AI.featuresTitle||'그룹마다 보여줄\n핵심 기능이 다릅니다','A·B·C 그룹이 각자 다른 기능을 보여 주며,\n공감 → 참여 → 확장으로 이어집니다.');const gap=0.3,cw=(W-2*MX-gap*2)/3;
-      for(let i=0;i<3;i++){const k=GKEYS[i],g=G[k],f=g.feature||{};const X=MX+i*(cw+gap),Y=2.95;box(s,X,Y,cw,3.95,SOFT);pill(s,k,X+0.25,Y+0.25,0.42,TH,ONC,12);
-        T(s,g.name||'',{x:X+0.77,y:Y+0.18,w:cw-0.9,h:0.28,fontFace:FS,bold:B,fontSize:10.5,color:MUT,fit:'shrink'});T(s,(g.pillar||'')+' 기능',{x:X+0.77,y:Y+0.44,w:cw-0.9,h:0.34,fontFace:FT,bold:B,fontSize:15.5,color:DARK,fit:'shrink'});
-        const tw=cw-0.5;
-        (f.items||[]).slice(0,3).forEach((it,j)=>{const yy=Y+0.98+j*0.7;T(s,it.name||'',{x:X+0.25,y:yy,w:tw,h:0.32,fontFace:FT,bold:B,fontSize:13,color:DEEP,fit:'shrink'});T(s,lnz(it.desc),{x:X+0.25,y:yy+0.32,w:tw,h:0.32,fontSize:10.5,color:DARK,fit:'shrink'})});
-        box(s,X+0.2,Y+3.1,cw-0.4,0.7,'FFFFFF',{r:0.1});T(s,lnz(f.effect),{x:X+0.35,y:Y+3.1,w:cw-0.7,h:0.7,fontFace:FS,bold:B,fontSize:11,color:DARK,align:'center',fit:'shrink'})}},
-    categories(s){head(s,`${sec('strategy')} · INFLUENCER CATEGORY`,'세 그룹의 인플루언서가\n각자의 역할을 맡습니다','어떤 인플루언서가, 어떤 역할로, 어떤 콘텐츠를 만드는지 정리했습니다.');const cols=[['그룹',2.3],['어떤 인플루언서',3.15],['역할',2.85],['콘텐츠',2.2],['기대 효과',1.63]];
-      let x=MX;const y0=2.95;cols.forEach(([h,w])=>{T(s,h,{x:x+0.1,y:y0,w:w-0.2,h:0.32,fontFace:FS,bold:B,fontSize:11,color:MUT});x+=w});
-      GKEYS.forEach((k,i)=>{const g=G[k],Y=y0+0.42+i*1.22;box(s,MX,Y,W-2*MX,1.1,i%2?'FFFFFF':SOFT,{line:i%2?LINE:null,r:0.1});pill(s,k,MX+0.15,Y+0.18,0.42,TH,ONC,12);
-        T(s,g.name||'',{x:MX+0.7,y:Y+0.12,w:1.55,h:0.45,fontFace:FT,bold:B,fontSize:14.5,color:DARK,fit:'shrink'});T(s,g.pillar||'',{x:MX+0.7,y:Y+0.58,w:1.55,h:0.32,fontFace:FS,bold:B,fontSize:10,color:DEEP});
-        let cx=MX+cols[0][1];[g.who,g.role,g.content,g.effect].forEach((v,j)=>{const w=cols[j+1][1];T(s,lnz(v),{x:cx+0.1,y:Y+0.08,w:w-0.2,h:0.94,fontSize:11,fontFace:j===1?FS:FB,bold:j===1&&B,color:j===1?DARK:MUT,lineSpacingMultiple:1.1,fit:'shrink'});cx+=w})})},
-    tiers(s){head(s,`${sec('exec')} · TIER MIX & BUDGET`,AI.tiersTitle||`${K.people}명의 인플루언서로\n예산 안에서 최대 도달을`,`메가는 비용 대비 효율이 낮아 ${K.R.find(r=>r.tier==='메가').count?'최소로 두고':'제외하고'},\n매크로로 도달을 열고 마이크로·나노로 참여를 쌓습니다.`);
-      const cols=[['티어',1.0],['팔로워',1.25],['인원',0.72],['1인 단가',1.08],['소계',1.05],['역할',0.9],['이유',2.35]];const y0=2.95;let x=MX;cols.forEach(([h,w],j)=>{T(s,h,{x:x+0.08,y:y0,w:w-0.16,h:0.3,fontFace:FS,bold:B,fontSize:11,color:MUT,align:j>=2&&j<=4?'right':'left'});x+=w});
-      const tw=cols.reduce((a,c)=>a+c[1],0);const TW=AI.tierWhy||{};K.R.forEach((r,i)=>{const Y=y0+0.38+i*0.66,off=!r.count;rect(s,MX,Y,tw,0.012,LINE);const w_=TW[r.tier]||{};
-        const vals=[r.tier,RANGE[r.tier],off?'-':r.count+'명',off?'-':man(r.unit),off?'-':man(r.count*r.unit),w_.role||'',lnz(w_.why||'')];let cx=MX;
-        vals.forEach((v,j)=>{const w=cols[j][1];T(s,v,{x:cx+0.08,y:Y+0.05,w:w-0.16,h:0.56,fontFace:[0,4,5].includes(j)?FS:FB,bold:[0,4,5].includes(j)&&B,fontSize:j===6?10:13,color:off?'AAAAAA':j===6?MUT:j===5?DEEP:DARK,align:j>=2&&j<=4?'right':'left',fit:'shrink'});cx+=w})});
-      const yT=y0+0.38+K.R.length*0.66;rect(s,MX,yT,tw,0.02,DARK);
-      T(s,`인플루언서 ${K.people}명 · 광고비 ${man(K.ad)}원 + 대행수수료 ${K.f.rate}% ${man(K.fee)}원 = 총 ${man(K.total)}원 (VAT 별도)`,{x:MX+0.08,y:yT+0.08,w:tw,h:0.34,fontFace:FS,bold:B,fontSize:11,color:DARK,fit:'shrink'});
-      const bm=K.bm;box(s,MX,yT+0.5,tw,0.44,TINT,{r:0.1});T(s,`티어별 CPV(${bm.real?'링컴즈 실측':BENCH0.name}) · 메가 ${bm.cpv.메가.toFixed(1)}원 / 매크로 ${bm.cpv.매크로.toFixed(1)}원 / 마이크로 ${bm.cpv.마이크로.toFixed(1)}원 / 나노 ${bm.cpv.나노.toFixed(1)}원`,{x:MX+0.2,y:yT+0.5,w:tw-0.4,h:0.44,fontFace:FS,bold:B,fontSize:10.5,color:DEEP,fit:'shrink'});
-      const used=K.R.filter(r=>r.count);const bx=9.25,bw=W-MX-bx;box(s,bx,2.95,bw,3.95,SOFT);T(s,'광고비 티어별 비중',{x:bx+0.25,y:3.1,w:3,h:0.32,fontFace:FS,bold:B,fontSize:12,color:DARK});
-      const cols_=[TH,mix(TH,.35),mix(TH,.6),mix(TH,.8)];let cx=bx+0.25;const barW=bw-0.5;used.forEach((r,i)=>{const w=barW*(r.count*r.unit)/(K.ad||1);if(w>0.01)rect(s,cx,3.7,w,0.5,cols_[PT.indexOf(r.tier)]);cx+=w});
-      used.forEach((r,i)=>{const Y=4.5+i*0.52;box(s,bx+0.25,Y+0.1,0.24,0.24,cols_[PT.indexOf(r.tier)],{r:0.05});T(s,r.tier,{x:bx+0.6,y:Y,w:1.2,h:0.44,fontFace:FS,bold:B,fontSize:12,color:DARK});
-        T(s,`${Math.round(r.count*r.unit/(K.ad||1)*100)}%  ·  ${man(r.count*r.unit)}원`,{x:bx+1.6,y:Y,w:bw-1.85,h:0.44,fontSize:12,color:MUT,align:'right'})})},
-    matrix(s){head(s,`${sec('exec')} · CATEGORY × TIER`,'그룹마다 티어를 나눠\n도달과 참여를 함께 잡습니다','그룹별 인원과 광고비를 티어 단가 기준으로 나눴습니다.');const used=K.R.filter(r=>r.count);const x0=MX,y0=2.95,gw=2.6,cw=Math.min(1.75,(7.3-0.12*used.length)/Math.max(1,used.length)),rh=0.98;
-      used.forEach((r,j)=>{const X=x0+gw+j*(cw+0.12);box(s,X,y0,cw,0.5,DARK,{r:0.1});T(s,r.tier,{x:X,y:y0,w:cw,h:0.5,fontFace:FS,bold:B,fontSize:13,color:'FFFFFF',align:'center'})});
-      const sx=x0+gw+used.length*(cw+0.12);box(s,sx,y0,1.5,0.5,TH,{r:0.1});T(s,'합계',{x:sx,y:y0,w:1.5,h:0.5,fontFace:FS,bold:B,fontSize:13,color:ONC,align:'center'});
-      GKEYS.forEach((k,i)=>{const g=G[k],Y=y0+0.62+i*(rh+0.1);box(s,x0,Y,gw-0.12,rh,TINT,{r:0.1});T(s,`${k}  ${g.name||''}`,{x:x0+0.2,y:Y+0.1,w:gw-0.4,h:0.45,fontFace:FT,bold:B,fontSize:14,color:DARK,fit:'shrink'});T(s,g.pillar||'',{x:x0+0.2,y:Y+0.55,w:gw-0.4,h:0.3,fontFace:FS,bold:B,fontSize:10,color:DEEP});
-        let rn=0,rb=0;used.forEach((r,j)=>{const X=x0+gw+j*(cw+0.12);const c=M[k][r.tier]||0,b=c*r.unit;rn+=c;rb+=b;box(s,X,Y,cw,rh,c?SOFT:'FFFFFF',{r:0.1,line:c?null:LINE});
-          T(s,c?c+'명':'-',{x:X,y:Y+0.1,w:cw,h:0.48,fontFace:FT,bold:B,fontSize:19,color:c?DARK:'BBBBBB',align:'center'});if(c)T(s,man(b)+'원',{x:X,y:Y+0.58,w:cw,h:0.3,fontSize:10.5,color:MUT,align:'center'})});
-        box(s,sx,Y,1.5,rh,SOFT,{r:0.1});T(s,rn+'명',{x:sx,y:Y+0.1,w:1.5,h:0.48,fontFace:FT,bold:B,fontSize:19,color:TH,align:'center'});T(s,man(rb)+'원',{x:sx,y:Y+0.58,w:1.5,h:0.3,fontSize:10.5,color:MUT,align:'center'})});
-      T(s,`총 ${K.people}명 · 광고비 ${man(K.ad)}원 + 대행수수료 ${man(K.fee)}원 = 총 ${man(K.total)}원`,{x:x0+gw,y:y0+0.62+3*(rh+0.1)+0.02,w:7.2,h:0.4,fontFace:FS,bold:B,fontSize:12,color:DARK,fit:'shrink'});
-      const px=Math.max(sx+1.75,10.4);box(s,px,y0,W-MX-px,3.95,DARK);T(s,'구성 포인트',{x:px+0.25,y:y0+0.2,w:2,h:0.32,fontFace:FS,bold:B,fontSize:12,color:mix(TH,.5)});
-      T(s,L(AI.matrixPoints).slice(0,3).map(lnz).join('\n\n'),{x:px+0.25,y:y0+0.62,w:W-MX-px-0.45,h:3.15,fontSize:11,color:'FFFFFF',lineSpacingMultiple:1.12,fit:'shrink'})},
-    async showcase(s){const anyF=GKEYS.some(k=>picksOf(P,k).some(x=>x.f));head(s,`${sec('exec')} · INFLUENCER SHORTLIST`,'이런 인플루언서와\n함께하려 합니다',anyF?'유튜브·틱톡·인스타그램에서 그룹 컨셉에 맞춰 찾은 섭외 후보입니다.':'링컴즈 인플루언서 풀에서 그룹 컨셉에 맞춰 고른 섭외 후보입니다.');const gap=0.25,cw=(W-2*MX-gap*2)/3;
-      for(let gi=0;gi<3;gi++){const k=GKEYS[gi],g=G[k],X=MX+gi*(cw+gap);pill(s,k,X,2.95,0.42,TH,ONC,12);T(s,`${g.name||''} · ${g.pillar||''}`,{x:X+0.52,y:2.95,w:cw-0.6,h:0.34,fontFace:FT,bold:B,fontSize:12.5,color:DARK,fit:'shrink'});
-        const ps=picksOf(P,k).slice(0,MAXPICK);if(!ps.length){const pr=(g.persona||[]).slice(0,2);if(!pr.length){box(s,X,3.42,cw,3.4,'FFFFFF',{line:LINE});T(s,'제안 확정 후 1주 안에\n섭외 리스트를 확정합니다',{x:X,y:3.42,w:cw,h:3.4,fontSize:12,color:MUT,align:'center'});continue}
-          pr.forEach((q,pi)=>{const Y=3.42+pi*1.75;box(s,X,Y,cw,1.62,'FFFFFF',{line:TINT});box(s,X+0.2,Y+0.2,0.8,0.8,TINT,{r:0.4});T(s,'?',{x:X+0.2,y:Y+0.2,w:0.8,h:0.8,fontFace:FT,bold:B,fontSize:24,color:DEEP,align:'center'});
-            T(s,lnz(q.type||''),{x:X+1.12,y:Y+0.12,w:cw-1.3,h:0.58,fontFace:FT,bold:B,fontSize:12,color:DARK,fit:'shrink'});if(q.tier)pill(s,q.tier,X+1.12,Y+0.76,0.8,TINT,DEEP,9.5,0.26);T(s,'섭외 예정 프로필',{x:X+2.0,y:Y+0.76,w:cw-2.15,h:0.26,fontFace:FS,bold:B,fontSize:10,color:MUT});
-            T(s,lnz(q.why||''),{x:X+0.2,y:Y+1.08,w:cw-0.35,h:0.48,fontSize:9.5,color:MUT,fit:'shrink'})});continue}
-        const big=ps.length<=2;const ch=big?1.62:0.8,st=big?1.75:0.86,av=big?0.8:0.56;
-        for(let pi=0;pi<ps.length;pi++){const c=ps[pi],Y=3.42+pi*st;box(s,X,Y,cw,ch,SOFT);const ax=X+(big?0.2:0.12),ay=Y+(big?0.2:0.12);
-          if(c.av){s.addImage({data:c.av,x:ax,y:ay,w:av,h:av,rounding:true})}else{box(s,ax,ay,av,av,[TH,DEEP,mix(TH,.35)][pi%3],{r:av/2});T(s,String(c.name||'?').trim().slice(0,1),{x:ax,y:ay,w:av,h:av,fontFace:FT,bold:B,fontSize:big?22:16,color:'FFFFFF',align:'center'})}
-          const tx=ax+av+0.12,tw=X+cw-tx-0.1;
-          if(big){T(s,c.name,{x:tx,y:Y+0.15,w:tw,h:0.32,fontFace:FT,bold:B,fontSize:12.5,color:DARK,fit:'shrink'});T(s,c.sub,{x:tx,y:Y+0.46,w:tw,h:0.26,fontSize:10,color:MUT,fit:'shrink'});
-            if(c.tier)pill(s,c.tier,tx,Y+0.76,0.8,TINT,DEEP,9.5,0.26);T(s,c.stat,{x:tx+(c.tier?0.88:0),y:Y+0.76,w:tw-(c.tier?0.88:0),h:0.26,fontFace:FS,bold:B,fontSize:10,color:DARK,fit:'shrink'});
-            T(s,lnz(c.why),{x:X+0.2,y:Y+1.08,w:cw-0.35,h:0.48,fontSize:9.5,color:MUT,fit:'shrink'})}
-          else{T(s,c.name,{x:tx,y:Y+0.06,w:tw,h:0.26,fontFace:FT,bold:B,fontSize:11,color:DARK,fit:'shrink'});T(s,c.sub,{x:tx,y:Y+0.31,w:tw,h:0.2,fontSize:8.5,color:MUT,fit:'shrink'});
-            T(s,[c.tier,c.stat].filter(Boolean).join(' · '),{x:tx,y:Y+0.53,w:tw,h:0.2,fontFace:FS,bold:B,fontSize:8.5,color:DEEP,fit:'shrink'})}}}
-      source(s,`※ ${today().replace(/-/g,'.')} 기준 · 평균 조회 = 탐색 시점 최근 콘텐츠 조회 중앙값(유튜브는 채널 평균) 또는 링컴즈 집행 캠페인 평균 · 섭외 가능 여부와 단가는 확정 전입니다.`)},
-    kpi(s){head(s,`${sec('exec')} · EXPECTED RESULTS`,AI.kpiTitle||`예상 조회수 ${cK(K.views)},\nCPV ${K.cpv.toFixed(1)}원을 목표로 합니다`,'링컴즈가 집행한 캠페인의 티어별 평균 조회와 보수적인 ER로 계산했습니다.');pill(s,'집행 캠페인 평균 기반 예상치',W-MX-3.1,2.2,3.1,TINT,DEEP,10);
-      const tiles=[['총 조회수',cK(K.views),`콘텐츠 ${K.people}개 기준`],['평균 ER',pc(K.er),'보수적 적용 · 참여 ÷ 조회'],['총 좋아요',cK(Math.round(K.likes/100)*100),`총 참여 약 ${cK(Math.round(K.eng/100)*100)}`],['CPV',K.cpv.toFixed(1)+'원',`광고비 기준 ${K.cpvExec.toFixed(1)}원`]];
-      const gap=0.25,cw=(7.9-gap)/2;tiles.forEach((t,i)=>{const X=MX+(i%2)*(cw+gap),Y=2.95+Math.floor(i/2)*1.78,on=!i;box(s,X,Y,cw,1.6,on?TH:SOFT);T(s,t[0],{x:X+0.3,y:Y+0.18,w:cw-0.6,h:0.32,fontFace:FS,bold:B,fontSize:12,color:on?ONC:MUT});
-        T(s,t[1],{x:X+0.3,y:Y+0.52,w:cw-0.6,h:0.65,fontFace:FT,bold:B,fontSize:31,color:on?ONC:DARK,fit:'shrink'});T(s,t[2],{x:X+0.3,y:Y+1.17,w:cw-0.6,h:0.28,fontSize:10,color:on?ONC:MUT})});
-      const bx=8.8,bw=W-MX-bx;box(s,bx,2.95,bw,3.38,SOFT);T(s,'시나리오별 총 조회수',{x:bx+0.25,y:3.08,w:3.5,h:0.32,fontFace:FS,bold:B,fontSize:12,color:DARK});
-      const sc=[['보수',0.7,mix(TH,.55)],['기준',1,TH],['확장',1.4,DEEP]];const top=3.85,base=5.85,maxV=K.views*1.4||1,colW=(bw-0.6)/3;sc.forEach(([l,f,c],i)=>{const v=K.views*f,h=(base-top-0.35)*v/maxV,X=bx+0.3+i*colW+colW*0.18,w=colW*0.64;
-        if(h>0.01)rect(s,X,base-h,w,h,c);T(s,cK(v),{x:X-0.2,y:base-h-0.34,w:w+0.4,h:0.3,fontFace:FS,bold:B,fontSize:10.5,color:DARK,align:'center'});T(s,`${l} ×${f}`,{x:X-0.2,y:base+0.05,w:w+0.4,h:0.3,fontFace:FS,bold:B,fontSize:11,color:DARK,align:'center'})});
-      source(s,'※ CPV = 총 예산(대행수수료 포함, VAT 별도) ÷ 조회수 · 측정 기준 업로드 후 D+7 · 실제 성과는 콘텐츠 반응에 따라 달라질 수 있습니다.')},
-    timeline(s){const t=AI.timeline||{};const wd=weekDates(I);head(s,`${sec('timeline')} · TIMELINE`,t.title||`${wd.last+1}주 동안,\n${K.people}개 콘텐츠로 피드를 채웁니다`,t.sub||'제안 확정 후 1주 안에 섭외 리스트업을 마칩니다.\n모든 그룹은 같은 주에 동시에 업로드합니다.');
-      const u=wd.up,last=wd.last;const tasks=[['제안 확정 · 섭외 리스트업',0,0,false],['섭외 · 계약 (모두싸인)',1,Math.max(1,u-2),false],['브리프 · 온보딩 · 가편 검수',Math.max(1,u-2),u-1,false],['A·B·C 그룹 동시 업로드',u,u,true],['1차 리포트 (D+7)',u+1,u+1,false],['상위 콘텐츠 2차 활용 · 광고 소재화',u+1,Math.min(last,u+2),false],['실시간 리포트 (ad.ringcoms.com)',u,last,false],['최종 리포트',last,last,true]];
-      const lw=3.75,gx=MX+lw,gw=W-MX-gx,colW=gw/(last+1),y0=2.95,rh=0.47;for(let j=0;j<=last;j++){T(s,[{text:'W'+j,options:{bold:true,fontSize:12,color:DARK,breakLine:true}},{text:wd.wk(j),options:{fontSize:9,color:MUT}}],{x:gx+j*colW,y:y0,w:colW,h:0.52,fontFace:FT,align:'center'});if(j)rect(s,gx+j*colW,y0+0.6,0.01,tasks.length*rh+0.1,LINE)}
-      tasks.forEach(([nm,a,b,hot],i)=>{const Y=y0+0.66+i*rh;T(s,nm,{x:MX,y:Y,w:lw-0.2,h:rh-0.06,fontFace:hot?FS:FB,bold:hot&&B,fontSize:11.5,color:DARK,fit:'shrink'});box(s,gx+a*colW+0.06,Y+0.08,(b-a+1)*colW-0.12,rh-0.22,hot?TH:TINT,{r:0.08})})},
-    appx(s,i){const IX=+i;if(IX===0){head(s,'APPENDIX A · 성과 추정 기준','예상 성과는\n이렇게 계산했습니다','티어별 인원 × 링컴즈 집행 캠페인 평균 조회 = 예상 조회수 · ER은 보수적으로 적용했습니다.',{bg:'FAFAFB'});
-        const tbl=(x0,y0,title,cols,ws,rows,tot)=>{T(s,title,{x:x0,y:y0,w:6,h:0.32,fontFace:FT,bold:B,fontSize:13,color:DARK,fit:'shrink'});let x=x0;const yh=y0+0.42;cols.forEach((c,k)=>{T(s,c,{x:x+0.06,y:yh,w:ws[k]-0.12,h:0.3,fontFace:FS,bold:B,fontSize:10.5,color:MUT,align:k?'right':'left'});x+=ws[k]});const tw=ws.reduce((a,b)=>a+b,0);
-          rows.forEach((r,j)=>{const Y=yh+0.36+j*0.48;rect(s,x0,Y,tw,0.012,LINE);let cx=x0;r.forEach((v,k)=>{T(s,String(v),{x:cx+0.06,y:Y+0.06,w:ws[k]-0.12,h:0.36,fontFace:k?FB:FS,bold:!k&&B,fontSize:12,color:DARK,align:k?'right':'left'});cx+=ws[k]})});
-          const yt=yh+0.36+rows.length*0.48;rect(s,x0,yt,tw,0.02,DARK);let cx=x0;tot.forEach((v,k)=>{T(s,String(v),{x:cx+0.06,y:yt+0.06,w:ws[k]-0.12,h:0.36,fontFace:FT,bold:B,fontSize:12,color:TH,align:k?'right':'left'});cx+=ws[k]})};
-        const bm=K.bm;tbl(MX,2.95,`${BR} 추정`,['티어','인원','평균 조회','ER','예상 조회수'],[1.2,0.85,1.35,0.9,1.5],K.R.filter(r=>r.count).map(r=>[r.tier,r.count+'명',won(bm.views[r.tier]),pc(K.er),won(r.count*bm.views[r.tier])]),['합계',K.people+'명','',pc(K.er),won(K.views)]);
-        tbl(7.15,2.95,`참고 · ${bm.name}`,['티어','콘텐츠','평균 조회','ER','CPV'],[1.3,0.95,1.2,0.9,1.15],PT.map(t=>[t,bm.src[t]==='기본값'?'기본값':won(bm.acc[t].n)+'개',won(bm.views[t]),pc(bm.er[t],2),bm.cpv[t].toFixed(1)+'원']),['합계',bm.real?won(bm.tot.n)+'개':'-',bm.real&&bm.tot.n?won(bm.tot.views/bm.tot.n):'-',bm.real&&bm.tot.views?pc(bm.tot.eng/bm.tot.views,2):'-',bm.real&&bm.tot.cost&&bm.tot.views?(bm.tot.cost/bm.tot.views).toFixed(1)+'원':'-']);
-        box(s,MX,6.0,W-2*MX,0.8,'FFFFFF',{line:LINE});T(s,`산식 · 예상 조회수 = Σ(티어별 인원 × 평균 조회) · 참여 = 조회 × ER(${pc(K.er)}) · 좋아요 = 참여 × 0.92 · CPV = 총 예산(대행수수료 포함) ÷ 조회수 · 보수/기준/확장 = 0.7/1.0/1.4배\n실측이 콘텐츠 3개 미만인 티어는 ${BENCH0.name} 실측값을 썼습니다. 앱 설치·클릭 추정치는 넣지 않았습니다.`,{x:MX+0.25,y:6.0,w:W-2*MX-0.5,h:0.8,fontSize:9.5,color:MUT,fit:'shrink'})}
-      else{head(s,'APPENDIX B · 섭외 기준 & 리스크 관리','섭외는 꼼꼼하게,\n리스크는 미리 막습니다','브랜드와 크리에이터 모두에게 득이 되는 구조로 섭외하고, 업로드 전 검수로 리스크를 줄입니다.',{bg:'FAFAFB'});
-        [['섭외 기준',['최근 콘텐츠 조회 중앙값·ER로 실제 반응을 확인합니다.','채널 카테고리·톤이 그룹 컨셉과 맞는지 봅니다.','최근 광고 빈도와 경쟁사 협업 여부를 확인합니다.','팔로워 급증·비정상 반응 계정은 제외합니다.']],['리스크 관리',['가편 검수 후 업로드합니다 (수정 2회 포함).','#광고 표기 등 표시·광고 지침을 지킵니다.','효능·효과를 단정하는 표현은 쓰지 않습니다.','일정이 밀리면 대체 후보로 바로 교체합니다.','이슈는 실시간 리포트로 즉시 공유합니다.']]].forEach(([h,it],k)=>{const X=MX+k*6.17,w=5.9;box(s,X,2.95,w,3.25,'FFFFFF',{line:LINE});
-          T(s,h,{x:X+0.35,y:3.15,w:w-0.7,h:0.42,fontFace:FT,bold:B,fontSize:16,color:DARK});T(s,it.map(x=>'• '+x).join('\n'),{x:X+0.35,y:3.7,w:w-0.7,h:2.35,fontSize:13,color:DARK,lineSpacingMultiple:1.35,fit:'shrink'})})}},
-    async closing(s){pg++;s.background={color:DARK};s.addImage({data:ring,x:(W-5.2)/2,y:0.9,w:5.2,h:5.2});logo(s,true);if(imgs.closing)await put(s,imgs.closing,(W-4)/2,0.75,4,1.85);T(s,'감사합니다',{x:0,y:2.75,w:W,h:1.0,fontFace:FT,bold:B,fontSize:46,color:'FFFFFF',align:'center'});
-      T(s,lnz(AI.closing||[String((AI.umbrella||{}).name||'').replace(/\n/g,' '),L((AI.umbrella||{}).hashtags)[0]].filter(Boolean).join('  ')),{x:0.8,y:3.85,w:W-1.6,h:0.5,fontFace:FL,fontSize:16,color:'FFFFFF',align:'center',fit:'shrink'});
-      T(s,'링컴즈 MCN 사업부 광고콘텐츠팀  ·  ac@ringcoms.com',{x:0,y:6.7,w:W,h:0.32,fontSize:11,color:'DDDDDD',align:'center'})},
-    async eod(s){pg++;s.background={color:DARK};s.addImage({data:ring,x:(W-5.2)/2,y:1.15,w:5.2,h:5.2});logo(s,true);if(imgs.closing)await put(s,imgs.closing,(W-4)/2,0.75,4,1.85);T(s,'E.O.D',{x:0,y:2.75,w:W,h:1.2,fontFace:FT,bold:B,fontSize:72,color:'FFFFFF',align:'center'});
-      T(s,'END OF DOCUMENT',{x:0,y:3.95,w:W,h:0.4,fontFace:FL,fontSize:14,color:'DDDDDD',align:'center'});T(s,`링컴즈 MCN 사업부 광고콘텐츠팀  ·  ac@ringcoms.com  ·  ${today().replace(/-/g,'.')}`,{x:0,y:6.7,w:W,h:0.32,fontSize:11,color:'DDDDDD',align:'center'})}
-  };
-  for(const id of seq){const [nm,arg]=id.split(':');if(!S[nm])continue;if(nm==='showcase'&&!GKEYS.some(k=>picksOf(P,k).length||(G[k].persona||[]).length))continue;const s=deck.addSlide();if(!['cover','toc','closing','eod'].includes(nm))secNo++;await S[nm](s,arg);notes(s,nm==='group'?'group'+arg:nm==='guide'?'guide'+arg:nm)}
-  return deck}
+/* ============ 테마 · 이미지 ============ */
+const PPD=()=>window.PPD;
+function themeFor(P){const t=P.theme||{};return PPD().decideTheme(t.deckMain||t.palette,t.logo,t.manual)}
+const IMGDOC={p:'',cut:'__cut',av:'__av',src:'__src',pg:'__pg'};const IMGST={p:'pimgs',cut:'pcimgs',av:'pavs',src:'psrc',pg:'ppgs'};
+const logoSrc={dark:'/img/ringcoms-h-dark.png',white:'/img/ringcoms-h-white.png'};
+async function logoData(){if(logoData.v)return logoData.v;const get=async u=>{try{const b=await (await fetch(u)).blob();return await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r(null);fr.readAsDataURL(b)})}catch(e){return null}};
+  logoData.v={dark:await get(logoSrc.dark),white:await get(logoSrc.white)};return logoData.v}
+const cropOf=(id)=>id&&(A.psrc||{})[id]||null;
+const cropsOf=P=>(P.crops||[]).filter(c=>(A.psrc||{})[c.id]);
+function firstCrop(P,kinds,skip=[]){const L=cropsOf(P).filter(c=>!skip.includes(c.id));for(const k of kinds){const c=L.find(x=>x.kind===k);if(c)return c.id}return L[0]?L[0].id:null}
+/* 표지·간지·마지막 장 이미지 후보 3가지 (무료): 소개서에서 자른 이미지 · 폰 목업 합성 · 카드/엠블럼 그래픽 */
+function slotCands(P,slot){const sc=(P.ai||{}).screens||{};
+  if(slot==='cover'){const c1=cropOf(sc.hero)?sc.hero:firstCrop(P,['app_screen','product','mascot']);const c2=firstCrop(P,['app_screen','product'],[c1]);
+    return [c1&&{key:'crop:'+c1,label:'소개서 이미지'},{key:'gfx:phone:'+(c1||''),label:'폰 목업'},{key:'gfx:cards:'+(c2||c1||''),label:'카드 그래픽'}].filter(Boolean)}
+  if(slot==='divider'){const c1=firstCrop(P,['app_screen','product'],[sc.hero]);return [{key:'auto',label:'그룹별 앱 화면'},c1&&{key:'crop:'+c1,label:'같은 이미지로'},{key:'gfx:cards:'+(c1||''),label:'카드 그래픽'}].filter(Boolean)}
+  if(slot==='closing'){const c1=cropOf(sc.mascotClosing)?sc.mascotClosing:firstCrop(P,['mascot','product']);return [c1&&{key:'crop:'+c1,label:'캐릭터·제품'},{key:'gfx:badge:',label:'브랜드 엠블럼'},{key:'gfx:phone:'+(firstCrop(P,['app_screen'])||''),label:'폰 목업'}].filter(Boolean)}
+  return []}
+async function slotImg(P,slot,T){const d=(P.design||{}).img||{};let key=d[slot]||'auto';const BR=(P.ai||{}).brand||(P.info||{}).brand||'Brand';
+  if(key==='none')return null;if(key==='up')return (A.pimgs||{})[slot]||null;
+  if(key==='auto'){if(slot==='divider')return null;if((A.pimgs||{})[slot]&&!d[slot])return A.pimgs[slot];const c=slotCands(P,slot)[0];key=c?c.key:'none';if(key==='none')return null}
+  return keyImg(key,T,BR)}
+async function keyImg(key,T,BR){if(!key)return null;if(key.startsWith('crop:'))return cropOf(key.slice(5));
+  if(key.startsWith('gfx:')){const [,style,cid]=key.split(':');return PPD().gfxImage(T,style,BR,cropOf(cid))}return null}
+const BG_OPTS={cover:[['skill','기본 (원형)'],['grad','그라데이션'],['wave','물결'],['dots','점 패턴']],divider:[['skill','기본 (원형)'],['grad','그라데이션'],['ring','링'],['wave','물결']],closing:[['skill','기본 (원형)'],['grad','그라데이션'],['dots','점 패턴'],['ring','링']],body:[['none','없음 (흰 배경)'],['grad','은은한 그라데이션'],['ring','모서리 링'],['dots','모서리 점']]};
+const BG_KIND={cover:'표지',divider:'간지 (캠페인·그룹 컨셉)',closing:'마지막 장',body:'본문 장'};
+async function bgOf(P,kind,T){const b=((P.design||{}).bg||{})[kind]||(kind==='body'?'none':'skill');if(b==='up'){const src=(A.pimgs||{})['bg_'+kind];if(!src)return null;const op=N((((P.design||{}).bgOp)||{})[kind]||(kind==='body'?15:35))/100;return PPD().veilImage(src,T,kind,op)}return PPD().bgImage(T,kind,b)}
+
+/* ============ 장표 데이터 (스킬 data.json 형식) ============ */
+async function toD(P){const I=P.info||{},AI=P.ai||{},K=ppCalc(P),M=matrixOf(K.R);const T=themeFor(P);const BR=AI.brand||I.brand||I.advertiser||'Brand';const sc=AI.screens||{};
+  const G={};(AI.groups||[]).forEach(g=>{if(g&&g.key)G[g.key]=g});GKEYS.forEach((k,i)=>{G[k]=G[k]||{key:k,name:`그룹 ${k}`,pillar:['공감·인지','참여·확산','확장·신규'][i],concept:{},guide:{cuts:[]},feature:{items:[]}}});
+  const tt=(k,f,d)=>((AI.titles||{})[k]||{})[f]||d;const L=logoData.v||await logoData();const weeks=weeksOf(I);const used=K.R.filter(r=>r.count>0);
+  const screens={};cropsOf(P).forEach(c=>screens[c.id]=A.psrc[c.id]);
+  const cutsOf=k=>(((G[k].guide||{}).cuts)||[]).slice(0,4);
+  const peopleOf=()=>{const out=[];GKEYS.forEach(k=>{const ps=picksOf(P,k).slice(0,4);if(ps.length)ps.forEach(c=>out.push({group:k,name:c.name,img:c.av,sub:c.sub,tier:c.tier,stat:c.stat,why:lnz(c.why)}));else L_(G[k].persona).slice(0,2).forEach(q=>out.push({group:k,persona:true,name:lnz(q.type),sub:'섭외 예정 프로필',tier:q.tier||'',stat:'',why:lnz(q.why)}))});return out};
+  const bm=K.bm;const refCpv=`티어별 CPV(${bm.real?'링컴즈 집행 실측':'묵끄럽 8월 실측'}) · 메가 ${bm.cpv.메가.toFixed(1)}원 / 매크로 ${bm.cpv.매크로.toFixed(1)}원 / 마이크로 ${bm.cpv.마이크로.toFixed(1)}원 / 나노 ${bm.cpv.나노.toFixed(1)}원`;
+  const TW=AI.tierWhy||{};const upW=4;
+  const D={meta:{brand:BR,date:`${new Date().getFullYear()}. ${String(new Date().getMonth()+1).padStart(2,'0')}`},theme:T,K,budget:{feeRatePct:K.f.rate},
+    assets:{logoDark:L.dark,logoWhite:L.white,screens,heroPhone:await slotImg(P,'cover',T),mascot:cropOf(sc.mascot)||null,mascotClosing:await slotImg(P,'closing',T)},
+    dividerImg:await slotImg(P,'divider',T),
+    bg:{cover:await bgOf(P,'cover',T),divider:await bgOf(P,'divider',T),closing:await bgOf(P,'closing',T),body:await bgOf(P,'body',T)},
+    cover:{eyebrow:'INFLUENCER MARKETING PROPOSAL',headline:'인플루언서 마케팅 제안서',tagline:lnz((AI.cover||{}).tagline||(AI.umbrella||{}).oneLine||String((AI.umbrella||{}).name||'').replace(/,?\s*\n\s*/g,', ')),budgetLine:`총 예산 ${man(K.total)}원 · ${weeks.last+1}주 운영 · VAT 별도`},
+    toc:['현재 시장 상황',`${BR}가 나아가야 할 방향`,'링컴즈 인플루언서 마케팅 역량','캠페인 컨셉 · 핵심 전략','그룹별 전략 · 콘텐츠 가이드 예시','인플루언서 구성 · 예산 · 예상 성과','타임라인','Appendix'],
+    market:{...(AI.market||{}),stats:L_((AI.market||{}).stats).slice(0,3),insights:L_((AI.market||{}).insights).slice(0,3)},
+    direction:{...(AI.direction||{}),shifts:L_((AI.direction||{}).shifts).slice(0,3),screen:sc.direction},
+    capability:{title:'왜 링컴즈 MCN인가?\n섭외부터 리포트까지, 한 팀에서',sub:'섭외, 콘텐츠 관리, 성과 리포트, 광고 소재 재활용까지.\n캠페인의 모든 단계를 링컴즈가 직접 운영합니다.',
+      cards:[{title:'크리에이터 네트워크',text:'전속 크리에이터와\n카테고리별 인플루언서 풀을\n직접 운영합니다.\n브랜드와 크리에이터 모두에게\n득이 되는 구조로 섭외합니다.'},{title:'캠페인 관리 플랫폼',text:'자체 툴(ad.ringcoms.com)로\n진행 현황과 성과를\n실시간 링크로 공유합니다.\n엑셀·PDF 리포트도\n바로 드립니다.'},{title:'전환 트래킹',text:'인플루언서별 전용 링크로\n클릭과 앱 설치를\n따로 추적합니다.\n누가 실제 설치를 만들었는지\n숫자로 확인합니다.'},{title:'2차 활용 · 광고 소재화',text:'성과 좋은 콘텐츠는\n2차 라이선스로 확보해\nMeta·TikTok 광고 소재로\n재활용합니다.\n인하우스 PD가 편집합니다.'}],
+      refTitle:'유사 볼륨 캠페인 레퍼런스',refName:bm.real?bm.name:'묵끄럽 마라곤약스낵 · 8월 시딩 캠페인',refNote:bm.real?`링컴즈 캠페인 관리 툴 실측 (${today().replace(/-/g,'.')} 기준)`:'링컴즈 캠페인 관리 툴 실측 (2026.10.7 기준)',
+      refStats:bm.real?[{label:'콘텐츠',value:won(bm.tot.n)+'개'},{label:'총 조회수',value:cK(bm.tot.views)},{label:'평균 ER',value:pc(bm.tot.views?bm.tot.eng/bm.tot.views:0,2)},{label:'CPV',value:bm.tot.cost&&bm.tot.views?(bm.tot.cost/bm.tot.views).toFixed(1)+'원':'–'}]:[{label:'인플루언서',value:'16명'},{label:'총 조회수',value:'95만'},{label:'평균 ER',value:'1.86%'},{label:'CPV',value:'20.0원'}]},
+    umbrella:{eyebrow:'CAMPAIGN CONCEPT',name:lnz((AI.umbrella||{}).name),sub:lnz((AI.umbrella||{}).sub),oneLine:lnz((AI.umbrella||{}).oneLine||(AI.cover||{}).tagline||String((AI.umbrella||{}).name||'').replace(/,?\n/g,' ')),hashtag:L_((AI.umbrella||{}).hashtags)[0]||'',
+      items:GKEYS.map(k=>({group:k,name:lnz((G[k].concept||{}).name),hashtags:L_((G[k].concept||{}).hashtags),line:lnz((G[k].concept||{}).line||(G[k].concept||{}).keyMessage)}))},
+    features:{title:lnz(tt('features','title','공감에서 참여로,\n참여에서 확장으로')),sub:lnz(tt('features','sub','세 그룹이 각자 다른 기능을 보여 주며\n하나의 캠페인으로 이어집니다.')),cols:GKEYS.map(k=>({group:k,screen:sc['features'+k]||sc['group'+k],items:L_((G[k].feature||{}).items).slice(0,3).map(i=>[lnz(i.name),lnz(i.desc)]),effect:lnz((G[k].feature||{}).effect)}))},
+    groupConcepts:Object.fromEntries(GKEYS.map(k=>{const c=G[k].concept||{};return [k,{name:lnz(c.name),hashtags:L_(c.hashtags),story:L_(c.story).map(lnz),keyMessage:lnz(c.keyMessage),features:lnz(c.features),screen:sc['group'+k]||sc.direction||firstCrop(P,['app_screen','product'],[sc.hero])||sc.hero}]})),
+    guides:Object.fromEntries(GKEYS.map(k=>{const g=G[k].guide||{};const cs=L_(sc['cuts'+k]);return [k,{title:lnz(g.title),sub:lnz(g.sub),cuts:cutsOf(k).map((c,i)=>({step:c.step,time:c.time,scene:lnz(c.scene),line:lnz(c.line),img:(A.pcimgs||{})[`${k}_${i}`]||null,screen:cs[i]||cs[0]})),caption:lnz(g.caption),must:L_(g.must).slice(0,3),dont:L_(g.dont).slice(0,3)}]})),
+    categories:{title:lnz(tt('categories','title','세 그룹의 인플루언서가\n각자의 역할을 맡습니다')),sub:lnz(tt('categories','sub','어떤 인플루언서가, 어떤 역할로, 어떤 콘텐츠를 만드는지 정리했습니다.')),groups:GKEYS.map(k=>({key:k,name:G[k].name,pillar:G[k].pillar,who:lnz(G[k].who),role:lnz(G[k].role),content:lnz(G[k].content),effect:lnz(G[k].effect)}))},
+    tiers:{title:lnz(tt('tiers','title',`메가 1명보다,\n${K.people}명이 여기저기서 보이게`)),sub:lnz(tt('tiers','sub','매크로로 화제를 만들고, 마이크로·나노로 \'어디서나 보이는\' 상태를 만듭니다.\n집행 실측에서도 메가의 CPV가 가장 높았습니다.')),
+      rows:K.R.map(r=>{const w=TW[r.tier]||{};return {tier:r.tier,range:RANGE[r.tier],count:r.count,unit:r.unit,role:r.count?(w.role||''):'제외',why:lnz(r.count?(w.why||''):(w.why||'예산이 1명에 집중돼\n리스크가 큼'))}}),refLine:refCpv},
+    matrix:{title:lnz(tt('matrix','title','그룹마다 티어를 나눠\n도달과 참여를 함께 잡습니다')),sub:lnz(tt('matrix','sub','그룹별 인원과 광고비를 티어 단가 기준으로 나눴습니다.')),cols:used.map(r=>r.tier),rows:GKEYS.map(k=>({group:k,counts:used.map(r=>M[k][r.tier]||0)})),points:L_(AI.matrixPoints).slice(0,3).map(lnz)},
+    showcase:{title:lnz(tt('showcase','title','이런 크리에이터와\n함께하려 합니다')),sub:lnz(tt('showcase','sub','그룹별 섭외 후보 예시입니다.\n최종 리스트는 광고주 컨펌 후 확정합니다.')),note:`※ ${today().replace(/-/g,'.')} 공개 데이터 기준 · 평균 조회 = 탐색 시점 최근 콘텐츠 조회 중앙값(유튜브는 채널 평균) 또는 링컴즈 집행 평균 · 섭외 가능 여부와 단가는 미확정`,people:peopleOf()},
+    kpi:{title:lnz(tt('kpi','title',`${man(K.total)}원으로 기대하는\n예상 성과`)),sub:lnz(tt('kpi','sub','링컴즈가 집행한 캠페인의 티어별 평균 조회수를 적용한 예상치입니다.\nER은 보수적으로 2.0%로 잡았습니다.')),note:'※ 집행 캠페인 평균 기반 예상치'},
+    timeline:{title:lnz((AI.timeline||{}).title||`한 주에 ${K.people}개 콘텐츠,\n피드를 ${BR}로 채웁니다`),sub:lnz((AI.timeline||{}).sub||'제안 확정 후 1주 안에 섭외 리스트업을 마칩니다.\n섭외·계약 2주, 브리프·가편 검수를 거쳐 W4에 A·B·C 세 그룹이 동시에 업로드합니다.'),weeks:weeks.weeks,
+      tasks:[{name:'제안 확정 · 섭외 리스트업',start:0,end:0},{name:'섭외 · 계약 (모두싸인)',start:1,end:2},{name:`브리프 · ${BR} 온보딩 · 가편 검수`,start:2,end:3},{name:`A·B·C 그룹 동시 업로드 (${K.people}명)`,start:upW,end:upW,hot:true,label:'업로드',tail:{end:weeks.last,label:'최소 6개월 게시글 유지 →'}},{name:'1차 성과 리포트 (D+7 측정)',start:upW+1,end:upW+1},{name:'성과 상위 콘텐츠 2차 활용 · 광고 소재화',start:upW+1,end:upW+2},{name:'실시간 리포트 공유 (ad.ringcoms.com)',start:upW,end:weeks.last},{name:'최종 결과 리포트',start:weeks.last,end:weeks.last}]},
+    appendix:[{kind:'assumptions',eyebrow:'APPENDIX A · 성과 추정 기준',title:'예상 성과는\n이렇게 계산했습니다',sub:'티어별 인원 × 집행 캠페인 평균 조회 = 예상 조회수 · ER은 보수적으로 적용했습니다.',notes:`산식 · 예상 조회수 = Σ(티어별 인원 × 평균 조회) · 참여 = 조회 × ER(${pc(K.er)}) · 좋아요 = 참여 × 0.92 · CPV = 총 예산(대행수수료 포함) ÷ 조회수 · 보수/기준/확장 = 0.7/1.0/1.4배`},
+      {kind:'list',eyebrow:'APPENDIX',title:'섭외는 꼼꼼하게,\n리스크는 미리 막습니다',sub:'브랜드와 크리에이터 모두에게 득이 되는 구조로 섭외하고,\n업로드 전 검수로 리스크를 줄입니다.',cols:[{head:'섭외 기준',items:['최근 콘텐츠 조회 중앙값·ER로 실제 반응 확인','채널 카테고리·톤이 그룹 컨셉과 맞는지 확인','최근 광고 빈도·경쟁사 협업 여부 확인','팔로워 급증·비정상 반응 계정 제외']},{head:'리스크 관리',items:['가편 검수 후 업로드 (수정 2회 포함)','#광고 표기 등 표시·광고 지침 준수','효능·효과를 단정하는 표현 금지','일정 지연 시 대체 후보로 바로 교체']}]}],
+    closing:{line:'링컴즈 MCN 사업부 광고콘텐츠팀 · ac@ringcoms.com'}};
+  const tok={views:cK(K.views),er:pc(K.er),eng:cK(Math.round(K.eng/100)*100),likes:cK(Math.round(K.likes/100)*100),cpv:K.cpv.toFixed(1),exec:man(K.ad),fee:man(K.fee),people:K.people};
+  D.fillT=s=>String(s||'').replace(/\{(\w+)\}/g,(m,k)=>tok[k]!==undefined?tok[k]:m);
+  const nt={...(AI.notes||{})};GKEYS.forEach(k=>{if(!nt['groupConcept:'+k]&&nt['group'+k])nt['groupConcept:'+k]=nt['group'+k];if(!nt['guide:'+k]&&nt['guide'+k])nt['guide:'+k]=nt['guide'+k]});D.notes=nt;
+  return D}
 
 /* ============ 데모용 예시 결과 ============ */
 function mockAi(I){const b=I.brand||'Petbbi';const g=(key,name,pillar,kw,cn,tags)=>({key,name,pillar,who:'실제로 쓰는\n타깃 인플루언서',role:'진짜 사용 경험으로\n신뢰를 만듭니다',content:'얼굴 정면 + 화면 녹화\n설명형 숏폼',effect:'공감 · 저장\n댓글 대화',keywords:kw,
@@ -276,21 +184,30 @@ function mockAi(I){const b=I.brand||'Petbbi';const g=(key,name,pillar,kw,cn,tags
     tierWhy:{메가:{role:'도달',why:'비용 대비 효율이 낮아 제외'},매크로:{role:'도달',why:'초기 도달을 넓게 엽니다'},마이크로:{role:'참여',why:'높은 ER로 대화를 만듭니다'},나노:{role:'확산',why:'진정성 있는 후기를 쌓습니다'}},
     matrixPoints:['A그룹은 매크로로\n첫 도달을 엽니다','B그룹은 마이크로 중심으로\n참여를 끌어올립니다','C그룹은 나노로\n신규 타깃을 넓힙니다'],timeline:{title:'',sub:''},closing:'우리 아이 마음, 처음 듣는 순간 — #처음듣는그목소리',checks:['데모 결과입니다. 실제로는 Gemini가 소개서·시장 조사로 작성합니다.'],notes:{cover:'안녕하세요, 링컴즈 MCN 광고콘텐츠팀입니다.'}}}
 
+
+
 /* ============ 저장 · 감시 ============ */
 async function pSave(top,P){P=P||curP();if(!P||!canEdit())return;try{await DB.update('guides/'+A.pid,{[top]:clone(P[top]),updatedAt:new Date().toISOString(),by:A.user.email})}catch(e){saveErr(e)}}
-const IMGDOC={p:'',cut:'__cut',av:'__av'};const IMGST={p:'pimgs',cut:'pcimgs',av:'pavs'};
-function watchPimg(){if(A.pimgFor!==A.pid){['cut','av'].forEach(t=>{const u='unsubP'+t;if(A[u]){A[u]();A[u]=null}A[IMGST[t]]={};if(A.pid)A[u]=DB.watchDoc('guideimg/'+A.pid+IMGDOC[t],d=>{A[IMGST[t]]=(d&&d.imgs)||{};schedPv();scheduleRender()},()=>{})})}watchPimg0()}
-function watchPimg0(){if(A.pimgFor===A.pid)return;if(A.unsubPimg){A.unsubPimg();A.unsubPimg=null}A.pimgFor=A.pid;A.pimgs={};if(!A.pid)return;A.unsubPimg=DB.watchDoc('guideimg/'+A.pid,d=>{A.pimgs=(d&&d.imgs)||{};schedPv();scheduleRender()},()=>{})}
+function watchPimg(){if(A.pimgFor===A.pid)return;Object.keys(IMGDOC).forEach(t=>{const u='unsubP_'+t;if(A[u]){A[u]();A[u]=null}A[IMGST[t]]={};if(A.pid)A[u]=DB.watchDoc('guideimg/'+A.pid+IMGDOC[t],d=>{A[IMGST[t]]=(d&&d.imgs)||{};schedPv();scheduleRender()},()=>{})});A.pimgFor=A.pid}
 function pAiRunning(P){return P&&P.aiStatus==='진행 중'&&P.aiAt&&(Date.now()-new Date(P.aiAt).getTime()<15*60*1000)}
-window.ppAiCheck=function(){if(!canEdit()||!A.props)return;Object.entries(A.props).forEach(([pid,P])=>{const seen=ppAiCheck.done||(ppAiCheck.done=new Set());if(P.aiStatus==='완료'&&P.aiResult&&!seen.has(P.aiJob)){seen.add(P.aiJob);let j=null;try{j=JSON.parse(P.aiResult)}catch(e){}if(j)pApply(pid,P,j)}
+window.ppAiCheck=function(){if(!canEdit()||!A.props)return;Object.entries(A.props).forEach(([pid,P])=>{const seen=ppAiCheck.done||(ppAiCheck.done=new Set());if(P.aiStatus==='완료'&&P.aiResult&&!seen.has(P.aiJob)&&pid===A.pid){seen.add(P.aiJob);let j=null;try{j=JSON.parse(P.aiResult)}catch(e){}if(j)pApply(pid,P,j)}
   if(P.aiStatus==='실패'&&P.aiError&&!seen.has('e'+P.aiJob)&&A.pid===pid){seen.add('e'+P.aiJob);toast('AI 제안서 작성 실패: '+P.aiError,'crit')}})};
-async function pApply(pid,P,j){const ai=j.ai||{};delete ai.timeline;/* 타임라인 제목은 실제 일정(주차·동시 업로드)에 맞춰 자동 */const info={...(P.info||{})};['advertiser','brand','product','category'].forEach(k=>{if(!String(info[k]||'').trim()&&ai[k])info[k]=ai[k]});if(!info.color&&/^#?[0-9a-f]{6}$/i.test(String(ai.color||'')))info.color=('#'+String(ai.color).replace('#','')).toUpperCase();
+/* 소개서 쪽 이미지: 화면 메모리(방금 올린 것) → 없으면 저장된 쪽 이미지(__pg) */
+function pagesOf(){const mem=A.ppPages&&A.ppPages.pid===A.pid?A.ppPages.list:null;if(mem&&mem.length)return mem;const pg=A.ppgs||{};return Object.keys(pg).sort((a,b)=>N(a)-N(b)).map(k=>({n:N(k),data:pg[k]}))}
+async function savePages(pid,pages){const out={};let size=0;for(const p of pages.slice(0,16)){const d=await shrinkTo(p.data,720,0.6);if(size+d.length>900000)break;size+=d.length;out[String(p.n)]=d}try{await DB.set('guideimg/'+pid+'__pg',{imgs:out,updatedAt:new Date().toISOString()});if(pid===A.pid)A.ppgs=out}catch(e){console.error(e)}}
+/* AI 결과 적용: 문구 + 소개서 이미지 자르기 + 브랜드 컬러 */
+async function pApply(pid,P,j){const ai=j.ai||{};delete ai.timeline;const info={...(P.info||{})};['advertiser','brand','product','category'].forEach(k=>{if(!String(info[k]||'').trim()&&ai[k])info[k]=ai[k]});
+  const vis=j.vision||{};const pages=pagesOf();const crops=[];const imgs={};let size=0;
+  for(const it of (vis.items||[])){const pg=pages.find(p=>p.n===it.page)||pages[it.page-1];if(!pg)continue;const mascot=it.kind==='mascot';const d=await PPD().cropImg(pg.data,it.box,{max:mascot?480:620,cutout:mascot});if(!d||size+d.length>900000)continue;size+=d.length;imgs[it.id]=d;crops.push({id:it.id,page:it.page,kind:it.kind,label:it.label,box:it.box,cut:mascot})}
+  if(crops.length){try{await DB.set('guideimg/'+pid+'__src',{imgs,updatedAt:new Date().toISOString()});if(pid===A.pid)A.psrc=imgs}catch(e){console.error(e)}}
+  const pal=await PPD().paletteOf(pages.map(p=>p.data));const col=vis.colors||{};const theme={...(P.theme||{}),deckMain:PPD().hx(col.deckMain)||pal||(P.theme||{}).deckMain||null,logo:PPD().hx(col.logo)||null,palette:pal,note:String(col.note||'').slice(0,200)};
   const tmp={...P,info,ai};const picks={...(P.picks||{})};GKEYS.forEach(k=>{if(!(picks[k]||[]).length){picks[k]=poolCands(tmp,k).filter(x=>x.hit).slice(0,2).map(x=>x.id)}});
-  const title=P.title&&!/^새 광고 제안서/.test(P.title)?P.title:`${info.brand||info.advertiser||'광고주'} 인플루언서 캠페인 제안서`;
-  try{await DB.update('guides/'+pid,{ai,info,picks,title,aiMeta:{model:j.model||'',research:j.research||{},pages:j.pages||[],at:new Date().toISOString()},aiStatus:'적용됨',aiResult:DB.DEL,updatedAt:new Date().toISOString()});
-    if(A.props&&A.props[pid])Object.assign(A.props[pid],{ai,info,picks,title,aiStatus:'적용됨'});if(A.pid===pid){A.ptab='preview';toast('AI가 제안서를 채웠습니다. 이어서 섭외 후보를 찾습니다. 미리보기에서 확인하고, 「제안서 내용」에서 다듬어 주세요.');setTimeout(()=>ppDiscover(true),300)}schedPv();render()}catch(e){saveErr(e)}}
+  const title=P.title&&!/^새 (광고|인플루언서 캠페인) 제안서/.test(P.title)?P.title:`${info.brand||info.advertiser||'광고주'} 인플루언서 캠페인 제안서`;
+  try{const up={ai,info,picks,title,theme,aiMeta:{model:j.model||'',research:j.research||{},vision:{n:(vis.items||[]).length,error:vis.error||''},pages:j.pages||[],at:new Date().toISOString()},aiStatus:'적용됨',aiResult:DB.DEL,updatedAt:new Date().toISOString()};if(crops.length)up.crops=crops;
+    await DB.update('guides/'+pid,up);if(A.props&&A.props[pid]){Object.assign(A.props[pid],up);delete A.props[pid].aiResult}
+    if(A.pid===pid){A.ptab='edit';A.psub='cover';toast(`AI가 제안서를 채웠습니다.${crops.length?` 소개서 이미지 ${crops.length}개를 잘라 넣었습니다.`:''} 이어서 섭외 후보를 찾습니다.`);setTimeout(()=>ppDiscover(true),300)}schedPv();render()}catch(e){saveErr(e)}}
 
-/* ============ 상품소개서 읽기 (PDF·텍스트·이미지) ============ */
+/* ============ 상품소개서 읽기 (PDF · PPT · 텍스트) ============ */
 async function pdfLib(){if(!window.pdfjsLib){await loadScript('/vendor/pdf.min.js');window.pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdf.worker.min.js'}return window.pdfjsLib}
 const SRC_MAX=50*1024*1024;
 /* PPTX: 슬라이드 글자(<a:t>) + 슬라이드별 가장 큰 이미지 → 쪽 이미지 */
@@ -302,41 +219,43 @@ async function readPptx(file){if(!window.JSZip)await loadScript('/vendor/pptxgen
       let best=null,bs=0;for(const f of ims){const sz=(zip.file(f)._data||{}).uncompressedSize||0;if(sz>bs){bs=sz;best=f}}
       if(best&&bs>8000){const b64=await zip.file(best).async('base64');const raw=`data:${MIME[best.split('.').pop().toLowerCase()]};base64,${b64}`;pages.push({n:no,data:await shrink(raw,900)})}}}}
   return {text:text.trim(),pages,count:names.length}}
-async function readSrc(file){const P=curP();if(!P)return;const nm=file.name||'소개서';const info={...(P.info||{})};
-  if(file.size>SRC_MAX)return toast(`파일이 너무 큽니다 (${(file.size/1048576).toFixed(0)}MB). 50MB 이하로 올려 주세요. PPT는 이미지 압축(파일 → 그림 압축) 후 저장하거나 PDF로 저장해 올려 주세요.`,'crit');
-  if(/\.ppt$/i.test(nm))return toast('예전 PPT(.ppt) 형식은 읽을 수 없습니다. PowerPoint에서 .pptx나 PDF로 저장해 올려 주세요.','crit');
-  try{if(/\.pptx$/i.test(nm)||/presentationml/.test(file.type)){toast('PPT 소개서를 읽는 중입니다…');const r=await readPptx(file);A.ppPages={pid:A.pid,list:r.pages};info.srcText=r.text.slice(0,40000);info.srcName=nm;info.srcPages=r.count;
-      if(info.srcText.replace(/\[\d+쪽\]/g,'').trim().length<200)toast('PPT에서 글자를 거의 읽지 못했습니다(이미지로 된 슬라이드). 핵심 문구를 아래 메모 칸에 붙여넣어 주세요.','crit');else toast(`PPT ${r.count}장을 읽었습니다.${r.pages.length?' 슬라이드 이미지를 표지 이미지로 쓸 수 있어요.':''}`)}
-    else if(/pdf$/i.test(file.type)||/\.pdf$/i.test(nm)){toast('소개서를 읽는 중입니다…');const lib=await pdfLib();const doc=await lib.getDocument({data:await file.arrayBuffer()}).promise;let text='';const pages=[];const NP=Math.min(doc.numPages,40);
-      for(let i=1;i<=NP;i++){const pg=await doc.getPage(i);const tc=await pg.getTextContent();text+=`\n[${i}쪽]\n`+tc.items.map(x=>x.str+(x.hasEOL?'\n':' ')).join('').replace(/[ \t]+/g,' ');
-        if(i<=24){const vp=pg.getViewport({scale:1});const k=Math.min(1.4,900/Math.max(vp.width,vp.height));const v2=pg.getViewport({scale:k});const cv=document.createElement('canvas');cv.width=v2.width;cv.height=v2.height;await pg.render({canvasContext:cv.getContext('2d'),viewport:v2}).promise;pages.push({n:i,data:cv.toDataURL('image/jpeg',0.82)})}}
-      A.ppPages={pid:A.pid,list:pages};info.srcText=text.trim().slice(0,40000);info.srcName=nm;info.srcPages=doc.numPages;
-      if(info.srcText.replace(/\[\d+쪽\]/g,'').trim().length<200)toast('PDF에서 글자를 거의 읽지 못했습니다(이미지로 된 PDF). 소개서의 핵심 문구를 아래 메모 칸에 붙여넣어 주세요.','crit');else toast(`소개서 ${doc.numPages}쪽을 읽었습니다. 아래 쪽 이미지를 눌러 표지 이미지로 쓸 수 있어요.`)}
-    else if(/^text\//.test(file.type)||/\.(txt|md|csv)$/i.test(nm)){info.srcText=(await file.text()).slice(0,40000);info.srcName=nm;toast('소개서 글자를 읽었습니다.')}
-    else if(/^image\//.test(file.type)){const d=await fileToDataUrl(file,1100,1100,'image/jpeg',0.82);A.ppPages={pid:A.pid,list:[...((A.ppPages&&A.ppPages.pid===A.pid&&A.ppPages.list)||[]),{n:'이미지',data:d}]};toast('이미지를 넣었습니다. 아래에서 표지 이미지로 지정하세요.');render();return}
-    else return toast('PDF·PPT(.pptx)·텍스트·이미지 파일을 올려 주세요.','crit');
-    P.info=info;await pSave('info',P);render()}catch(e){console.error(e);toast('소개서를 읽지 못했습니다: '+(e.message||e),'crit')}}
-async function pimgPut(slot,data,t='p'){if(!canEdit())return;const imgs={...(A[IMGST[t]]||{}),[slot]:data};const size=Object.values(imgs).reduce((a,b)=>a+String(b).length,0);if(size>950000)return toast('이미지가 너무 큽니다. 다른 이미지를 지우거나 더 작은 이미지를 넣어 주세요.','crit');
-  try{await DB.set('guideimg/'+A.pid+IMGDOC[t],{imgs,updatedAt:new Date().toISOString()});A[IMGST[t]]=imgs;A.ppaste='';schedPv();render();if(t!=='av')toast('이미지를 넣었습니다.')}catch(e){saveErr(e)}}
-async function pimgDel(slot,t='p'){const im={...(A[IMGST[t]]||{})};delete im[slot];try{await DB.set('guideimg/'+A.pid+IMGDOC[t],{imgs:im,updatedAt:new Date().toISOString()});A[IMGST[t]]=im;schedPv();render()}catch(e){saveErr(e)}}
-async function shrink(data,max){return new Promise(r=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));const cv=document.createElement('canvas');cv.width=Math.round(im.naturalWidth*k);cv.height=Math.round(im.naturalHeight*k);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);r(cv.toDataURL('image/jpeg',0.8))};im.onerror=()=>r(data);im.src=data})}
 
-/* ============ 미리보기 ============ */
-function schedPv(){clearTimeout(schedPv.t);schedPv.t=setTimeout(buildPv,120)}
-async function buildPv(){const el=document.getElementById('pp-pv');const P=curP();if(!el||!P||!P.ai)return;const seq=A.pseq==='sum'?SEQ_SUM:SEQ;const key=JSON.stringify([P.info,P.plan,P.ai,P.picks,seq,[A.pimgs,A.pcimgs,A.pavs].map(o=>Object.keys(o||{}).map(k=>k+String(o[k]).length).join())]);if(el.dataset.k===key&&el.childElementCount)return;
-  if(!document.getElementById('pretendard-css')){const l=document.createElement('link');l.id='pretendard-css';l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css';document.head.appendChild(l)}
-  try{const deck=new HtmlDeck();await ppDeck(deck,P,seq,{pdf:true,imgs:A.pimgs||{},cimgs:A.pcimgs||{},perSlideNo:A.pseq==='sum'});const html=deck.html();const box=document.getElementById('pp-pv');if(!box)return;box.dataset.k=key;
-    box.innerHTML=html.split('</section>').filter(x=>x.trim()).map((x,i)=>`<div class="pv-slide"><span class="pv-no">${i+1}</span>${x}</section></div>`).join('');fitPv();HtmlDeck.fit(box)}catch(e){console.error(e);el.innerHTML=`<div class="empty">미리보기를 만들지 못했습니다: ${esc(e.message||e)}</div>`}}
-function fitPv(){document.querySelectorAll('#pp-pv .pv-slide').forEach(w=>{const k=w.clientWidth/1280;const pg=w.querySelector('.dk-page');if(pg)pg.style.transform=`scale(${k})`})}
-window.addEventListener('resize',()=>{clearTimeout(fitPv.t);fitPv.t=setTimeout(fitPv,100)});
+async function readSrc(file,info,pid){const nm=file.name||'소개서';
+  if(file.size>SRC_MAX){toast(`파일이 너무 큽니다 (${(file.size/1048576).toFixed(0)}MB). 50MB 이하로 올려 주세요. PPT는 이미지 압축(파일 → 그림 압축) 후 저장하거나 PDF로 저장해 올려 주세요.`,'crit');return false}
+  if(/\.ppt$/i.test(nm)){toast('예전 PPT(.ppt) 형식은 읽을 수 없습니다. PowerPoint에서 .pptx나 PDF로 저장해 올려 주세요.','crit');return false}
+  try{let pages=[];if(/\.pptx$/i.test(nm)||/presentationml/.test(file.type)){toast('PPT 소개서를 읽는 중입니다…');const r=await readPptx(file);pages=r.pages;info.srcText=r.text.slice(0,40000);info.srcName=nm;info.srcPages=r.count}
+    else if(/pdf$/i.test(file.type)||/\.pdf$/i.test(nm)){toast('소개서를 읽는 중입니다…');const lib=await pdfLib();const doc=await lib.getDocument({data:await file.arrayBuffer()}).promise;let text='';const NP=Math.min(doc.numPages,40);
+      for(let i=1;i<=NP;i++){const pg=await doc.getPage(i);const tc=await pg.getTextContent();text+=`\n[${i}쪽]\n`+tc.items.map(x=>x.str+(x.hasEOL?'\n':' ')).join('').replace(/[ \t]+/g,' ');
+        if(i<=16){const vp=pg.getViewport({scale:1});const k=Math.min(2,1100/Math.max(vp.width,vp.height));const v2=pg.getViewport({scale:k});const cv=document.createElement('canvas');cv.width=v2.width;cv.height=v2.height;await pg.render({canvasContext:cv.getContext('2d'),viewport:v2}).promise;pages.push({n:i,data:cv.toDataURL('image/jpeg',0.86)})}}
+      info.srcText=text.trim().slice(0,40000);info.srcName=nm;info.srcPages=doc.numPages}
+    else if(/^text\//.test(file.type)||/\.(txt|md|csv)$/i.test(nm)){info.srcText=(await file.text()).slice(0,40000);info.srcName=nm}
+    else{toast('PDF·PPT(.pptx)·텍스트 파일을 올려 주세요.','crit');return false}
+    A.ppPages={pid,list:pages};if(pages.length&&pid!=='new')savePages(pid,pages);
+    if(String(info.srcText||'').replace(/\[\d+쪽\]/g,'').trim().length<200)toast('소개서에서 글자를 거의 읽지 못했습니다(이미지로 된 소개서). 핵심 문구를 메모 칸에 붙여넣어 주세요.','crit');else toast(`소개서 ${info.srcPages?info.srcPages+'쪽':''}을 읽었습니다.`);return true}
+  catch(e){console.error(e);toast('소개서를 읽지 못했습니다: '+(e.message||e),'crit');return false}}
+async function pimgPut(slot,data,t='p'){if(!canEdit())return;const imgs={...(A[IMGST[t]]||{}),[slot]:data};const size=Object.values(imgs).reduce((a,b)=>a+String(b).length,0);if(size>950000)return toast('이미지가 너무 큽니다. 다른 이미지를 지우거나 더 작은 이미지를 넣어 주세요.','crit');
+  try{await DB.set('guideimg/'+A.pid+IMGDOC[t],{imgs,updatedAt:new Date().toISOString()});A[IMGST[t]]=imgs;A.ppaste='';schedPv();render();if(t==='p'||t==='cut')toast('이미지를 넣었습니다.')}catch(e){saveErr(e)}}
+async function pimgDel(slot,t='p'){const im={...(A[IMGST[t]]||{})};delete im[slot];try{await DB.set('guideimg/'+A.pid+IMGDOC[t],{imgs:im,updatedAt:new Date().toISOString()});A[IMGST[t]]=im;schedPv();render()}catch(e){saveErr(e)}}
+async function shrinkTo(data,max,q=0.8){return new Promise(r=>{const im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));const cv=document.createElement('canvas');cv.width=Math.round(im.naturalWidth*k);cv.height=Math.round(im.naturalHeight*k);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);r(cv.toDataURL('image/jpeg',q))};im.onerror=()=>r(data);im.src=data})}
+const shrink=(d,m)=>shrinkTo(d,m,0.8);
+
+/* ============ 미리보기 (전체 · 하위 탭 실시간) ============ */
+function pretendard(){if(!document.getElementById('pretendard-css')){const l=document.createElement('link');l.id='pretendard-css';l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css';document.head.appendChild(l)}}
+function schedPv(fast){clearTimeout(schedPv.t);schedPv.t=setTimeout(buildPv,fast?60:220)}
+async function buildPv(){const P=curP();if(!P||!P.ai)return;const boxes=[...document.querySelectorAll('[data-pvseq]')];if(!boxes.length)return;pretendard();
+  const D=await toD(P);for(const box of boxes){const seq=box.dataset.pvseq.split(',');const perNo=box.dataset.pvsum==='1';
+    try{const deck=new (PPD().PvDeck)();const ids=await PPD().build(deck,D,seq,{perSlideNo:perNo});const html=deck.html();
+      box.innerHTML=html.map((x,i)=>`<div class="pv-slide"><span class="pv-no">${box.dataset.pvall?i+1:esc(ids[i]||'')}</span>${x}</div>`).join('')||'<div class="empty small">이 장은 아직 내용이 없습니다.</div>';fitPv(box);HtmlDeck.fit(box)}catch(e){console.error(e);box.innerHTML=`<div class="empty">미리보기를 만들지 못했습니다: ${esc(e.message||e)}</div>`}}}
+function fitPv(root){(root||document).querySelectorAll('.pv-slide').forEach(w=>{const k=w.clientWidth/1280;const pg=w.querySelector('.dk-page');if(pg)pg.style.transform=`scale(${k})`})}
+window.addEventListener('resize',()=>{clearTimeout(fitPv.t);fitPv.t=setTimeout(()=>fitPv(),100)});
 
 /* ============ 내보내기 ============ */
 async function ppExport(kind){const P=curP();if(!P||ppExport.busy)return;if(!P.ai)return toast('먼저 「AI로 제안서 만들기」로 내용을 채워 주세요.','crit');ppExport.busy=true;const PDF=kind==='pdf';const sum=kind==='sum';
-  const br=String((P.ai||{}).brand||(P.info||{}).brand||'Brand').replace(/[^A-Za-z0-9가-힣]+/g,'_').replace(/^_|_$/g,'')||'Brand';const name=`${br}_Influencer_Campaign_${sum?'Summary_7p':'Proposal'}_${today().replace(/-/g,'')}`;
-  try{toast(PDF?'PDF를 만드는 중입니다… 인쇄 창이 열리면 「PDF로 저장」을 고르세요.':'PPT를 만드는 중입니다…');if(!PDF&&!window.PptxGenJS)await loadScript('/vendor/pptxgen.bundle.js');
+  const br=String((P.ai||{}).brand||(P.info||{}).brand||'Brand').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')||'Brand';const name=`${br}_Influencer_Campaign_${sum?'Summary_7p':'Proposal'}`;
+  try{toast(PDF?'PDF를 만드는 중입니다… 인쇄 창이 열리면 「PDF로 저장」을 고르세요.':'PPT를 만드는 중입니다…');if(!PDF&&!window.PptxGenJS)await loadScript('/vendor/pptxgen.bundle.js');pretendard();
     if(PDF&&!document.getElementById('pretendard-print')){const st=document.createElement('style');st.id='pretendard-print';st.textContent="#deck-print .dk-page{font-family:'Pretendard','Malgun Gothic',sans-serif!important}";document.head.appendChild(st)}
-    const deck=PDF?new HtmlDeck():new PptxGenJS();deck.layout='LAYOUT_WIDE';deck.title=P.title||'Proposal';if(!PDF){deck.author='RINGCOMS MCN 광고콘텐츠팀';deck.company='RINGCOMS'}
-    await ppDeck(deck,P,sum?SEQ_SUM:(A.pseq==='sum'&&PDF?SEQ_SUM:SEQ),{pdf:PDF,imgs:A.pimgs||{},cimgs:A.pcimgs||{},perSlideNo:sum||(PDF&&A.pseq==='sum')});if(PDF)await deck.print(name);else await deck.writeFile({fileName:name+'.pptx'})}
+    const D=await toD(P);const deck=PDF?new (PPD().PvDeck)():new PptxGenJS();deck.layout='LAYOUT_WIDE';deck.title=P.title||'Proposal';if(!PDF){deck.author='RINGCOMS MCN 광고콘텐츠팀';deck.company='RINGCOMS';deck.theme={headFontFace:'Pretendard ExtraBold',bodyFontFace:'Pretendard'}}
+    await PPD().build(deck,D,sum?SEQ_SUM:SEQ,{perSlideNo:sum,notes:D.notes});if(PDF)await deck.print(name);else await deck.writeFile({fileName:name+'.pptx'})}
   catch(e){console.error(e);toast('제안서를 만들지 못했습니다: '+(e.message||e),'crit')}finally{ppExport.busy=false}}
 
 /* ============ 섭외 후보 탐색 (유튜브 · 틱톡 · 인스타그램) ============ */
@@ -399,170 +318,281 @@ function pickPanel(P,ed){if(!P.ai)return '<section class="panel"><div class="pan
        <div class="small bold" style="margin:4px 0">🔎 탐색 결과 ${F.length?F.length+'명':''}</div>${F.length?F.map(f=>row(k,f.id,sel_.includes(f.id),(A.pavs||{})[f.id],f.name||f.acct,`${PLAT[f.plat]} · ${f.followers?cK(f.followers):'–'} · ${f.tier||''}${f.acct?' · @'+f.acct:''}`,[f.avg?(f.basis||'평균 조회')+' '+cK(f.avg):'',f.er?'ER '+pc(f.er,1):''].filter(Boolean).join(' · ')||'조회 정보 없음',f.url)).join(''):`<div class="small muted" style="padding:6px">${busy?'찾는 중…':'「섭외 후보 탐색」을 눌러 주세요.'}</div>`}
        <div class="small bold" style="margin:10px 0 4px">⭐ 링컴즈 인플루언서 풀</div>${C.length?C.map(c=>row(k,c.id,sel_.includes(c.id),null,c.p.name,[c.t,c.p.ch,c.p.cat].filter(Boolean).join(' · '),`${c.avg?'평균 조회 '+won(c.avg):'집행 기록 없음'}${c.er?' · ER '+pc(c.er,2):''}${c.hit?'':' · 키워드 불일치'}`,c.p.chlink||'')).join(''):'<div class="small muted">풀이 비어 있습니다.</div>'}</div>`}).join('')}</div></section>`}
 
-/* ============ 화면 ============ */
-function newProposal(){return {kind:'proposal',title:'새 광고 제안서',status:'작성 중',createdAt:today(),updatedAt:new Date().toISOString(),by:A.user.email,
-  info:{advertiser:'',brand:'',product:'',category:'',target:'',objective:OBJ[0],platforms:PLATS.slice(),platform:'인스타그램 릴스 · 틱톡 · 유튜브 쇼츠',links:[],memo:'',srcText:'',srcName:'',budget:'',feeRate:20,feeMode:'incl',start:'',end:'',color:''},plan:{tiers:[],er:2,bench:''},picks:{},ai:null}}
-window.viewProposals=function(){ensureToolWatch();if(A.pid)return ppEditor();
+
+
+/* ============ 화면: 목록 · 새 제안서 ============ */
+function newInfo(){return {advertiser:'',brand:'',product:'',category:'',target:'',objective:OBJ[0],platforms:PLATS.slice(),platform:'인스타그램 릴스 · 틱톡 · 유튜브 쇼츠',links:[],memo:'',srcText:'',srcName:'',budget:'',feeRate:20,feeMode:'incl',start:'',end:''}}
+window.viewProposals=function(){ensureToolWatch();if(A.pnew)return ppCreateView();if(A.pid)return ppEditor();
   const L=Object.entries(A.props||{}).sort((a,b)=>String(b[1].updatedAt||'').localeCompare(String(a[1].updatedAt||'')));
   return `<div class="page-h"><div><div class="eyebrow">Proposal</div><h1>광고 제안서 생성</h1><div class="sub">상품소개서와 예산·대행수수료·집행 기간만 넣으면, 시장 → 방향 → 컨셉 → 그룹별 가이드 → 인플루언서 구성 → 예상 성과 → 타임라인까지 제안서를 만들어 PPT·PDF로 받습니다.</div></div>
    <div class="row">${aiPill()}${canEdit()?'<button class="btn primary" data-act="ppNew">+ 새 제안서</button>':''}</div></div>
   ${A.guidesErr?rulesBanner():''}
-  ${L.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>제안서</th><th>광고주 · 브랜드</th><th class="n">총 예산</th><th class="n">인플루언서</th><th>집행 기간</th><th>상태</th><th>수정</th></tr></thead><tbody>${L.map(([id,P])=>{const I=P.info||{};const K=ppCalc(P);
-    return `<tr class="click" data-act="ppOpen" data-p="${esc(id)}"><td class="bold">${esc(P.title||'제목 없음')}</td><td>${esc([I.advertiser,I.brand].filter(Boolean).join(' · ')||'–')}</td><td class="n">${I.budget?won(I.budget)+'원':'–'}</td><td class="n">${K.people||'–'}</td><td class="small">${esc([I.start,I.end].filter(Boolean).join(' ~ ')||'–')}</td><td>${pAiRunning(P)?'<span class="pill accent">AI 작성 중</span>':`<span class="pill ${P.status==='완료'?'ok':P.ai?'accent':''}">${esc(P.ai?(P.status||'작성 중'):'정보 입력 중')}</span>`}</td><td class="small">${md(String(P.updatedAt||'').slice(0,10))}</td></tr>`}).join('')}</tbody></table></div>`
+  ${L.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>제안서</th><th>광고주 · 브랜드</th><th class="n">총액 (VAT 별도)</th><th class="n">인플루언서</th><th>집행 기간</th><th>상태</th><th>수정</th></tr></thead><tbody>${L.map(([id,P])=>{const I=P.info||{};const K=ppCalc(P);
+    return `<tr class="click" data-act="ppOpen" data-p="${esc(id)}"><td class="bold">${esc(P.title||'제목 없음')}</td><td>${esc([I.advertiser,I.brand].filter(Boolean).join(' · ')||'–')}</td><td class="n">${I.budget?won(K.total)+'원':'–'}</td><td class="n">${K.people||'–'}</td><td class="small">${esc([I.start,I.end].filter(Boolean).join(' ~ ')||'–')}</td><td>${pAiRunning(P)?'<span class="pill accent">AI 작성 중</span>':`<span class="pill ${P.status==='완료'?'ok':P.ai?'accent':''}">${esc(P.ai?(P.status||'작성 중'):'정보 입력 중')}</span>`}</td><td class="small">${md(String(P.updatedAt||'').slice(0,10))}</td></tr>`}).join('')}</tbody></table></div>`
   :`<div class="panel empty">${A.guidesLoaded?'아직 만든 제안서가 없습니다. 「+ 새 제안서」로 시작하세요.':'불러오는 중…'}</div>`}`};
-
-function ppEditor(){const P=curP();if(!P)return A.guidesLoaded?`<div class="panel empty">제안서를 찾을 수 없습니다. <button class="btn sm" data-act="ppBack">목록으로</button></div>`:'<div class="panel empty">불러오는 중…</div>';watchPimg();
-  const ed=canEdit(),I=P.info||{},tab=A.ptab||(P.ai?'preview':'info');const id=p=>'pp_'+p.replace(/[.\s]/g,'_');
-  const tx=(p,l,o={})=>{const v=getIn(P,p);return `<label class="f ${o.wide?'wide':''}">${l}<input type="${o.type||'text'}" id="${id(p)}" data-pv="${p}" ${o.t?`data-t="${o.t}"`:''} value="${esc(v??'')}" placeholder="${esc(o.ph||'')}" ${ed?'':'readonly'}>${o.hint?`<span class="hint">${o.hint}</span>`:''}</label>`};
-  const ta=(p,l,o={})=>{const v=getIn(P,p);return `<label class="f ${o.wide!==false?'wide':''}">${l}<textarea id="${id(p)}" data-pv="${p}" rows="${o.rows||2}" placeholder="${esc(o.ph||'')}" ${ed?'':'readonly'}>${esc(v??'')}</textarea>${o.hint?`<span class="hint">${o.hint}</span>`:''}</label>`};
-  const tl=(p,l,o={})=>{const v=getIn(P,p)||[];return `<label class="f ${o.wide!==false?'wide':''}">${l}<textarea id="${id(p)}" data-pl="${p}" rows="${o.rows||Math.max(2,v.length)}" placeholder="${esc(o.ph||'한 줄에 하나씩')}" ${ed?'':'readonly'}>${esc(v.join('\n'))}</textarea><span class="hint">${o.hint||'한 줄에 하나씩'}</span></label>`};
-  const sel=(p,l,opts,o={})=>{const v=getIn(P,p);return `<label class="f">${l}<select id="${id(p)}" data-pv="${p}" ${ed?'':'disabled'}>${opts.map(x=>{const [val,lab]=Array.isArray(x)?x:[x,x];return `<option value="${esc(val)}" ${String(val)===String(v??'')?'selected':''}>${esc(lab)}</option>`}).join('')}</select>${o.hint?`<span class="hint">${o.hint}</span>`:''}</label>`};
-  const busy=A.ppBusy||pAiRunning(P);const K=ppCalc(P);
-  const tabs=[['info','① 기초 정보'],['plan','② 인플루언서 구성 · 예상 성과'],['content','③ 제안서 내용'],['preview','④ 미리보기 · 다운로드']];
-  const head=`<div class="page-h"><div><button class="btn sm ghost" data-act="ppBack">← 제안서 목록</button><h1 style="margin-top:6px">${esc(P.title||'제목 없음')}</h1><div class="sub">${esc([I.advertiser,I.brand,I.budget?'총 '+won(I.budget)+'원':''].filter(Boolean).join(' · '))} · 마지막 수정 ${esc(String(P.updatedAt||'').slice(0,16).replace('T',' '))}</div></div>
-   <div class="row"><button class="btn" data-act="ppExp" data-k="pptx" ${P.ai?'':'disabled'}>PPT 본편</button><button class="btn" data-act="ppExp" data-k="sum" ${P.ai?'':'disabled'} title="표지·시장·컨셉·핵심 전략·티어·예상 성과·타임라인 + E.O.D">요약본 7장</button><button class="btn" data-act="ppExp" data-k="pdf" ${P.ai?'':'disabled'}>PDF</button></div></div>
-   <div class="tabs pp-tabs" role="tablist">${tabs.map(([k,l])=>`<button class="tab ${tab===k?'on':''}" data-act="ppTab" data-k="${k}" role="tab" aria-selected="${tab===k}">${l}</button>`).join('')}</div>`;
-  const aiBox=`<section class="panel ai-box"><div class="panel-h"><div><h2>AI로 제안서 만들기</h2><div class="sub">소개서·링크를 읽고 구글 검색으로 시장 자료를 찾은 뒤, 시장 → 방향 → 컨셉 → 그룹별 가이드까지 씁니다. 인원·단가·예상 성과는 ② 탭 숫자 그대로 들어갑니다.</div></div>${aiPill()}</div>
-   ${P.aiStatus==='실패'&&P.aiError?`<div class="banner" style="margin:0 0 10px">AI 작성 실패: ${esc(P.aiError)}</div>`:''}
-   <div class="row">${ed?`<button class="btn primary" data-act="ppAi" ${busy?'disabled':''}>${busy?`AI가 제안서를 쓰는 중… ${esc(P.aiStep||'시장 조사 중')} (1~3분)`:P.ai?'AI로 다시 만들기 (내용 덮어쓰기)':'AI로 제안서 만들기'}</button>`:''}<span class="small muted">결과는 초안입니다. 시장 수치·효능 표현·제품 정보는 꼭 확인하세요.</span></div>
-   ${P.aiMeta&&P.aiMeta.research&&(P.aiMeta.research.sources||[]).length?`<details style="margin:10px 0 0"><summary class="small bold">시장 조사 출처 ${P.aiMeta.research.sources.length}개</summary><div class="small">${P.aiMeta.research.sources.map(x=>`<a href="${esc(x.uri)}" target="_blank" rel="noopener">${esc(x.title||x.uri)}</a>`).join(' · ')}</div></details>`:''}
-   ${P.ai&&(P.ai.checks||[]).length?`<div class="banner info" style="margin:10px 0 0"><b>광고주에게 보내기 전 확인</b><br>${(P.ai.checks||[]).map(x=>'• '+esc(x)).join('<br>')}${P.aiMeta&&P.aiMeta.research&&!P.aiMeta.research.ok?'<br>• 이번에는 구글 검색 시장 조사를 하지 못했습니다(무료 검색 한도 등). 시장 수치는 AI가 아는 공개 통계로 채웠으니 출처를 꼭 확인하세요.':''}${P.aiMeta&&/lite/.test(P.aiMeta.model||'')?'<br>• AI 서버가 붐벼 가벼운 모델로 작성했습니다. 품질이 아쉬우면 잠시 뒤 「AI로 다시 만들기」를 눌러 주세요.':''}${GKEYS.every(k=>!((P.picks||{})[k]||[]).length)?'<br>• 인플루언서 풀에 그룹 카테고리와 맞는 인플루언서가 없어, 섭외 후보 장에는 AI가 제안한 「섭외 예정 프로필」이 들어갑니다. ② 탭에서 풀 인플루언서를 직접 고를 수도 있습니다.':''}</div>`:''}</section>`;
-  let body='';
-  if(tab==='info'){const pages=A.ppPages&&A.ppPages.pid===A.pid?A.ppPages.list:[];const IMG=[['cover','표지'],['divider','간지 (그룹 컨셉 장)'],['closing','마지막 장']];
-    body=`<section class="panel"><div class="panel-h"><div><h2>상품소개서</h2><div class="sub">광고주 상품·서비스 소개서를 PDF나 PPT(.pptx)로 올리면 글자를 읽어 AI에 넘기고, 쪽 이미지를 표지 이미지로 쓸 수 있습니다. 파일은 50MB까지 (브라우저 안에서만 읽고 서버에 올리지 않습니다).</div></div></div>
-      <div class="row" style="gap:8px;flex-wrap:wrap">${ed?`<label class="btn primary" style="cursor:pointer">소개서 올리기 (PDF · PPT)<input type="file" accept="application/pdf,.pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,.txt,.md,image/*" data-ppsrc="1" hidden></label>`:''}
-       ${I.srcName?`<span class="pill ok">${esc(I.srcName)} · ${I.srcPages?I.srcPages+'쪽 · ':''}${won(String(I.srcText||'').length)}자</span>${ed?'<button class="btn sm ghost" data-act="ppSrcClear">지우기</button>':''}`:'<span class="small muted">아직 올린 소개서가 없습니다.</span>'}</div>
-      ${pages.length?`<p class="small muted" style="margin:12px 0 6px">쪽 이미지를 고른 뒤 넣을 자리를 누르세요. (페이지 새로 고침 뒤에는 소개서를 다시 올려야 이미지가 보입니다)</p><div class="pp-pages">${pages.map((p,i)=>`<figure class="pp-page ${A.ppSel===i?'on':''}" data-act="ppPageSel" data-i="${i}"><img src="${p.data}" alt="${esc(String(p.n))}쪽"><figcaption>${esc(String(p.n))}${typeof p.n==='number'?'쪽':''}</figcaption></figure>`).join('')}</div>
-        ${ed&&A.ppSel!=null?`<div class="row" style="margin-top:8px;gap:6px"><span class="small bold">고른 이미지를 →</span>${IMG.map(([k,l])=>`<button class="btn sm" data-act="ppPageUse" data-k="${k}">${l}</button>`).join('')}</div>`:''}`:''}
-      <div class="fgrid" style="margin-top:12px">${tl('info.links','광고주 홈페이지 · 상품 링크 (선택)',{rows:2,ph:'https://brand.com',hint:'한 줄에 하나씩, 최대 3개'})}${ta('info.memo','담당자 메모 · 광고주 요청 (선택)',{rows:3,ph:'광고주 브리프, 꼭 넣을 메시지, 피할 표현, 경쟁사 등'})}</div></section>
-     <section class="panel"><div class="panel-h"><h2>기초 정보</h2><span class="sub">비워 두면 AI가 소개서에서 찾습니다</span></div><div class="fgrid">
+/* 기초 정보 입력 칸 (새 제안서 · ① 기초 정보 공용) */
+function infoFields(I,pre,ed,mo){const id=p=>pre+p.replace(/[.\s]/g,'_');const at=pre==='ppn_'?'data-pn':'data-pv';
+  const tx=(p,l,o={})=>`<label class="f ${o.wide?'wide':''}">${l}<input type="${o.type||'text'}" id="${id(p)}" ${at}="${p}" ${o.t?`data-t="${o.t}"`:''} value="${esc(getIn({info:I},p)??'')}" placeholder="${esc(o.ph||'')}" ${ed?'':'readonly'}>${o.hint?`<span class="hint">${o.hint}</span>`:''}</label>`;
+  const sel=(p,l,opts)=>{const v=getIn({info:I},p);return `<label class="f">${l}<select id="${id(p)}" ${at}="${p}" ${ed?'':'disabled'}>${opts.map(x=>{const [val,lab]=Array.isArray(x)?x:[x,x];return `<option value="${esc(val)}" ${String(val)===String(v??'')?'selected':''}>${esc(lab)}</option>`}).join('')}</select></label>`};
+  const r=money(I);
+  return `<section class="panel"><div class="panel-h"><h2>기초 정보</h2><span class="sub">비워 두면 AI가 소개서에서 찾습니다</span></div><div class="fgrid">
       ${tx('info.advertiser','광고주 (회사)')}${tx('info.brand','브랜드 공식 표기',{ph:'예: Petbbi (영문 표기 그대로)'})}${tx('info.product','제품 · 서비스')}${tx('info.category','제품 분야',{ph:'예: 반려동물 앱'})}
-      ${tx('info.target','주요 타깃',{ph:'예: 2030 반려인'})}${sel('info.objective','캠페인 목적',OBJ)}<div class="f">채널 · 형식 (여러 개 선택)<div class="chips" style="margin-top:4px">${PLATS.map(x=>`<label class="chip ${platsOf(I).includes(x)?'on':''}" style="cursor:pointer"><input type="checkbox" data-pplat="${x}" ${platsOf(I).includes(x)?'checked':''} ${ed?'':'disabled'} style="margin:0 4px 0 0">${x}</label>`).join('')}</div><span class="hint">${esc(platsOf(I).map(x=>PLAT_FMT[x]).join(' · ')||'하나 이상 골라 주세요')} · 섭외 후보도 고른 채널에서 찾습니다</span></div>
-      <label class="f">브랜드 컬러 (제안서 톤)<span class="row" style="flex-wrap:nowrap"><input type="color" id="pp_color" data-pv="info.color" value="${esc(I.color||(P.ai&&P.ai.color)||'#2F5BEA')}" style="width:48px;padding:2px;height:34px" ${ed?'':'disabled'}><span class="small muted">${esc(I.color||'AI가 소개서 색으로 추천')}</span></span></label></div></section>
-     <section class="panel"><div class="panel-h"><h2>예산 · 대행수수료 · 집행 기간</h2><span class="sub">금액은 VAT 별도</span></div><div class="fgrid">
-      ${tx('info.budget','총 예산 (원)',{t:'num',ph:'10,000,000',hint:I.budget?won(I.budget)+'원':''})}${tx('info.feeRate','대행수수료율 (%)',{t:'num',ph:'20'})}
-      ${sel('info.feeMode','대행수수료 방식',[['incl','총 예산에 포함 (광고비 = 예산 ÷ (1+수수료율))'],['excl','총 예산 = 광고비, 수수료 별도']])}
-      ${tx('info.start','집행 시작 (업로드 시작)',{type:'date'})}${tx('info.end','집행 종료',{type:'date'})}</div>
-      ${I.budget?`<p class="small muted" style="margin:8px 0 0">집행 가능 광고비 ${won(K.execMax)}원 → 자동 구성 광고비 ${won(K.ad)}원 + 대행수수료 ${won(K.fee)}원 = 총 ${won(K.total)}원 · 인플루언서 ${K.people}명</p>`:''}</section>
-     <section class="panel"><div class="panel-h"><div><h2>표지 이미지 (선택)</h2><div class="sub">표지·간지(그룹 컨셉 장)·마지막 장에 넣을 이미지입니다. 위 소개서 쪽 이미지를 고르거나, 파일로 넣거나, 칸을 누르고 Ctrl+V로 붙여넣으세요. 컷별 예시 이미지는 ③ 제안서 내용 탭에서 넣습니다.</div></div></div>
-      <div class="pp-imgs pp-imgs3">${IMG.map(([k,l])=>{const im=(A.pimgs||{})[k];return `<div class="pp-img ${A.ppaste===k?'paste-on':''}" tabindex="0" data-ppaste="${k}"><div class="small bold">${l}</div><div class="pp-img-b">${im?`<img src="${im}" alt="${l}">`:`<span class="small muted">${A.ppaste===k?'<b>Ctrl+V</b>로 붙여넣기':'클릭 → Ctrl+V'}</span>`}</div>
-        ${ed?`<div class="row" style="gap:4px;justify-content:center"><label class="btn sm" style="cursor:pointer">${im?'바꾸기':'넣기'}<input type="file" accept="image/*" data-ppimg="${k}" hidden></label>${im?`<button class="btn sm ghost" data-act="ppImgDel" data-k="${k}">삭제</button>`:''}</div>`:''}</div>`}).join('')}</div></section>
-     ${aiBox}`}
-  else if(tab==='plan'){const R=K.R;const bm=K.bm;const M=matrixOf(R);const camps=benchCamps();
-    body=`<section class="panel"><div class="panel-h"><div><h2>티어 구성 · 광고비</h2><div class="sub">예산을 넣으면 티어별 인원·단가가 자동으로 잡힙니다 (단가 합계 = 광고비, 1만 원 단위). 칸을 고치면 직접 구성으로 바뀝니다.</div></div>${ed?'<button class="btn sm" data-act="ppAuto">예산으로 자동 구성</button>':''}</div>
-      <div class="tblwrap"><table class="tbl"><thead><tr><th>티어</th><th>팔로워</th><th class="n">인원</th><th class="n">1인 단가 (원)</th><th class="n">소계</th><th class="n">비중</th><th>실측 기준</th></tr></thead><tbody>${R.map((r,i)=>`<tr><td class="bold">${r.tier}</td><td class="small">${RANGE[r.tier]}</td><td class="n"><input type="text" inputmode="numeric" id="pp_tc${i}" data-ptier="${i}" data-f="count" value="${r.count}" style="width:70px;text-align:right" ${ed?'':'readonly'}></td><td class="n"><input type="text" inputmode="numeric" id="pp_tu${i}" data-ptier="${i}" data-f="unit" value="${won(r.unit)}" style="width:120px;text-align:right" ${ed?'':'readonly'}></td><td class="n">${won(r.count*r.unit)}</td><td class="n">${K.ad?Math.round(r.count*r.unit/K.ad*100)+'%':'–'}</td><td class="small muted">평균 조회 ${won(bm.views[r.tier])} · ${bm.src[r.tier]}</td></tr>`).join('')}
-       <tr class="tot"><td class="bold">합계</td><td></td><td class="n bold">${K.people}명</td><td></td><td class="n bold">${won(K.ad)}</td><td></td><td class="small">${(P.plan&&P.plan.tiers&&P.plan.tiers.length)?'직접 구성':'자동 구성'}</td></tr></tbody></table></div>
-      <div class="kpis pp-sum"><div><span>광고비</span><b>${won(K.ad)}원</b></div><div><span>대행수수료 ${K.f.rate}%</span><b>${won(K.fee)}원</b></div><div><span>총액 (VAT 별도)</span><b>${won(K.total)}원</b></div><div><span>예산 대비</span><b class="${K.over?'crit':''}">${K.budget?Math.round(K.total/K.budget*100)+'%':'–'}</b></div></div>
-      ${K.over?'<div class="banner" style="margin:10px 0 0">티어 구성 금액이 예산을 넘습니다. 인원이나 단가를 줄이거나 「예산으로 자동 구성」을 눌러 주세요.</div>':''}</section>
-     <section class="panel"><div class="panel-h"><div><h2>예상 성과</h2><div class="sub">조회수 = 티어별 인원 × 링컴즈 집행 캠페인 평균 조회 · 참여 = 조회 × ER · 좋아요 = 참여 × 0.92 · CPV = 총액 ÷ 조회수</div></div></div>
-      <div class="fgrid"><label class="f">실측 기준 캠페인<select id="pp_bench" data-pv="plan.bench" ${ed?'':'disabled'}><option value="">전체 집행 캠페인 (인플루언서 풀)</option>${camps.map(([c,nm,k])=>`<option value="${esc(c)}" ${(P.plan||{}).bench===c?'selected':''}>${esc(nm)} · ${k}명</option>`).join('')}</select><span class="hint">${esc(bm.name)} · 실측이 콘텐츠 3개 미만인 티어는 ${BENCH0.name} 실측값</span></label>
-       ${tx('plan.er','적용 ER (%)',{t:'num',ph:'2.0',hint:'보수적으로 2.0% 권장 (링컴즈 실측 1.6~2.8%)'})}</div>
-      <div class="kpis pp-sum" style="margin-top:10px"><div><span>예상 조회수</span><b>${won(K.views)}</b></div><div><span>ER</span><b>${pc(K.er)}</b></div><div><span>좋아요</span><b>${won(Math.round(K.likes))}</b></div><div><span>CPV</span><b>${K.cpv.toFixed(1)}원</b></div></div></section>
-     <section class="panel"><div class="panel-h"><div><h2>그룹 × 티어</h2><div class="sub">A ${GW.A*100}% · B ${GW.B*100}% · C ${GW.C*100}% 비율로 티어 인원을 나눕니다.</div></div></div>
-      <div class="tblwrap"><table class="tbl"><thead><tr><th>그룹</th>${PT.map(t=>`<th class="n">${t}</th>`).join('')}<th class="n">합계</th></tr></thead><tbody>${GKEYS.map(k=>{const g=((P.ai||{}).groups||[]).find(x=>x.key===k)||{};const tot=PT.reduce((a,t)=>a+(M[k][t]||0),0);return `<tr><td class="bold">${k} ${esc(g.name||'')}</td>${PT.map(t=>`<td class="n">${M[k][t]||'–'}</td>`).join('')}<td class="n bold">${tot}명</td></tr>`}).join('')}</tbody></table></div></section>
-     ${pickPanel(P,ed)}`}
-  else if(tab==='content'){const AIx=P.ai;if(!AIx)body=`<div class="panel empty">아직 내용이 없습니다. ① 기초 정보에서 「AI로 제안서 만들기」를 눌러 주세요.</div>${aiBox}`;else{const gs=AIx.groups||[];
-    body=`<div class="banner info" style="margin:0">제목·소제목은 줄을 직접 바꿔 주세요 (Enter). 대제목은 두 줄, 쉼표·물음표 뒤에서 끊으면 자연스럽습니다. 칸을 고치고 다른 칸으로 이동하면 저장됩니다.</div>
-     <section class="panel"><div class="panel-h"><h2>표지 · 캠페인 컨셉</h2></div><div class="fgrid">${tx('title','제안서 이름 (목록용)',{wide:true})}${tx('ai.brand','브랜드 표기')}${sel('status','상태',['작성 중','광고주 전달','완료'])}${ta('ai.cover.headline','표지 메인 카피',{rows:2,wide:false})}${ta('ai.cover.sub','표지 서브 카피',{rows:2,wide:false})}
-      ${ta('ai.umbrella.name','캠페인 컨셉명',{rows:2,wide:false})}${tl('ai.umbrella.hashtags','캠페인 해시태그',{wide:false,rows:2})}${ta('ai.umbrella.sub','컨셉 설명',{rows:2})}</div></section>
-     <section class="panel"><div class="panel-h"><h2>01 · 시장 현황</h2></div><div class="fgrid">${ta('ai.market.title','대제목',{rows:2,wide:false})}${ta('ai.market.sub','소제목',{rows:2,wide:false})}
-      ${(AIx.market&&AIx.market.stats||[]).map((x,i)=>tx(`ai.market.stats.${i}.label`,`지표 ${i+1} · 이름`)+tx(`ai.market.stats.${i}.value`,`지표 ${i+1} · 숫자`)+tx(`ai.market.stats.${i}.unit`,`지표 ${i+1} · 단위`)+ta(`ai.market.stats.${i}.desc`,`지표 ${i+1} · 설명`,{rows:2,wide:false})).join('')}${tx('ai.market.source','출처',{wide:true})}
-      ${ta('ai.market.title2','인사이트 장 대제목',{rows:2,wide:false})}${ta('ai.market.sub2','인사이트 장 소제목',{rows:2,wide:false})}
-      ${(AIx.market&&AIx.market.insights||[]).map((x,i)=>tx(`ai.market.insights.${i}.kicker`,`인사이트 ${i+1} · 라벨`)+tx(`ai.market.insights.${i}.value`,`인사이트 ${i+1} · 핵심`)+ta(`ai.market.insights.${i}.text`,`인사이트 ${i+1} · 설명`,{rows:2,wide:false})).join('')}${ta('ai.market.takeaway','INSIGHT (결론)',{rows:3,wide:false})}${tx('ai.market.source2','출처',{wide:false})}</div></section>
-     <section class="panel"><div class="panel-h"><h2>02 · 브랜드가 나아갈 방향</h2></div><div class="fgrid">${ta('ai.direction.title','대제목',{rows:2,wide:false})}${ta('ai.direction.sub','소제목',{rows:2,wide:false})}
-      ${(AIx.direction&&AIx.direction.shifts||[]).map((x,i)=>tx(`ai.direction.shifts.${i}.from`,`변화 ${i+1} · 지금`)+tx(`ai.direction.shifts.${i}.to`,`변화 ${i+1} · 바뀔 모습`)+tx(`ai.direction.shifts.${i}.desc`,`변화 ${i+1} · 설명`,{wide:true})).join('')}${tx('ai.direction.positioning','포지셔닝 한 줄',{wide:true})}</div></section>
-     <div class="banner info" style="margin:0"><b>컷별 예시 이미지 넣는 법</b> ① 컷의 「Canva AI」나 「Gemini」를 누르면 이미지 프롬프트가 복사되고 사이트가 열려요 → ② 붙여넣어 이미지를 만들고 <b>마우스 오른쪽 클릭 → 이미지 복사</b> → ③ 여기 돌아와 컷 이미지 칸을 <b>클릭</b>하고 <b>Ctrl+V</b>(맥 ⌘+V). 넣은 이미지는 콘텐츠 가이드 장의 컷 옆에 9:16으로 들어갑니다.</div>
-     ${gs.map((g,gi)=>{const b=`ai.groups.${gi}`;return `<section class="panel"><div class="panel-h"><h2>그룹 ${esc(g.key||'')} · ${esc(g.name||'')}</h2></div><div class="fgrid">
-      ${tx(b+'.name','그룹 이름')}${tx(b+'.pillar','역할 (공감·인지 등)')}${tl(b+'.keywords','풀 검색 키워드',{wide:false,rows:2})}${tl(b+'.search','섭외 후보 탐색 검색어 (유튜브·틱톡·인스타그램)',{wide:false,rows:2})}${ta(b+'.who','어떤 인플루언서',{wide:false})}${ta(b+'.role','역할',{wide:false})}${ta(b+'.content','콘텐츠',{wide:false})}${ta(b+'.effect','기대 효과',{wide:false})}
-      ${ta(b+'.concept.name','그룹 컨셉명',{rows:2,wide:false})}${tl(b+'.concept.hashtags','해시태그 2개',{wide:false,rows:2})}${tl(b+'.concept.story','스토리 4줄',{wide:false,rows:4})}${tx(b+'.concept.keyMessage','KEY MESSAGE',{wide:true})}${tx(b+'.concept.features','보여줄 기능',{wide:true})}
-      ${ta(b+'.guide.title','가이드 대제목',{rows:2,wide:false})}${ta(b+'.guide.sub','가이드 소제목',{rows:2,wide:false})}
-      </div><div class="pp-cuts">${((g.guide||{}).cuts||[]).map((c,ci)=>{const key=`${g.key}_${ci}`,slot='cut:'+key,im=(A.pcimgs||{})[key];return `<div class="pp-cut"><div class="pp-cut-img ${A.ppaste===slot?'paste-on':''}" tabindex="0" data-ppaste="${slot}" title="클릭한 뒤 Ctrl+V로 이미지 붙여넣기">${im?`<img src="${im}" alt="CUT ${ci+1} 예시 이미지">`:`<span class="small muted">${A.ppaste===slot?'<b>Ctrl+V</b>로 붙여넣기':'CUT '+(ci+1)+' 예시 이미지<br>클릭 → Ctrl+V'}</span>`}</div>
-        <div class="row" style="gap:4px;flex-wrap:wrap;justify-content:center">${ed?`<label class="btn sm" style="cursor:pointer">${im?'바꾸기':'넣기'}<input type="file" accept="image/*" data-ppimg="${slot}" hidden></label>${im?`<button class="btn sm ghost" data-act="ppImgDel" data-k="${slot}">삭제</button>`:''}`:''}<button class="btn sm" data-act="ppCanva" data-to="canva" data-g="${gi}" data-c="${ci}" title="이미지 프롬프트를 복사하고 Canva를 엽니다">Canva AI ↗</button><button class="btn sm" data-act="ppCanva" data-to="gemini" data-g="${gi}" data-c="${ci}" title="이미지 프롬프트를 복사하고 Gemini를 엽니다 (무료)">Gemini ↗</button></div>
-        <div class="fgrid one">${tx(`${b}.guide.cuts.${ci}.step`,`CUT ${ci+1} · 단계`)}${tx(`${b}.guide.cuts.${ci}.time`,'시간')}${ta(`${b}.guide.cuts.${ci}.scene`,'화면')}${ta(`${b}.guide.cuts.${ci}.line`,'멘션·자막')}${ta(`${b}.guide.cuts.${ci}.prompt`,'🖼 이미지 프롬프트 (Canva·Gemini용)',{rows:2})}</div></div>`}).join('')}</div><div class="fgrid">
-      ${ta(b+'.guide.caption','캡션 예시',{rows:4,wide:false})}<div class="stack" style="gap:10px">${tl(b+'.guide.must','MUST',{rows:3})}${tl(b+'.guide.dont',"DON'T",{rows:3})}</div>
-      ${((g.feature||{}).items||[]).map((it,ii)=>tx(`${b}.feature.items.${ii}.name`,`핵심 기능 ${ii+1}`)+tx(`${b}.feature.items.${ii}.desc`,`기능 ${ii+1} 설명`)).join('')}${tx(b+'.feature.effect','기대 효과 한 줄',{wide:true})}${(g.persona||[]).map((q,qi)=>tx(`${b}.persona.${qi}.type`,`섭외 예정 프로필 ${qi+1}`,{wide:true})+tx(`${b}.persona.${qi}.tier`,'티어')+ta(`${b}.persona.${qi}.why`,'이유',{wide:false})).join('')}</div></section>`}).join('')}
-     <section class="panel"><div class="panel-h"><h2>구성 · 타임라인 · 마무리</h2></div><div class="fgrid">${PT.map(t=>tx(`ai.tierWhy.${t}.role`,`${t} · 역할`)+tx(`ai.tierWhy.${t}.why`,`${t} · 이유`)).join('')}${tl('ai.matrixPoints','그룹×티어 구성 포인트',{rows:3,hint:'한 줄에 하나 (줄바꿈은 \\n 대신 짧게)'})}
-      ${ta('ai.timeline.title','타임라인 대제목 (비우면 자동)',{rows:2,wide:false})}${ta('ai.timeline.sub','타임라인 소제목 (비우면 자동)',{rows:2,wide:false})}${tx('ai.closing','마지막 장 한 줄',{wide:true})}</div></section>
-     ${aiBox}`}}
-  else{body=P.ai?`<section class="panel"><div class="panel-h"><div><h2>미리보기</h2><div class="sub">PPT와 같은 구성입니다. 글꼴은 PC에 Pretendard가 있으면 PPT에서도 같게 보입니다.</div></div><div class="chips"><span class="chip ${A.pseq!=='sum'?'on':''}" data-act="ppSeq" data-k="main">본편 (${SEQ.length-(GKEYS.some(k=>picksOf(P,k).length)?0:1)}장)</span><span class="chip ${A.pseq==='sum'?'on':''}" data-act="ppSeq" data-k="sum">요약본 (8장)</span></div></div>
-      <div id="pp-pv" class="pv-deck"><div class="empty">미리보기를 만드는 중…</div></div></section>`:`<div class="panel empty">아직 내용이 없습니다. ① 기초 정보에서 「AI로 제안서 만들기」를 눌러 주세요.</div>${aiBox}`;setTimeout(buildPv,0)}
+      ${tx('info.target','주요 타깃',{ph:'예: 2030 반려인'})}${sel('info.objective','캠페인 목적',OBJ)}
+      <div class="f">채널 · 형식 (여러 개 선택)<div class="chips" style="margin-top:4px">${PLATS.map(x=>`<label class="chip ${platsOf(I).includes(x)?'on':''}" style="cursor:pointer"><input type="checkbox" data-pplat="${x}" data-pre="${pre}" ${platsOf(I).includes(x)?'checked':''} ${ed?'':'disabled'} style="margin:0 4px 0 0">${x}</label>`).join('')}</div><span class="hint">섭외 후보도 고른 채널에서 찾습니다</span></div></div></section>
+     <section class="panel"><div class="panel-h"><h2>예산 · 대행수수료 · 집행 기간</h2><span class="sub">모든 금액은 VAT 별도</span></div><div class="fgrid">
+      ${tx('info.budget','총 예산 (원, VAT 별도)',{t:'num',ph:'10,000,000',hint:I.budget?won(I.budget)+'원':''})}${tx('info.feeRate','대행수수료율 (%)',{t:'num',ph:'20'})}
+      ${sel('info.feeMode','대행수수료 방식',[['incl','예산에 포함 (광고비 = 예산 − 수수료)'],['excl','예산 = 광고비 (수수료 별도 추가)']])}
+      ${tx('info.start','업로드 시작일',{type:'date'})}${tx('info.end','집행 종료일',{type:'date'})}</div>
+      ${I.budget?`<div class="pp-money"><div><span>광고비</span><b>${won(r.ad)}원</b></div><div><span>대행수수료 ${r.rate}%</span><b>${won(r.fee)}원</b></div><div><span>총액</span><b>${won(r.total)}원</b></div><div><span>VAT</span><b>별도</b></div></div>
+       <p class="small muted" style="margin:6px 0 0">대행수수료 = 예산 ${won(r.B)}원 × ${r.rate}% · ${r.mode==='excl'?'광고비 = 예산, 수수료는 별도로 더해 총액':'광고비 = 예산 − 수수료, 총액 = 예산'}${mo?` → 인플루언서 ${mo.people}명 · 단가 합계 ${won(mo.ad)}원`:''}</p>`:''}</section>`}
+function ppCreateView(){const D=A.pnew;const I=D.info;
+  return `<div class="page-h"><div><button class="btn sm ghost" data-act="ppNewCancel">← 제안서 목록</button><div class="eyebrow" style="margin-top:6px">New Proposal</div><h1>새 광고 제안서</h1><div class="sub">정보를 넣고 아래 「생성」을 눌러야 제안서가 만들어집니다. 소개서는 지금 올리거나, 생성한 뒤에 올려도 됩니다.</div></div></div>
+   <div class="stack">
+    <section class="panel"><div class="panel-h"><h2>제안서 이름</h2></div><div class="fgrid"><label class="f wide">이름 (목록에 표시)<input type="text" id="ppn_title" data-pn="title" value="${esc(D.title||'')}" placeholder="예: Petbbi 인플루언서 캠페인 제안서 (비우면 브랜드명으로 자동)"></label></div></section>
+    <section class="panel"><div class="panel-h"><div><h2>상품소개서</h2><div class="sub">PDF나 PPT(.pptx), 50MB 이하 · 브라우저 안에서만 읽고 서버에 올리지 않습니다.</div></div></div>
+     <div class="row" style="gap:8px;flex-wrap:wrap"><label class="btn" style="cursor:pointer">소개서 올리기 (PDF · PPT)<input type="file" accept="application/pdf,.pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,.txt,.md" data-ppsrc="new" hidden></label>${I.srcName?`<span class="pill ok">${esc(I.srcName)}${I.srcPages?' · '+I.srcPages+'쪽':''}</span>`:'<span class="small muted">선택 사항</span>'}</div></section>
+    ${infoFields(I,'ppn_',true,null)}
+    <section class="panel"><div class="row" style="flex-wrap:wrap"><span class="small muted grow">「생성」을 누르면 제안서가 저장되고 편집 화면으로 이동합니다.</span><button class="btn" data-act="ppNewCancel">취소</button><button class="btn primary" data-act="ppCreate" data-ai="0">생성</button><button class="btn primary" data-act="ppCreate" data-ai="1" ${I.srcText&&N(I.budget)>0?'':'disabled title="소개서와 총 예산을 넣으면 쓸 수 있습니다"'}>생성하고 AI로 만들기</button></div></section>
+   </div>`}
+
+/* ============ 화면: 편집 ============ */
+const SUBS=[['cover','표지 · 목차',['cover','toc']],['market','01 시장',['market1','market2']],['direction','02 방향',['direction']],['capability','03 역량',['capability']],['concept','04 컨셉 · 핵심 전략',['umbrella','features']],
+  ['groupA','05 A그룹',['groupConcept:A','guide:A']],['groupB','05 B그룹',['groupConcept:B','guide:B']],['groupC','05 C그룹',['groupConcept:C','guide:C']],['plan','06 구성 · 예상 성과',['categories','showcase','tiers','matrix','kpi']],
+  ['timeline','07 타임라인',['timeline']],['closing','Appendix · 마무리',['appendix:1','closing']],['design','디자인 · 이미지',['cover','umbrella','market1','closing']]];
+function ppEditor(){const P=curP();if(!P)return A.guidesLoaded?`<div class="panel empty">제안서를 찾을 수 없습니다. <button class="btn sm" data-act="ppBack">목록으로</button></div>`:'<div class="panel empty">불러오는 중…</div>';watchPimg();
+  const ed=canEdit(),I=P.info||{},tab=A.ptab||(P.ai?'edit':'info');const K=ppCalc(P);
+  const tabs=[['info','① 기초 정보'],['edit','② 제안서 구성 수정'],['preview','③ 미리보기']];
+  const head=`<div class="page-h"><div><button class="btn sm ghost" data-act="ppBack">← 제안서 목록</button><h1 style="margin-top:6px">${esc(P.title||'제목 없음')}</h1><div class="sub">${esc([I.advertiser,I.brand,I.budget?'총 '+won(K.total)+'원 (VAT 별도)':''].filter(Boolean).join(' · '))} · 마지막 수정 ${esc(String(P.updatedAt||'').slice(0,16).replace('T',' '))}</div></div>
+   <div class="row"><button class="btn" data-act="ppExp" data-k="pptx" ${P.ai?'':'disabled'}>PPT 본편</button><button class="btn" data-act="ppExp" data-k="sum" ${P.ai?'':'disabled'} title="표지·시장·컨셉·핵심 전략·티어·예상 성과·타임라인 + 감사합니다">요약본 7장</button><button class="btn" data-act="ppExp" data-k="pdf" ${P.ai?'':'disabled'}>PDF</button></div></div>
+   <div class="tabs pp-tabs" role="tablist">${tabs.map(([k,l])=>`<button class="tab ${tab===k?'on':''}" data-act="ppTab" data-k="${k}" role="tab" aria-selected="${tab===k}">${l}</button>`).join('')}</div>`;
+  let body='';if(tab==='info')body=infoTab(P,ed,K);else if(tab==='edit')body=editTab(P,ed,K);else body=previewTab(P);
   return `${head}${A.guidesErr?rulesBanner():''}<div class="stack ppedit">${body}
-   <section class="panel"><div class="row"><span class="small muted grow">칸을 고치고 다른 칸으로 이동하면 바로 저장됩니다.</span>${ed?`<button class="btn sm" data-act="ppDup">복제</button><button class="btn sm danger" data-act="ppDel">${A.confirm==='pdel'?'한 번 더 누르면 삭제':'제안서 삭제'}</button>`:''}</div></section></div>`}
+   <section class="panel"><div class="row"><span class="small muted grow">칸을 고치면 미리보기에 바로 반영되고, 다른 칸으로 이동하면 저장됩니다.</span>${ed?`<button class="btn sm" data-act="ppDup">복제</button><button class="btn sm danger" data-act="ppDel">${A.confirm==='pdel'?'한 번 더 누르면 삭제':'제안서 삭제'}</button>`:''}</div></section></div>${A.pcrop?cropModal():''}`}
+function aiBox(P,ed){const busy=A.ppBusy||pAiRunning(P);return `<section class="panel ai-box"><div class="panel-h"><div><h2>AI로 제안서 만들기</h2><div class="sub">소개서를 읽고 ① 구글 검색으로 시장 자료 ② 소개서 이미지 분석(메인 컬러·로고 컬러·앱 화면·캐릭터 위치) ③ 시장 → 방향 → 컨셉 → 그룹별 가이드까지 씁니다. 인원·단가·예상 성과는 계산된 숫자 그대로 들어갑니다.</div></div>${aiPill()}</div>
+   ${P.aiStatus==='실패'&&P.aiError?`<div class="banner" style="margin:0 0 10px">AI 작성 실패: ${esc(P.aiError)}</div>`:''}
+   <div class="row">${ed?`<button class="btn primary" data-act="ppAi" ${busy?'disabled':''}>${busy?`AI가 제안서를 쓰는 중… ${esc(P.aiStep||'시장 조사 · 이미지 분석 중')} (1~3분)`:P.ai?'AI로 다시 만들기 (내용 덮어쓰기)':'AI로 제안서 만들기'}</button>`:''}<span class="small muted">결과는 초안입니다. 시장 수치·효능 표현·제품 정보는 꼭 확인하세요.</span></div>
+   ${P.ai&&(P.ai.checks||[]).length?`<div class="banner info" style="margin:10px 0 0"><b>광고주에게 보내기 전 확인</b><br>${(P.ai.checks||[]).map(x=>'• '+esc(x)).join('<br>')}${P.aiMeta&&P.aiMeta.research&&!P.aiMeta.research.ok?'<br>• 이번에는 구글 검색 시장 조사를 하지 못했습니다(무료 검색 한도). 시장 수치는 AI가 아는 공개 통계로 채웠으니 출처를 꼭 확인하세요.':''}${P.aiMeta&&/lite/.test(P.aiMeta.model||'')?'<br>• AI 서버가 붐벼 가벼운 모델로 작성했습니다. 품질이 아쉬우면 잠시 뒤 다시 만들어 주세요.':''}</div>`:''}</section>`}
+function infoTab(P,ed,K){const I=P.info||{};
+  return `<section class="panel"><div class="panel-h"><div><h2>상품소개서</h2><div class="sub">PDF나 PPT(.pptx)로 올리면 글자를 읽어 AI에 넘기고, 쪽 이미지에서 앱 화면·캐릭터를 잘라 장표에 넣습니다. 50MB 이하 · 브라우저 안에서만 읽습니다.</div></div></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">${ed?`<label class="btn primary" style="cursor:pointer">소개서 올리기 (PDF · PPT)<input type="file" accept="application/pdf,.pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,.txt,.md" data-ppsrc="cur" hidden></label>`:''}
+       ${I.srcName?`<span class="pill ok">${esc(I.srcName)} · ${I.srcPages?I.srcPages+'쪽 · ':''}${won(String(I.srcText||'').length)}자</span>${ed?'<button class="btn sm ghost" data-act="ppSrcClear">지우기</button>':''}`:'<span class="small muted">아직 올린 소개서가 없습니다.</span>'}</div>
+      <div class="fgrid" style="margin-top:12px"><label class="f">광고주 홈페이지 · 상품 링크 (선택)<textarea id="pp_info_links" data-pl="info.links" rows="2" placeholder="https://brand.com" ${ed?'':'readonly'}>${esc(L_(I.links).join('\n'))}</textarea><span class="hint">한 줄에 하나씩, 최대 3개</span></label>
+       <label class="f">담당자 메모 · 광고주 요청 (선택)<textarea id="pp_info_memo" data-pv="info.memo" rows="3" placeholder="광고주 브리프, 꼭 넣을 메시지, 피할 표현, 경쟁사 등" ${ed?'':'readonly'}>${esc(I.memo||'')}</textarea></label></div></section>
+     ${infoFields(I,'pp_',ed,K)}
+     ${aiBox(P,ed)}`}
+function previewTab(P){if(!P.ai)return `<div class="panel empty">아직 내용이 없습니다. ① 기초 정보에서 「AI로 제안서 만들기」를 눌러 주세요.</div>`;const sum=A.pseq==='sum';setTimeout(()=>schedPv(true),0);
+  return `<section class="panel"><div class="panel-h"><div><h2>미리보기</h2><div class="sub">PPT와 같은 구성입니다. 다운로드는 오른쪽 위 버튼을 쓰세요.</div></div><div class="chips"><span class="chip ${!sum?'on':''}" data-act="ppSeq" data-k="main">본편</span><span class="chip ${sum?'on':''}" data-act="ppSeq" data-k="sum">요약본 7장</span></div></div>
+    <div class="pv-deck" data-pvseq="${(sum?SEQ_SUM:SEQ).join(',')}" data-pvall="1" data-pvsum="${sum?1:0}"><div class="empty">미리보기를 만드는 중…</div></div></section>`}
+/* ② 제안서 구성 수정: 하위 탭 + 오른쪽 실시간 미리보기 */
+function editTab(P,ed,K){if(!P.ai)return `<div class="panel empty">아직 내용이 없습니다. ① 기초 정보에서 소개서·예산을 넣고 「AI로 제안서 만들기」를 눌러 주세요.</div>${aiBox(P,ed)}`;
+  const sub=SUBS.find(s=>s[0]===A.psub)||SUBS[0];setTimeout(()=>schedPv(true),0);
+  return `<div class="banner info pp-pc-note" style="margin:0">💻 이미지 자르기·장표 실시간 미리보기 같은 편집은 <b>PC</b>(넓은 화면)에서 작업하기 좋습니다. 모바일에서는 문구 수정·확인 위주로 써 주세요.</div>
+   <div class="pp-subtabs" role="tablist">${SUBS.map(([k,l])=>`<button class="chip ${sub[0]===k?'on':''}" data-act="ppSub" data-k="${k}">${l}</button>`).join('')}</div>
+   <div class="pp-split"><div class="pp-form stack">${subForm(sub[0],P,ed,K)}</div>
+    <aside class="pp-live"><div class="pp-live-h"><b>미리보기</b><span class="small muted">${esc(sub[1])} · 고치는 대로 바뀝니다</span></div><div class="pv-deck one" data-pvseq="${sub[2].join(',')}"><div class="empty small">미리보기를 만드는 중…</div></div></aside></div>`}
+/* 입력 칸 도우미 */
+function F_(P,ed){const id=p=>'pp_'+p.replace(/[.\s:]/g,'_');
+  return {tx:(p,l,o={})=>{const v=getIn(P,p);return `<label class="f ${o.wide?'wide':''}">${l}<input type="${o.type||'text'}" id="${id(p)}" data-pv="${p}" ${o.t?`data-t="${o.t}"`:''} value="${esc(v??'')}" placeholder="${esc(o.ph||'')}" ${ed?'':'readonly'}>${o.hint?`<span class="hint">${o.hint}</span>`:''}</label>`},
+    ta:(p,l,o={})=>{const v=getIn(P,p);return `<label class="f ${o.wide!==false?'wide':''}">${l}<textarea id="${id(p)}" data-pv="${p}" rows="${o.rows||2}" placeholder="${esc(o.ph||'')}" ${ed?'':'readonly'}>${esc(v??'')}</textarea>${o.hint?`<span class="hint">${o.hint}</span>`:''}</label>`},
+    tl:(p,l,o={})=>{const v=getIn(P,p)||[];return `<label class="f ${o.wide!==false?'wide':''}">${l}<textarea id="${id(p)}" data-pl="${p}" rows="${o.rows||Math.max(2,v.length)}" placeholder="${esc(o.ph||'한 줄에 하나씩')}" ${ed?'':'readonly'}>${esc(L_(v).join('\n'))}</textarea><span class="hint">${o.hint||'한 줄에 하나씩'}</span></label>`},
+    sel:(p,l,opts)=>{const v=getIn(P,p);return `<label class="f">${l}<select id="${id(p)}" data-pv="${p}" ${ed?'':'disabled'}>${opts.map(x=>{const [val,lab]=Array.isArray(x)?x:[x,x];return `<option value="${esc(val)}" ${String(val)===String(v??'')?'selected':''}>${esc(lab)}</option>`}).join('')}</select></label>`},
+    sec:(t,inner,sub)=>`<section class="panel"><div class="panel-h"><div><h2>${t}</h2>${sub?`<div class="sub">${sub}</div>`:''}</div></div><div class="fgrid">${inner}</div></section>`}}
+const LB='대제목은 두 줄 — 쉼표·물음표 뒤에서 Enter로 줄을 바꿔 주세요';
+function screenPick(P,path,label,ed){const v=getIn(P,path)||'';const L=cropsOf(P);
+  return `<div class="f wide">${label}<div class="pp-thumbs">${[['','없음'],...L.map(c=>[c.id,c.label||c.id])].map(([id,l])=>`<button type="button" class="pp-th ${v===id?'on':''}" data-act="ppScreen" data-path="${esc(path)}" data-id="${esc(id)}" ${ed?'':'disabled'} title="${esc(l)}">${id?`<img src="${cropOf(id)}" alt="">`:'<span>없음</span>'}<i>${esc(l)}</i></button>`).join('')}</div>${L.length?'':'<span class="hint">소개서에서 자른 이미지가 없습니다. 「디자인 · 이미지」 탭에서 직접 자를 수 있습니다.</span>'}</div>`}
+const GFXT=new Map();function gfxThumb(key,T,BR){const k=key+T.primary+T.accent;if(GFXT.has(k))return GFXT.get(k);GFXT.set(k,null);keyImg(key,T,BR).then(d=>{GFXT.set(k,d);scheduleRender()});return null}
+function slotPicker(P,slot,ed){const d=((P.design||{}).img||{})[slot]||'auto';const C=slotCands(P,slot);const T=themeFor(P);const BR=(P.ai||{}).brand||(P.info||{}).brand||'Brand';
+  const thumb=k=>{if(k==='auto'&&slot==='divider')return '<span>그룹별</span>';if(k.startsWith('crop:'))return `<img src="${cropOf(k.slice(5))}" alt="">`;if(k.startsWith('gfx:')){const c=gfxThumb(k,T,BR);return c?`<img src="${c}" alt="">`:'<span>…</span>'}return ''};
+  const up=(A.pimgs||{})[slot];const isOn=c=>d===c.key||(d==='auto'&&C[0]&&C[0].key===c.key&&!(up&&!((P.design||{}).img||{})[slot]));
+  return `<div class="f wide"><div class="pp-thumbs">${C.map(c=>`<button type="button" class="pp-th ${isOn(c)?'on':''}" data-act="ppSlot" data-slot="${slot}" data-k="${esc(c.key)}" ${ed?'':'disabled'}>${thumb(c.key)}<i>${esc(c.label)}</i></button>`).join('')}
+    <button type="button" class="pp-th ${d==='up'||(d==='auto'&&up&&slot!=='divider')?'on':''}" data-act="ppSlot" data-slot="${slot}" data-k="up" ${ed&&up?'':'disabled'}>${up?`<img src="${up}" alt="">`:'<span>직접 넣기</span>'}<i>직접 넣은 이미지</i></button>
+    <button type="button" class="pp-th ${d==='none'?'on':''}" data-act="ppSlot" data-slot="${slot}" data-k="none" ${ed?'':'disabled'}><span>없음</span><i>이미지 없이</i></button></div>
+   ${ed?`<div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><label class="btn sm" style="cursor:pointer">이미지 파일 넣기<input type="file" accept="image/*" data-ppimg="${slot}" hidden></label><span class="small muted pp-paste-hint ${A.ppaste===slot?'on':''}" tabindex="0" data-ppaste="${slot}">${A.ppaste===slot?'<b>Ctrl+V</b>로 붙여넣으세요':'여기를 클릭한 뒤 Ctrl+V로 붙여넣기'}</span></div>`:''}</div>`}
+function bgPicker(P,kind,ed){const v=((P.design||{}).bg||{})[kind]||(kind==='body'?'none':'skill');const T=themeFor(P);const up=(A.pimgs||{})['bg_'+kind];const op=N((((P.design||{}).bgOp)||{})[kind]||(kind==='body'?15:35));
+  const sw=s=>{if(s==='skill'||s==='none'){return `<span class="pp-sw" style="background:#${kind==='body'?'FFFFFF':kind==='closing'?T.closing:T.primary}">${s==='skill'?'<i class="pp-sw-c"></i>':''}</span>`}const d=PPD().bgImage(T,kind,s);return `<img src="${d}" alt="">`};
+  return `<div class="f wide"><b class="small">${BG_KIND[kind]}</b><div class="pp-thumbs bg">${BG_OPTS[kind].map(([k,l])=>`<button type="button" class="pp-th wide ${v===k?'on':''}" data-act="ppBg" data-kind="${kind}" data-k="${k}" ${ed?'':'disabled'}>${sw(k)}<i>${l}</i></button>`).join('')}
+    <button type="button" class="pp-th wide ${v==='up'?'on':''}" data-act="ppBg" data-kind="${kind}" data-k="up" ${ed&&up?'':'disabled'}>${up?`<img src="${up}" alt="" style="opacity:.6">`:'<span>직접 넣기</span>'}<i>내 이미지 (투명도 처리)</i></button></div>
+   ${ed?`<div class="row" style="gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap"><label class="btn sm" style="cursor:pointer">배경 이미지 넣기<input type="file" accept="image/*" data-ppimg="bg_${kind}" hidden></label>${v==='up'?`<span class="small">진하기</span><input type="range" min="5" max="${kind==='body'?30:60}" value="${op}" data-ppop="${kind}" style="width:140px"><span class="small muted">${op}% · 글자가 잘 읽히도록 ${kind==='body'?'흰색':'메인 컬러'}로 덮습니다</span>`:''}</div>`:''}</div>`}
+function subForm(k,P,ed,K){const f=F_(P,ed);const AI=P.ai||{};const gi=k.startsWith('group')?(AI.groups||[]).findIndex(g=>g.key===k.slice(5)):-1;
+  if(k==='cover')return f.sec('표지',`${f.ta('ai.cover.tagline','1줄 캠페인 컨셉 (28pt)',{rows:1,hint:'표지 큰 제목 「인플루언서 마케팅 제안서」 아래 한 줄 — 비우면 캠페인 컨셉 1줄을 씁니다'})}${f.tx('ai.brand','브랜드 표기',{hint:'공식 표기 (한글 음차 금지)'})}${f.tx('title','제안서 이름 (목록용)')}${f.sel('status','상태',['작성 중','광고주 전달','완료'])}
+      <div class="f wide"><span class="small muted">예산 표기: 「총 예산 ${man(K.total)}원 · ${weeksOf(P.info||{}).last+1}주 운영 · VAT 별도」 (자동)</span></div>`)+f.sec('표지 이미지 (선택)',slotPicker(P,'cover',ed),'표지 오른쪽에 들어갑니다. 소개서에서 자른 이미지 · 폰 목업 · 카드 그래픽 중에서 고르세요.')+f.sec('목차 이미지',screenPick(P,'ai.screens.mascot','목차 왼쪽 아래 (캐릭터·제품)',ed));
+  if(k==='market'){const m=AI.market||{};return f.sec('01 시장 현황 — 첫 장',`${f.ta('ai.market.title','대제목',{rows:2,hint:LB})}${f.ta('ai.market.sub','소제목',{rows:2})}${L_(m.stats).map((x,i)=>f.tx(`ai.market.stats.${i}.label`,`지표 ${i+1} · 이름`)+f.tx(`ai.market.stats.${i}.value`,'숫자')+f.tx(`ai.market.stats.${i}.unit`,'단위')+f.ta(`ai.market.stats.${i}.desc`,'설명',{wide:false})).join('')}${f.tx('ai.market.source','출처',{wide:true})}`)
+      +f.sec('01 시장 현황 — 인사이트 장',`${f.ta('ai.market.title2','대제목',{rows:2,hint:LB})}${f.ta('ai.market.sub2','소제목',{rows:2})}${L_(m.insights).map((x,i)=>f.tx(`ai.market.insights.${i}.kicker`,`인사이트 ${i+1} · 라벨`)+f.tx(`ai.market.insights.${i}.value`,'핵심')+f.ta(`ai.market.insights.${i}.text`,'설명',{wide:false})).join('')}${f.ta('ai.market.takeaway','INSIGHT (결론)',{rows:3})}${f.tx('ai.market.source2','출처',{wide:true})}`)}
+  if(k==='direction')return f.sec('02 브랜드가 나아갈 방향',`${f.ta('ai.direction.title','대제목',{rows:2,hint:LB})}${f.ta('ai.direction.sub','소제목',{rows:2})}${L_((AI.direction||{}).shifts).map((x,i)=>f.tx(`ai.direction.shifts.${i}.from`,`변화 ${i+1} · 지금`)+f.tx(`ai.direction.shifts.${i}.to`,'바뀔 모습')+f.tx(`ai.direction.shifts.${i}.desc`,'설명',{wide:true})).join('')}${f.tx('ai.direction.positioning','포지셔닝 한 줄',{wide:true})}${screenPick(P,'ai.screens.direction','오른쪽 이미지',ed)}`);
+  if(k==='capability'){const camps=benchCamps();return f.sec('03 링컴즈 역량',`<div class="f wide"><span class="small muted">역량 4가지(크리에이터 네트워크 · 캠페인 관리 플랫폼 · 전환 트래킹 · 2차 활용)는 스킬 고정 문구입니다. 아래 레퍼런스 캠페인만 고를 수 있습니다.</span></div>
+      <label class="f wide">유사 볼륨 캠페인 레퍼런스 (실측)<select id="pp_bench" data-pv="plan.bench" ${ed?'':'disabled'}><option value="">전체 집행 캠페인 (인플루언서 풀)</option>${camps.map(([c,nm,n_])=>`<option value="${esc(c)}" ${(P.plan||{}).bench===c?'selected':''}>${esc(nm)} · ${n_}명</option>`).join('')}</select><span class="hint">${esc(K.bm.name)} · 실측 콘텐츠 3개 미만 티어는 묵끄럽 8월 실측값</span></label>`)}
+  if(k==='concept')return f.sec('04 캠페인 컨셉 (우산)',`${f.ta('ai.umbrella.name','컨셉명 (2줄)',{rows:2,hint:LB})}${f.tx('ai.umbrella.oneLine','컨셉 1줄 (표지·마지막 장)',{wide:true})}${f.ta('ai.umbrella.sub','컨셉 설명',{rows:2})}${f.tl('ai.umbrella.hashtags','해시태그',{rows:2})}`,'아래 세 카드에는 그룹 탭의 컨셉명·해시태그·카드 설명이 들어갑니다.')
+      +f.sec('05 핵심 전략 (그룹별 기능)',`${f.ta('ai.titles.features.title','대제목',{rows:2,hint:LB})}${f.ta('ai.titles.features.sub','소제목',{rows:2})}<div class="f wide"><span class="small muted">그룹별 기능 3개·기대 효과·이미지는 각 그룹 탭에서 고칩니다.</span></div>`);
+  if(gi>=0){const g=AI.groups[gi],b=`ai.groups.${gi}`,kk=g.key;const cuts=((g.guide||{}).cuts||[]).slice(0,4);
+    return f.sec(`그룹 ${kk} · 기본`,`${f.tx(b+'.name','그룹 이름')}${f.tx(b+'.pillar','단계 (공감·인지 등)')}${f.ta(b+'.who','어떤 인플루언서',{wide:false})}${f.ta(b+'.role','맡을 역할',{wide:false})}${f.ta(b+'.content','콘텐츠',{wide:false})}${f.ta(b+'.effect','기대 효과',{wide:false})}${f.tl(b+'.search','섭외 후보 탐색 검색어',{wide:false,rows:2})}${f.tl(b+'.keywords','풀 검색 키워드',{wide:false,rows:2})}`)
+      +f.sec(`그룹 ${kk} · 컨셉 장 (간지)`,`${f.ta(b+'.concept.name','그룹 컨셉명',{rows:2})}${f.tl(b+'.concept.hashtags','해시태그 2개',{rows:2,wide:false})}${f.tl(b+'.concept.story','스토리 4줄',{rows:4,wide:false})}${f.tx(b+'.concept.keyMessage','KEY MESSAGE',{wide:true})}${f.tx(b+'.concept.features','보여줄 기능',{wide:true})}${f.ta(b+'.concept.line','우산 컨셉 장 카드 설명',{rows:2})}${screenPick(P,'ai.screens.group'+kk,'오른쪽 이미지 (디자인 탭에서 간지 이미지를 하나로 고르면 그 이미지가 우선)',ed)}`)
+      +f.sec(`그룹 ${kk} · 핵심 전략 열`,`${L_((g.feature||{}).items).map((it,ii)=>f.tx(`${b}.feature.items.${ii}.name`,`기능 ${ii+1}`)+f.tx(`${b}.feature.items.${ii}.desc`,'한 줄 설명')).join('')}${f.tx(b+'.feature.effect','기대 효과 한 줄',{wide:true})}${screenPick(P,'ai.screens.features'+kk,'열 이미지',ed)}`)
+      +`<section class="panel"><div class="panel-h"><div><h2>그룹 ${kk} · 콘텐츠 가이드</h2><div class="sub">컷마다 ① 예시 이미지(Canva·Gemini에서 만들어 Ctrl+V)나 ② 소개서 앱 화면을 붙입니다. 예시 이미지가 있으면 그게 우선입니다.</div></div></div><div class="fgrid">${f.ta(b+'.guide.title','대제목',{rows:2,hint:LB})}${f.ta(b+'.guide.sub','소제목',{rows:2})}</div>
+        <div class="pp-cuts">${cuts.map((c,ci)=>{const key=`${kk}_${ci}`,slot='cut:'+key,im=(A.pcimgs||{})[key];const cs=L_(((AI.screens||{})['cuts'+kk]));const scr=cs[ci]||cs[0];
+          return `<div class="pp-cut"><div class="pp-cut-img ${A.ppaste===slot?'paste-on':''}" tabindex="0" data-ppaste="${slot}" title="클릭한 뒤 Ctrl+V로 이미지 붙여넣기">${im?`<img src="${im}" alt="CUT ${ci+1} 예시 이미지">`:scr&&cropOf(scr)?`<img src="${cropOf(scr)}" alt="" style="object-fit:contain;opacity:.85">`:`<span class="small muted">${A.ppaste===slot?'<b>Ctrl+V</b>로 붙여넣기':'CUT '+(ci+1)+' 예시 이미지<br>클릭 → Ctrl+V'}</span>`}</div>
+            <div class="row" style="gap:4px;flex-wrap:wrap;justify-content:center">${ed?`<label class="btn sm" style="cursor:pointer">${im?'바꾸기':'넣기'}<input type="file" accept="image/*" data-ppimg="${slot}" hidden></label>${im?`<button class="btn sm ghost" data-act="ppImgDel" data-k="${slot}">삭제</button>`:''}`:''}<button class="btn sm" data-act="ppCanva" data-to="canva" data-g="${gi}" data-c="${ci}">Canva AI ↗</button><button class="btn sm" data-act="ppCanva" data-to="gemini" data-g="${gi}" data-c="${ci}">Gemini ↗</button></div>
+            <div class="fgrid one">${f.tx(`${b}.guide.cuts.${ci}.step`,`CUT ${ci+1} · 단계`)}${f.tx(`${b}.guide.cuts.${ci}.time`,'시간')}${f.ta(`${b}.guide.cuts.${ci}.scene`,'화면')}${f.ta(`${b}.guide.cuts.${ci}.line`,'멘션·자막')}${f.ta(`${b}.guide.cuts.${ci}.prompt`,'🖼 이미지 프롬프트',{rows:2})}</div></div>`}).join('')}</div>
+        <div class="fgrid">${f.ta(b+'.guide.caption','캡션 예시',{rows:4,wide:false})}<div class="stack" style="gap:10px">${f.tl(b+'.guide.must','MUST',{rows:3})}${f.tl(b+'.guide.dont',"DON'T",{rows:3})}</div></div></section>`}
+  if(k==='plan')return planForm(P,ed,K,f);
+  if(k==='timeline')return f.sec('07 타임라인',`${f.ta('ai.timeline.title','대제목 (비우면 자동)',{rows:2,ph:`한 주에 ${K.people}개 콘텐츠,\n피드를 ${(AI.brand||'')}로 채웁니다`})}${f.ta('ai.timeline.sub','소제목 (비우면 자동)',{rows:2})}
+      ${f.tx('info.start','업로드 시작일 (= W4)',{type:'date'})}${f.tx('info.end','집행 종료일',{type:'date'})}<div class="f wide"><span class="small muted">일정은 스킬 기준 8주(W0~W7): 제안 확정·리스트업 → 섭외·계약 2주 → 브리프·가편 검수 → <b>W4 A·B·C 동시 업로드</b>(최소 6개월 게시글 유지) → D+7 1차 리포트 → 2차 활용 → 최종 리포트</span></div>`);
+  if(k==='closing')return f.sec('마지막 장 이미지',slotPicker(P,'closing',ed),'「감사합니다」 위 가운데에 들어갑니다.')+f.sec('Appendix · 섭외 기준 & 리스크 관리','<div class="f wide"><span class="small muted">섭외 기준·리스크 관리는 고정 문구입니다. 성과 추정 기준(Appendix A)은 스킬 기본값에 따라 넣지 않습니다.</span></div>');
+  if(k==='design')return designForm(P,ed,f);
+  return ''}
+function planForm(P,ed,K,f){const R=K.R;const bm=K.bm;const M=matrixOf(R);
+  return `<section class="panel"><div class="panel-h"><div><h2>06 티어 구성 · 광고비 (VAT 별도)</h2><div class="sub">예산을 넣으면 티어별 인원·단가가 자동으로 잡히고, 단가 × 인원 합계가 광고비와 정확히 맞춰집니다. 칸을 고치면 직접 구성으로 바뀝니다.</div></div>${ed?'<button class="btn sm" data-act="ppAuto">예산으로 자동 구성</button>':''}</div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>티어</th><th>팔로워</th><th class="n">인원</th><th class="n">1인 단가 (원)</th><th class="n">소계</th><th>역할</th><th>이유</th></tr></thead><tbody>${R.map((r,i)=>{const w=((P.ai||{}).tierWhy||{})[r.tier]||{};return `<tr><td class="bold">${r.tier}</td><td class="small" style="white-space:nowrap">${RANGE[r.tier]}</td><td class="n"><input type="text" inputmode="numeric" id="pp_tc${i}" data-ptier="${i}" data-f="count" value="${r.count}" style="width:56px;text-align:right" ${ed?'':'readonly'}></td><td class="n"><input type="text" inputmode="numeric" id="pp_tu${i}" data-ptier="${i}" data-f="unit" value="${won(r.unit)}" style="width:100px;text-align:right" ${ed?'':'readonly'}></td><td class="n">${won(r.count*r.unit)}</td>
+        <td><input type="text" id="pp_tr${i}" data-pv="ai.tierWhy.${r.tier}.role" value="${esc(w.role||'')}" style="width:70px" ${ed?'':'readonly'}></td><td><input type="text" id="pp_tw${i}" data-pv="ai.tierWhy.${r.tier}.why" value="${esc(w.why||'')}" style="min-width:170px" ${ed?'':'readonly'}></td></tr>`}).join('')}
+       <tr class="tot"><td class="bold">합계</td><td></td><td class="n bold">${K.people}명</td><td></td><td class="n bold">${won(K.ad)}</td><td colspan="2" class="small">${(P.plan&&P.plan.tiers&&P.plan.tiers.length)?'직접 구성':'자동 구성'}</td></tr></tbody></table></div>
+      <div class="pp-money"><div><span>광고비</span><b>${won(K.ad)}원</b></div><div><span>대행수수료 ${K.f.rate}%</span><b>${won(K.fee)}원</b></div><div><span>총액</span><b>${won(K.total)}원</b></div><div><span>VAT</span><b>별도</b></div></div>
+      ${Math.abs(K.diff)>=1?`<div class="banner" style="margin:10px 0 0">티어 단가 합계(${won(K.ad)}원)가 광고비 목표(${won(K.adTarget)}원)와 ${won(Math.abs(K.diff))}원 ${K.diff>0?'많습니다':'적습니다'}. 인원·단가를 고치거나 「예산으로 자동 구성」을 눌러 주세요.</div>`:''}</section>
+    ${f.sec('06 장 제목',`${f.ta('ai.titles.tiers.title','티어 구성 장 대제목',{rows:2,hint:LB})}${f.ta('ai.titles.tiers.sub','소제목',{rows:2})}${f.ta('ai.titles.categories.title','카테고리 장 대제목',{rows:2})}${f.ta('ai.titles.categories.sub','소제목',{rows:2})}${f.ta('ai.titles.matrix.title','그룹×티어 장 대제목',{rows:2})}${f.tl('ai.matrixPoints','구성 포인트 3개',{rows:3})}${f.ta('ai.titles.showcase.title','섭외 후보 장 대제목',{rows:2})}${f.ta('ai.titles.showcase.sub','소제목',{rows:2})}${f.ta('ai.titles.kpi.title','예상 성과 장 대제목',{rows:2})}${f.ta('ai.titles.kpi.sub','소제목',{rows:2})}`)}
+    <section class="panel"><div class="panel-h"><div><h2>예상 성과</h2><div class="sub">조회수 = 티어별 인원 × 링컴즈 집행 캠페인 평균 조회 · 참여 = 조회 × ER · 좋아요 = 참여 × 0.92 · CPV = 총액 ÷ 조회수</div></div></div>
+      <div class="fgrid">${f.tx('plan.er','적용 ER (%)',{t:'num',ph:'2.0',hint:'보수적으로 2.0% 권장 (링컴즈 실측 1.6~2.8%)'})}<div class="f"><span class="small muted">실측 기준: ${esc(bm.name)} (03 역량 탭에서 변경)</span></div></div>
+      <div class="pp-money"><div><span>예상 조회수</span><b>${won(K.views)}</b></div><div><span>ER</span><b>${pc(K.er)}</b></div><div><span>좋아요</span><b>${won(Math.round(K.likes))}</b></div><div><span>CPV</span><b>${K.cpv.toFixed(1)}원</b></div></div></section>
+    <section class="panel"><div class="panel-h"><div><h2>그룹 × 티어</h2><div class="sub">A ${GW.A*100}% · B ${GW.B*100}% · C ${GW.C*100}% 비율로 나눕니다.</div></div></div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>그룹</th>${PT.map(t=>`<th class="n">${t}</th>`).join('')}<th class="n">합계</th></tr></thead><tbody>${GKEYS.map(k=>{const g=((P.ai||{}).groups||[]).find(x=>x.key===k)||{};const tot=PT.reduce((a,t)=>a+(M[k][t]||0),0);return `<tr><td class="bold">${k} ${esc(g.name||'')}</td>${PT.map(t=>`<td class="n">${M[k][t]||'–'}</td>`).join('')}<td class="n bold">${tot}명</td></tr>`}).join('')}</tbody></table></div></section>
+    ${pickPanel(P,ed)}`}
+function designForm(P,ed,f){const t=P.theme||{};const T=themeFor(P);const SRC={deck:'소개서 메인 컬러','logo':'로고·CI 컬러','logo+accent':'소개서 메인 컬러가 너무 밝거나 화려해 포인트로 쓰고, 로고·CI 컬러를 메인 배경으로','deck-dark':'소개서 메인 컬러를 어둡게 (포인트는 원래 색)',manual:'직접 고른 색',default:'기본 색'};
+  const crops=P.crops||[];
+  return f.sec('브랜드 컬러',`<div class="f wide"><div class="pp-colors"><div><span class="pp-sw lg" style="background:#${T.primary}"></span><b>메인 #${T.primary}</b><span class="small muted">배경·제목 강조</span></div><div><span class="pp-sw lg" style="background:#${T.accent}"></span><b>포인트 #${T.accent}</b><span class="small muted">차트·도형</span></div></div>
+      <div class="small muted" style="margin-top:6px">선택 근거: ${esc(SRC[T.src]||'')}${t.deckMain?` · 소개서 메인 #${esc(t.deckMain)}`:''}${t.logo?` · 로고 #${esc(t.logo)}`:''}${t.note?` · ${esc(t.note)}`:''}</div>
+      <span class="hint">우선순위: ① 소개서에서 메인으로 쓰인 컬러 → 너무 밝거나 화려하면 포인트로만 쓰고 ② 로고·CI 컬러를 메인 배경으로 → ③ 소개서 메인 컬러를 어둡게</span></div>
+     ${ed?`<label class="f">메인 컬러 직접 고르기<span class="row" style="flex-wrap:nowrap"><input type="color" id="pp_th_p" data-ppth="primary" value="#${T.primary}" style="width:48px;height:34px;padding:2px"></span></label><label class="f">포인트 컬러<span class="row" style="flex-wrap:nowrap"><input type="color" id="pp_th_a" data-ppth="accent" value="#${T.accent}" style="width:48px;height:34px;padding:2px"></span></label>${t.manual?'<div class="f"><button class="btn sm" data-act="ppThemeAuto">자동 선택으로 되돌리기</button></div>':''}`:''}`)
+   +f.sec('표지 이미지 (선택)',`<div class="f wide"><b class="small">표지</b></div>${slotPicker(P,'cover',ed)}<div class="f wide"><b class="small">간지 (그룹 컨셉 장)</b></div>${slotPicker(P,'divider',ed)}<div class="f wide"><b class="small">마지막 장</b></div>${slotPicker(P,'closing',ed)}`,'표지·간지·마지막 장에 넣을 이미지를 3가지 후보 중에서 고르거나 직접 넣습니다. 후보는 소개서에서 자른 이미지와 무료로 그린 그래픽입니다.')
+   +f.sec('배경',['cover','divider','closing','body'].map(kd=>bgPicker(P,kd,ed)).join(''),'장 성격에 맞게 도형·그라데이션을 고릅니다. 본문 장은 글이 잘 읽히도록 아주 옅게만 들어갑니다.')
+   +`<section class="panel"><div class="panel-h"><div><h2>소개서에서 자른 이미지 ${crops.length?crops.length+'개':''}</h2><div class="sub">AI가 소개서에서 앱 화면·캐릭터·제품을 찾아 잘랐습니다. 잘못 잘렸으면 「다시 자르기」로 고치고, 필요한 이미지는 「새로 자르기」로 더할 수 있습니다.</div></div>${ed&&pagesOf().length?'<button class="btn sm" data-act="ppCropAdd">+ 새로 자르기</button>':''}</div>
+     ${crops.length?`<div class="pp-crops">${crops.map(c=>`<div class="pp-crop"><div class="pp-crop-img">${cropOf(c.id)?`<img src="${cropOf(c.id)}" alt="">`:'<span class="small muted">이미지 없음</span>'}</div><div class="small"><b>${esc(c.label||c.id)}</b><br><span class="muted">${esc({app_screen:'앱 화면',mascot:'캐릭터 (배경 지움)',product:'제품'}[c.kind]||c.kind)} · ${c.page}쪽</span></div>${ed?`<div class="row" style="gap:4px"><button class="btn sm" data-act="ppCropEdit" data-id="${esc(c.id)}" ${pagesOf().length?'':'disabled title="소개서 쪽 이미지가 없습니다"'}>다시 자르기</button><button class="btn sm ghost" data-act="ppCropDel" data-id="${esc(c.id)}">삭제</button></div>`:''}</div>`).join('')}</div>`:`<div class="empty small">${pagesOf().length?'아직 자른 이미지가 없습니다. 「AI로 제안서 만들기」를 하면 자동으로 자르고, 「새로 자르기」로 직접 자를 수도 있습니다.':'소개서(PDF·PPT)를 올리면 쪽 이미지에서 자를 수 있습니다.'}</div>`}
+     <p class="small muted pp-pc-note" style="margin:8px 0 0">이미지 자르기는 마우스로 끌어 영역을 고르는 방식이라 PC에서 작업해 주세요.</p></section>`}
+/* 자르기 창: 쪽을 고르고 마우스로 끌어 영역 지정 */
+function cropModal(){const C=A.pcrop;const pages=pagesOf();const pg=pages.find(p=>p.n===C.page)||pages[0];if(!pg)return '';const b=C.box||[100,100,900,900];
+  return `<div class="pp-modal-bg" data-act="ppCropClose"></div><div class="pp-modal panel" role="dialog" aria-label="이미지 자르기"><div class="panel-h"><h2>${C.id?'다시 자르기':'새로 자르기'}</h2><button class="btn sm ghost" data-act="ppCropClose">닫기</button></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px"><span class="small bold">쪽</span>${pages.map(p=>`<button class="chip ${p.n===pg.n?'on':''}" data-act="ppCropPage" data-n="${p.n}">${p.n}</button>`).join('')}</div>
+    <div class="pp-crop-stage" id="pp-crop-stage"><img src="${pg.data}" alt="" draggable="false"><div class="pp-crop-box" id="pp-crop-box" style="top:${b[0]/10}%;left:${b[1]/10}%;height:${(b[2]-b[0])/10}%;width:${(b[3]-b[1])/10}%"></div></div>
+    <div class="fgrid" style="margin-top:10px"><label class="f">이름<input type="text" id="pp_crop_label" value="${esc(C.label||'')}" placeholder="예: 채팅 화면"></label><label class="f">종류<select id="pp_crop_kind">${[['app_screen','앱 화면'],['mascot','캐릭터 (배경 지우기)'],['product','제품']].map(([k,l])=>`<option value="${k}" ${C.kind===k?'selected':''}>${l}</option>`).join('')}</select></label></div>
+    <div class="row" style="margin-top:10px"><span class="small muted grow">이미지 위에서 마우스로 끌어 영역을 고르세요.</span><button class="btn primary" data-act="ppCropSave">저장</button></div></div>`}
 
 /* ============ 입력 저장 ============ */
+document.addEventListener('input',e=>{const t=e.target;if(!t.dataset||A.view!=='proposals')return;const P=curP();if(!P)return;
+  if(t.dataset.pv&&/^ai\.|^title$/.test(t.dataset.pv)){setIn(P,t.dataset.pv,t.value);schedPv()}
+  else if(t.dataset.pl&&/^ai\./.test(t.dataset.pl)){setIn(P,t.dataset.pl,lines(t.value));schedPv()}
+  else if(t.dataset.ppop){P.design=P.design||{};P.design.bgOp={...(P.design.bgOp||{}),[t.dataset.ppop]:N(t.value)};schedPv()}
+  else if(t.dataset.ppth){const T=themeFor(P);P.theme={...(P.theme||{}),manual:{primary:T.primary,accent:T.accent,...((P.theme||{}).manual||{}),[t.dataset.ppth]:t.value.replace('#','').toUpperCase()}};schedPv()}});
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset)return;const P=curP();
+  if(t.dataset.pn!=null&&A.pnew){let v=t.value;if(t.dataset.t==='num'){const x=N(v);v=String(v).trim()===''?'':x}setIn(A.pnew,t.dataset.pn,v);if(/budget|feeRate|feeMode/.test(t.dataset.pn))render();return}
+  if(t.dataset.pplat){const tgt=t.dataset.pre==='ppn_'?A.pnew&&A.pnew.info:P&&P.info;if(!tgt)return;const L=PLATS.filter(x=>x===t.dataset.pplat?t.checked:platsOf(tgt).includes(x));if(!L.length){toast('채널을 하나 이상 골라 주세요.','crit');render();return}tgt.platforms=L;tgt.platform=L.map(x=>PLAT_FMT[x]).join(' · ');if(t.dataset.pre!=='ppn_'&&canEdit())pSave('info',P);render();return}
   if((t.dataset.pv||t.dataset.pl)&&P&&A.view==='proposals'){if(!canEdit())return toast('보기 전용 권한이라 수정할 수 없습니다.','crit');const p=t.dataset.pv||t.dataset.pl;let v=t.dataset.pl?lines(t.value):t.value;if(t.dataset.t==='num'){const x=N(v);v=String(v).trim()===''?'':x}
-setIn(P,p,v);const top=p.split('.')[0];pSave(top,P);schedPv();
-    if(['title','status','info.color','info.budget','info.feeRate','info.feeMode','plan.bench','plan.er','info.start','info.end'].includes(p))render();return}
+    setIn(P,p,v);pSave(p.split('.')[0],P);schedPv();if(['title','status','info.budget','info.feeRate','info.feeMode','plan.bench','plan.er','info.start','info.end'].includes(p)||/^ai\.tierWhy|^ai\.groups\.\d+\.(name|search|keywords)$/.test(p))render();return}
   if(t.dataset.ptier!=null&&P){if(!canEdit())return;const R=tierRows(P);const r=R[+t.dataset.ptier];r[t.dataset.f]=Math.max(0,Math.round(N(t.value)));P.plan=P.plan||{};P.plan.tiers=R;pSave('plan',P);schedPv();render();return}
-  if(t.dataset.ppsrc&&t.files&&t.files[0]){const f=t.files[0];t.value='';readSrc(f);return}
-  if(t.dataset.pplat&&P){if(!canEdit())return;const L=PLATS.filter(x=>x===t.dataset.pplat?t.checked:platsOf(P.info||{}).includes(x));if(!L.length){toast('채널을 하나 이상 골라 주세요.','crit');render();return}P.info={...(P.info||{}),platforms:L,platform:L.map(x=>PLAT_FMT[x]).join(' · ')};pSave('info',P);render();return}
+  if(t.dataset.ppop&&P){pSave('design',P);render();return}
+  if(t.dataset.ppth&&P){pSave('theme',P);GFXT.clear();render();return}
+  if(t.dataset.ppsrc&&t.files&&t.files[0]){const f=t.files[0];t.value='';if(t.dataset.ppsrc==='new'){readSrc(f,A.pnew.info,'new').then(()=>render())}else if(P){const info={...(P.info||{})};readSrc(f,info,A.pid).then(ok=>{if(ok){P.info=info;pSave('info',P)}render()})}return}
   if(t.dataset.ppimg&&t.files&&t.files[0]){const f=t.files[0];const k=t.dataset.ppimg;t.value='';ppImgIn(k,f)}});
-function ppImgIn(slot,f){const cut=/^cut:/.test(slot);fileToDataUrl(f,cut?540:1100,cut?960:1100,'image/jpeg',cut?0.72:0.8).then(d=>pimgPut(cut?slot.slice(4):slot,d,cut?'cut':'p')).catch(()=>toast('이미지를 넣지 못했습니다.','crit'))}
+function ppImgIn(slot,f){const cut=/^cut:/.test(slot);const bg=/^bg_/.test(slot);fileToDataUrl(f,cut?540:bg?1600:1100,cut?960:bg?900:1100,'image/jpeg',cut?0.72:0.8).then(async d=>{await pimgPut(cut?slot.slice(4):slot,d,cut?'cut':'p');const P=curP();if(!P||cut)return;P.design=P.design||{};
+  if(bg){P.design.bg={...(P.design.bg||{}),[slot.slice(3)]:'up'}}else{P.design.img={...(P.design.img||{}),[slot]:'up'}}pSave('design',P);GFXT.clear();schedPv();render()}).catch(()=>toast('이미지를 넣지 못했습니다.','crit'))}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-ppaste]');if(!b||e.target.closest('button,label,input'))return;A.ppaste=b.dataset.ppaste;render();setTimeout(()=>{const el=document.querySelector(`[data-ppaste="${A.ppaste}"]`);if(el)el.focus({preventScroll:true})},0)});
 document.addEventListener('paste',e=>{if(A.view!=='proposals'||!A.pid||!A.ppaste)return;const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'))return;const it=[...((e.clipboardData&&e.clipboardData.items)||[])].find(x=>x.kind==='file'&&/^image\//.test(x.type));
   if(!it)return toast('복사한 이미지가 없습니다.','crit');e.preventDefault();ppImgIn(A.ppaste,it.getAsFile())});
+/* 자르기: 마우스로 끌기 */
+document.addEventListener('pointerdown',e=>{const st=e.target.closest&&e.target.closest('#pp-crop-stage');if(!st||!A.pcrop)return;e.preventDefault();const r=st.getBoundingClientRect();const p0=[(e.clientY-r.top)/r.height,(e.clientX-r.left)/r.width];const box=document.getElementById('pp-crop-box');
+  const mv=ev=>{const p1=[Math.max(0,Math.min(1,(ev.clientY-r.top)/r.height)),Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width))];const b=[Math.min(p0[0],p1[0]),Math.min(p0[1],p1[1]),Math.max(p0[0],p1[0]),Math.max(p0[1],p1[1])].map(v=>Math.round(v*1000));A.pcrop.box=b;
+    if(box){box.style.top=b[0]/10+'%';box.style.left=b[1]/10+'%';box.style.height=(b[2]-b[0])/10+'%';box.style.width=(b[3]-b[1])/10+'%'}};
+  const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up)};document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(A.pcrop){A.pcrop=null;render()}else if(A.ppaste){A.ppaste='';render()}}});
 
 Object.assign(ACT,{
-  async ppNew(){const P=newProposal();const id=uid();try{await DB.set('guides/'+id,P);A.props=A.props||{};A.props[id]=P;A.pid=id;A.ptab='info';render();window.scrollTo(0,0)}catch(e){saveErr(e)}},
-  ppOpen(a){A.pid=a.dataset.p;A.ptab='';A.confirm=null;A.ppSel=null;render();window.scrollTo(0,0)},
-  ppBack(){A.pid='';render();window.scrollTo(0,0)},
-  ppTab(a){A.ptab=a.dataset.k;render()},
+  ppNew(){A.pnew={title:'',info:newInfo()};A.ppPages=null;render();window.scrollTo(0,0)},
+  ppNewCancel(){A.pnew=null;render();window.scrollTo(0,0)},
+  async ppCreate(a){const D=A.pnew;if(!D)return;document.querySelectorAll('[data-pn]').forEach(el=>{let v=el.value;if(el.dataset.t==='num'){const x=N(v);v=String(v).trim()===''?'':x}setIn(D,el.dataset.pn,v)});
+    const I=D.info;const P={kind:'proposal',title:String(D.title||'').trim()||`${I.brand||I.advertiser||'새'} 인플루언서 캠페인 제안서`,status:'작성 중',createdAt:today(),updatedAt:new Date().toISOString(),by:A.user.email,info:I,plan:{tiers:[],er:2,bench:''},picks:{},ai:null,design:{},theme:{}};
+    const id=uid();try{await DB.set('guides/'+id,P);A.props=A.props||{};A.props[id]=P;A.pnew=null;A.pid=id;A.ptab='info';A.psub='cover';
+      const pages=A.ppPages&&A.ppPages.pid==='new'?A.ppPages.list:[];if(pages.length){A.ppPages={pid:id,list:pages};await savePages(id,pages)}
+      render();window.scrollTo(0,0);toast('제안서를 만들었습니다.');if(a.dataset.ai==='1')setTimeout(()=>ACT.ppAi(),200)}catch(e){saveErr(e)}},
+  ppOpen(a){A.pid=a.dataset.p;A.ptab='';A.psub=A.psub||'cover';A.confirm=null;A.pcrop=null;render();window.scrollTo(0,0)},
+  ppBack(){A.pid='';A.pcrop=null;render();window.scrollTo(0,0)},
+  ppTab(a){A.ptab=a.dataset.k;A.pcrop=null;render()},
+  ppSub(a){A.psub=a.dataset.k;A.pcrop=null;render()},
   ppSeq(a){A.pseq=a.dataset.k==='sum'?'sum':'';render()},
   ppExp(a){ppExport(a.dataset.k)},
-  ppPageSel(a){A.ppSel=+a.dataset.i;render()},
-  async ppPageUse(a){const pg=(A.ppPages&&A.ppPages.list||[])[A.ppSel];if(!pg)return;pimgPut(a.dataset.k,await shrink(pg.data,1000))},
+  async ppScreen(a){const P=curP();P.ai=P.ai||{};P.ai.screens=P.ai.screens||{};setIn(P,a.dataset.path,a.dataset.id);await pSave('ai',P);schedPv();render()},
+  async ppSlot(a){const P=curP();P.design=P.design||{};P.design.img={...(P.design.img||{}),[a.dataset.slot]:a.dataset.k};await pSave('design',P);schedPv();render()},
+  async ppBg(a){const P=curP();P.design=P.design||{};P.design.bg={...(P.design.bg||{}),[a.dataset.kind]:a.dataset.k};await pSave('design',P);schedPv();render()},
+  async ppThemeAuto(){const P=curP();const t={...(P.theme||{})};delete t.manual;P.theme=t;await DB.update('guides/'+A.pid,{theme:t});GFXT.clear();schedPv();render()},
   ppImgDel(a){const k=a.dataset.k;if(/^cut:/.test(k))pimgDel(k.slice(4),'cut');else pimgDel(k)},
   ppDisc(){ppDiscover(false)},
+  ppCropEdit(a){const P=curP();const c=(P.crops||[]).find(x=>x.id===a.dataset.id);if(!c)return;A.pcrop={...c};render()},
+  ppCropAdd(){const pg=pagesOf()[0];if(!pg)return toast('소개서 쪽 이미지가 없습니다.','crit');A.pcrop={id:'',page:pg.n,kind:'app_screen',label:'',box:[150,300,850,700]};render()},
+  ppCropPage(a){if(!A.pcrop)return;A.pcrop.page=N(a.dataset.n);render()},
+  ppCropClose(){A.pcrop=null;render()},
+  async ppCropSave(){const P=curP();const C=A.pcrop;if(!P||!C)return;C.label=(document.getElementById('pp_crop_label')||{}).value||C.label||'이미지';C.kind=(document.getElementById('pp_crop_kind')||{}).value||C.kind;
+    const pg=pagesOf().find(p=>p.n===C.page);if(!pg)return;const mascot=C.kind==='mascot';const d=await PPD().cropImg(pg.data,C.box,{max:mascot?480:620,cutout:mascot});if(!d)return toast('자르지 못했습니다.','crit');
+    const id=C.id||('img'+Date.now().toString(36));const crops=[...(P.crops||[])].filter(x=>x.id!==id);crops.push({id,page:C.page,kind:C.kind,label:C.label,box:C.box,cut:mascot});
+    await pimgPut(id,d,'src');P.crops=crops;await pSave('crops',P);A.pcrop=null;GFXT.clear();schedPv();render();toast('이미지를 잘랐습니다.')},
+  async ppCropDel(a){const P=curP();P.crops=(P.crops||[]).filter(x=>x.id!==a.dataset.id);await pSave('crops',P);pimgDel(a.dataset.id,'src')},
   async ppCanva(a){const P=curP();const g=((P.ai||{}).groups||[])[+a.dataset.g]||{};const c=((g.guide||{}).cuts||[])[+a.dataset.c]||{};const I=P.info||{};
-    const pr=c.prompt||[c.scene,c.line].filter(Boolean).join(' / ').replace(/\n/g,' ');const text=`${String(pr).replace(/\n/g,' ')}\n(세로 9:16, 실사 사진 느낌, ${I.brand||''} ${I.product||''} 인플루언서 숏폼 예시 장면, 실존 인물·다른 브랜드 로고 없이)`;
-    await copyText(text);A.ppaste='cut:'+`${g.key}_${a.dataset.c}`;render();const to=a.dataset.to;window.open(to==='gemini'?'https://gemini.google.com/app':'https://www.canva.com/ai','_blank','noopener');
+    const pr=c.prompt||[c.scene,c.line].filter(Boolean).join(' / ');const text=`${String(pr).replace(/\n/g,' ')}\n(세로 9:16, 실사 사진 느낌, ${I.brand||''} ${I.product||''} 인플루언서 숏폼 예시 장면, 실존 인물·다른 브랜드 로고 없이)`;
+    await copyText(text);A.ppaste='cut:'+`${g.key}_${a.dataset.c}`;render();window.open(a.dataset.to==='gemini'?'https://gemini.google.com/app':'https://www.canva.com/ai','_blank','noopener');
     toast('프롬프트를 복사했습니다. 이미지를 만든 뒤 「이미지 복사」 → 여기서 Ctrl+V 하면 이 컷에 들어갑니다.')},
   async ppSrcClear(){const P=curP();P.info={...P.info,srcText:'',srcName:'',srcPages:''};A.ppPages=null;await pSave('info',P);render()},
   async ppAuto(){const P=curP();P.plan={...(P.plan||{}),tiers:[]};await pSave('plan',P);schedPv();render();toast('예산 기준으로 티어를 다시 구성했습니다.')},
   async ppPick(a){const P=curP();const k=a.dataset.g,id_=a.dataset.id;P.picks=P.picks||{};const L=[...(P.picks[k]||[])];const i=L.indexOf(id_);if(i>=0)L.splice(i,1);else{if(L.length>=MAXPICK)return toast(`그룹마다 최대 ${MAXPICK}명까지 고를 수 있습니다.`,'crit');L.push(id_)}P.picks[k]=L;await pSave('picks',P);schedPv();render()},
-  async ppDup(){const P=curP();if(!P)return;const id=uid();const d={...clone(P),title:(P.title||'')+' (복사본)',status:'작성 중',createdAt:today(),updatedAt:new Date().toISOString(),by:A.user.email,aiStatus:'',aiResult:null};try{await DB.set('guides/'+id,d);if(Object.keys(A.pimgs||{}).length)await DB.set('guideimg/'+id,{imgs:clone(A.pimgs),updatedAt:new Date().toISOString()});A.pid=id;render();toast('제안서를 복제했습니다.')}catch(e){saveErr(e)}},
-  async ppDel(){if(A.confirm!=='pdel'){A.confirm='pdel';render();return}A.confirm=null;const id=A.pid;try{await DB.del('guides/'+id);await DB.del('guideimg/'+id).catch(()=>{});A.pid='';render();toast('제안서를 삭제했습니다.')}catch(e){saveErr(e)}},
+  async ppDup(){const P=curP();if(!P)return;const id=uid();const d={...clone(P),title:(P.title||'')+' (복사본)',status:'작성 중',createdAt:today(),updatedAt:new Date().toISOString(),by:A.user.email,aiStatus:'',aiResult:null,discStatus:''};
+    try{await DB.set('guides/'+id,d);for(const t of Object.keys(IMGDOC)){const im=A[IMGST[t]];if(im&&Object.keys(im).length)await DB.set('guideimg/'+id+IMGDOC[t],{imgs:clone(im),updatedAt:new Date().toISOString()})}A.pid=id;render();toast('제안서를 복제했습니다.')}catch(e){saveErr(e)}},
+  async ppDel(){if(A.confirm!=='pdel'){A.confirm='pdel';render();return}A.confirm=null;const id=A.pid;try{await DB.del('guides/'+id);for(const t of Object.keys(IMGDOC))await DB.del('guideimg/'+id+IMGDOC[t]).catch(()=>{});A.pid='';render();toast('제안서를 삭제했습니다.')}catch(e){saveErr(e)}},
   async ppAi(){const P=curP();if(!P||A.ppBusy||pAiRunning(P))return;const I=P.info||{};
     if(!String(I.srcText||'').trim()&&!(I.links||[]).length&&!String(I.memo||'').trim())return toast('상품소개서를 올리거나, 링크·메모를 넣어 주세요.','crit');if(!(N(I.budget)>0))return toast('총 예산을 넣어 주세요.','crit');
-    if(P.ai&&A.confirm!=='ppai'){A.confirm='ppai';toast('이미 만든 내용이 있습니다. 한 번 더 누르면 AI가 새로 씁니다 (③ 탭의 수정 내용은 바뀝니다).');setTimeout(()=>{if(A.confirm==='ppai')A.confirm=null},6000);return}A.confirm=null;
+    if(P.ai&&A.confirm!=='ppai'){A.confirm='ppai';toast('이미 만든 내용이 있습니다. 한 번 더 누르면 AI가 새로 씁니다 (② 탭에서 고친 문구는 바뀝니다).');setTimeout(()=>{if(A.confirm==='ppai')A.confirm=null},6000);return}A.confirm=null;
     const K=ppCalc(P);const plan={tiers:K.R,people:K.people,ad:K.ad,fee:K.fee,total:K.total};const info={...I,platform:platsOf(I).map(x=>PLAT_FMT[x]).join(' · '),srcText:String(I.srcText||'').slice(0,24000)};
-    if(DB.mode==='demo'){A.ppBusy=true;render();await new Promise(r=>setTimeout(r,700));await pApply(A.pid,P,{ai:mockAi(I),model:'demo',research:{ok:false,sources:[]}});A.ppBusy=false;render();return}
+    const pages=await Promise.all(pagesOf().slice(0,10).map(p=>shrinkTo(p.data,768,0.7)));
+    if(DB.mode==='demo'){A.ppBusy=true;render();await new Promise(r=>setTimeout(r,700));await pApply(A.pid,P,{ai:mockAi(I),model:'demo',research:{ok:false,sources:[]},vision:mockVision(pages.length)});A.ppBusy=false;render();return}
     const job=uid();A.ppBusy=true;render();
-    try{await DB.update('guides/'+A.pid,{aiStatus:'진행 중',aiStep:'시장 조사 중',aiJob:job,aiAt:new Date().toISOString(),aiError:DB.DEL,aiResult:DB.DEL});await aiFetch('/api/proposal',{pid:A.pid,job,info,plan});toast('AI가 제안서를 쓰는 중입니다. 1~3분 걸리고, 끝나면 자동으로 채워집니다.')}
+    try{await DB.update('guides/'+A.pid,{aiStatus:'진행 중',aiStep:'시장 조사 · 이미지 분석 중',aiJob:job,aiAt:new Date().toISOString(),aiError:DB.DEL,aiResult:DB.DEL});await aiFetch('/api/proposal',{pid:A.pid,job,info,plan,pages});toast('AI가 제안서를 쓰는 중입니다. 1~3분 걸리고, 끝나면 자동으로 채워집니다.')}
     catch(e){DB.update('guides/'+A.pid,{aiStatus:'실패',aiError:String(e.message||e)}).catch(()=>{});toast('AI 제안서 작성을 시작하지 못했습니다: '+(e.message||e),'crit')}finally{A.ppBusy=false;render()}}
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&A.ppaste){A.ppaste='';render()}});
+function mockVision(n){return n?{colors:{deckMain:'#FF7E47',logo:'#FF7E47',note:'데모'},items:[{id:'img1',page:Math.min(2,n),kind:'app_screen',label:'홈 화면',box:[200,560,900,760]},{id:'img2',page:1,kind:'mascot',label:'캐릭터',box:[300,300,700,700]}]}:{items:[]}}
 
 /* ============ 스타일 ============ */
 (function(){if(document.getElementById('pp-css'))return;const st=document.createElement('style');st.id='pp-css';st.textContent=`
-.pp-pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;max-height:320px;overflow:auto}
-.pp-page{margin:0;border:1px solid var(--line);border-radius:8px;padding:4px;cursor:pointer;background:var(--surface);text-align:center}
-.pp-page img{width:100%;height:80px;object-fit:contain;display:block}.pp-page figcaption{font-size:11px;color:var(--muted)}
-.pp-page.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.pp-imgs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.pp-img{display:flex;flex-direction:column;gap:6px;border:1px dashed var(--line);border-radius:10px;padding:8px;cursor:pointer;outline:none;min-width:0}
-.pp-img.paste-on,.pp-img:focus{border-color:var(--accent);border-style:solid;box-shadow:0 0 0 3px var(--accent-soft)}
-.pp-img-b{display:flex;align-items:center;justify-content:center;min-height:110px}.pp-img-b img{max-width:100%;max-height:160px;border-radius:6px;object-fit:contain}
-.pp-imgs3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pp-money{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+.pp-money>div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.pp-money span{font-size:11.5px;color:var(--muted)}.pp-money b{font-size:17px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.pp-subtabs{display:flex;gap:6px;flex-wrap:wrap}
+.pp-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,46%);gap:16px;align-items:start}
+.pp-live{position:sticky;top:64px;max-height:calc(100vh - 80px);overflow:auto;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--surface)}
+.pp-live-h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin:0 0 8px}
+.pp-pc-note{display:none}
+.pp-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.pp-th{all:unset;cursor:pointer;width:96px;display:flex;flex-direction:column;gap:3px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px;box-sizing:border-box;background:var(--surface)}
+.pp-th.wide{width:150px}.pp-th img,.pp-th>span{width:100%;height:70px;object-fit:contain;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);background:var(--surface2,#f4f5f7)}
+.pp-th.wide img,.pp-th.wide>span{height:84px;object-fit:cover}.pp-th i{font-style:normal;font-size:11px;color:var(--muted);text-align:center;line-height:1.25}
+.pp-th.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}.pp-th[disabled]{opacity:.45;cursor:default}
+.pp-paste-hint{cursor:pointer;padding:2px 6px;border-radius:6px;border:1px dashed var(--line);outline:none}.pp-paste-hint.on,.pp-paste-hint:focus{border-color:var(--accent);color:var(--accent)}
+.pp-sw{display:inline-flex;align-items:center;justify-content:center;width:100%;height:84px;border-radius:6px;position:relative;overflow:hidden;border:1px solid var(--line)}.pp-sw.lg{width:28px;height:28px;border-radius:50%;margin-right:4px}
+.pp-sw-c{position:absolute;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.18);right:-14px;bottom:-18px}
+.pp-colors{display:flex;gap:18px;flex-wrap:wrap;align-items:center}.pp-colors>div{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pp-crops{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.pp-crop{border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.pp-crop-img{height:130px;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 0 0/16px 16px;border-radius:8px}.pp-crop-img img{max-width:100%;max-height:100%;object-fit:contain}
+.pp-modal-bg{position:fixed;inset:0;background:rgba(10,14,22,.45);z-index:80}
+.pp-modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:81;width:min(900px,94vw);max-height:92vh;overflow:auto}
+.pp-crop-stage{position:relative;user-select:none;touch-action:none;cursor:crosshair;border:1px solid var(--line);overflow:hidden}.pp-crop-stage img{width:100%;display:block;pointer-events:none}
+.pp-crop-box{position:absolute;border:2px solid var(--accent);box-shadow:0 0 0 9999px rgba(0,0,0,.35)}
 .pp-av{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none}.pp-av0{display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-weight:700}
-.pp-cuts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0}.pp-cut{border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.pp-cut-img{aspect-ratio:9/16;max-height:240px;margin:0 auto;width:100%;max-width:135px;display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed var(--line);border-radius:10px;cursor:pointer;outline:none;overflow:hidden;background:var(--surface)}
-.pp-cut-img img{width:100%;height:100%;object-fit:cover}.pp-cut .fgrid{grid-template-columns:minmax(0,1fr)}.pp-cut .fgrid .f{min-width:0}
-@media (max-width:600px){.pp-cuts{grid-template-columns:minmax(0,1fr)!important}}.pp-cut-img.paste-on,.pp-cut-img:focus{border-color:var(--accent);border-style:solid;box-shadow:0 0 0 3px var(--accent-soft)}
-.pp-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
-.pp-sum>div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
-.pp-sum span{font-size:11.5px;color:var(--muted)}.pp-sum b{font-size:18px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.pp-sum b.crit{color:var(--crit)}
+.pp-cuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}.pp-cut{border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.pp-cut-img{aspect-ratio:9/16;max-height:220px;margin:0 auto;width:100%;max-width:124px;display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed var(--line);border-radius:10px;cursor:pointer;outline:none;overflow:hidden;background:var(--surface)}
+.pp-cut-img img{width:100%;height:100%;object-fit:cover}.pp-cut-img.paste-on,.pp-cut-img:focus{border-color:var(--accent);border-style:solid;box-shadow:0 0 0 3px var(--accent-soft)}
+.pp-cut .fgrid{grid-template-columns:minmax(0,1fr)}.pp-cut .fgrid .f{min-width:0}
+.ppedit .tbl input{min-width:0}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .pp-pick{border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}
 .pp-cand{display:flex;gap:8px;align-items:flex-start;padding:6px;border-radius:8px;cursor:pointer}.pp-cand.on{background:var(--accent-soft)}.pp-cand input{margin-top:3px}
-.pv-deck{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.pv-deck{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.pv-deck.one{grid-template-columns:minmax(0,1fr);gap:10px}
 .pv-slide{position:relative;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}
-.pv-slide .dk-page{position:absolute;left:0;top:0;transform-origin:0 0;width:13.333in;height:7.49in;overflow:hidden;line-height:1.22;color:#161B26;font-family:'Pretendard','Malgun Gothic',sans-serif}
-.pv-slide .dk-t{position:absolute;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}
-.pv-slide .dk-t:not(.dk-fit){overflow:visible}.pv-slide .dk-s{position:absolute;box-sizing:border-box}
-.pv-no{position:absolute;right:6px;bottom:4px;z-index:2;font-size:11px;color:#9aa0aa;background:rgba(255,255,255,.85);border-radius:6px;padding:0 5px}
-@media (max-width:900px){.pv-deck,.grid3,.pp-cuts{grid-template-columns:1fr}.pp-cuts{grid-template-columns:repeat(2,minmax(0,1fr))}.pp-imgs,.pp-sum{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pv-slide .dk-page{position:absolute;left:0;top:0;transform-origin:0 0;width:13.333in;height:7.49in;overflow:hidden;line-height:1.2;color:#262626;font-family:'Pretendard','Malgun Gothic',sans-serif}
+.pv-slide .dk-t{position:absolute;display:flex;flex-direction:column;box-sizing:border-box;overflow:visible;word-break:keep-all;overflow-wrap:anywhere}
+.pv-slide .dk-s{position:absolute;box-sizing:border-box}
+.pv-no{position:absolute;right:6px;bottom:4px;z-index:2;font-size:10px;color:#9aa0aa;background:rgba(255,255,255,.85);border-radius:6px;padding:0 5px}
+@media (max-width:1100px){.pp-split{grid-template-columns:minmax(0,1fr)}.pp-live{position:static;max-height:none}}
+@media (max-width:900px){.pv-deck,.grid3{grid-template-columns:minmax(0,1fr)}.pp-money{grid-template-columns:repeat(2,minmax(0,1fr))}.pp-pc-note{display:block}.pp-th{width:84px}.pp-th.wide{width:120px}.pp-cuts{grid-template-columns:minmax(0,1fr)}}
 `;document.head.appendChild(st)})();
-window.ppDeck=ppDeck;window.ppCalc=ppCalc;window.autoMix=autoMix;
+window.ppCalc=ppCalc;window.autoMix=autoMix;window.ppToD=toD;window.ppMoney=money;
 })();

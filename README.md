@@ -12,8 +12,9 @@
 | `public/tools.js` | 콘텐츠 도구 화면: 콘텐츠 가이드 · 영상 검수 · AI 영상 제작(틀), 캠페인 만들기 4단계, 상단 계정 선택, 풀 선택 삭제 |
 | `public/img/ringcoms-wide.png` | 가로형 RINGCOMS 로고 (흰색, 가이드 PPT·PDF 우상단 · 광고주 색으로 자동 변환) |
 | `netlify/functions/ai.mjs` | AI 연결 상태 확인·인사이트 코멘트 초안 (`/api/ai`, action `status`·`insight`) |
-| `public/proposal.js` | 제안 도구: 광고 제안서 생성 (소개서 읽기 pdf.js · 티어 자동 구성 · 예상 성과 · PPT/PDF) — 데이터는 `guides/{id}` (`kind: proposal`), 이미지는 `guideimg/{id}` |
-| `netlify/functions/proposal.mjs` | 광고 제안서 AI 백그라운드 함수 (`/api/proposal`): 구글 검색 시장 조사 → Gemini 제안서 문구 → `guides/{id}.aiResult` → 화면이 자동 적용 |
+| `public/proposal-deck.js` | 제안서 장표 빌더 (ringcoms-influencer-proposal 스킬 build.js 브라우저 이식 · 컬러 결정 · 이미지 자르기 · 배경/그래픽 생성 · HTML 미리보기) |
+| `public/proposal.js` | 제안 도구: 광고 제안서 생성 (소개서 읽기 pdf.js · 티어 자동 구성 · 예상 성과 · PPT/PDF) — 데이터는 `guides/{id}` (`kind: proposal`), 이미지는 `guideimg/{id}` (`__cut` 컷 · `__av` 프로필 · `__src` 소개서에서 자른 이미지 · `__pg` 소개서 페이지 썸네일) |
+| `netlify/functions/proposal.mjs` | 광고 제안서 AI 백그라운드 함수 (`/api/proposal`): 구글 검색 시장 조사 + 소개서 페이지 이미지 분석(자를 영역) → Gemini 제안서 문구 → `guides/{id}.aiResult` → 화면이 자동 적용 |
 | `netlify/functions/discover.mjs` | 제안서 섭외 후보 탐색 백그라운드 함수 (`/api/discover`): 틱톡 키워드 영상 검색·인스타그램 사용자 검색(Apify) → `guides/{id}.discResult`. 유튜브는 브라우저에서 YouTube API 키로 검색. 프로필 사진은 `guideimg/{id}__av`, 컷 이미지는 `guideimg/{id}__cut` |
 | `netlify/lib/proposal.mjs` | 제안서 시장 조사·프롬프트 공용 모듈 |
 | `public/vendor/pdf.min.js` | 상품소개서 PDF 읽기 (pdf.js 3.11, 자체 호스팅) |

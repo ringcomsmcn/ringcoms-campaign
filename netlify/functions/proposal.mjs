@@ -3,9 +3,9 @@
 // ① 구글 검색 근거로 시장 조사 → ② 소개서·기초 정보·조사 메모로 제안서 문구(JSON)
 // 결과는 Firestore guides/{pid} (kind: proposal) 에: aiStatus(진행 중 → 완료 | 실패), aiResult(JSON 문자열), aiError
 // 화면(편집 권한 있는 사람)이 결과를 받아 제안서에 넣고 aiStatus를 「적용됨」으로 바꿈
-import { geminiBest, checkEditor, fsPatch } from '../lib/gemini.mjs';
+import { gemini, geminiBest, checkEditor, fsPatch } from '../lib/gemini.mjs';
 import { readPage } from '../lib/guide.mjs';
-import { research, proposalPrompt } from '../lib/proposal.mjs';
+import { research, proposalPrompt, visionPrompt } from '../lib/proposal.mjs';
 
 export default async (req) => {
   let body = {};
@@ -20,12 +20,19 @@ export default async (req) => {
     const info = body.info || {};
     const plan = body.plan || {};
     const links = (Array.isArray(info.links) ? info.links : []).map(String).filter(u => /^https?:\/\//i.test(u)).slice(0, 3);
-    const [pages, rs] = await Promise.all([Promise.all(links.map(readPage)), research(info)]);
+    const imgs = (Array.isArray(body.pages) ? body.pages : []).map(String).filter(u => /^data:image\/(jpeg|png|webp);base64,/.test(u)).slice(0, 10);
+    const vision = async () => { if (!imgs.length) return { items: [] }; try {
+        const parts = [{ text: visionPrompt(imgs.length) }, ...imgs.map(u => ({ inline_data: { mime_type: u.slice(5, u.indexOf(';')), data: u.slice(u.indexOf(',') + 1) } }))];
+        const { data } = await gemini(parts, { temperature: 0.1, maxTokens: 4096, timeoutMs: 90000 });
+        const items = (Array.isArray(data.items) ? data.items : []).filter(it => Array.isArray(it.box) && it.box.length === 4 && +it.page >= 1 && +it.page <= imgs.length).slice(0, 14).map((it, i) => ({ id: 'img' + (i + 1), page: +it.page, kind: String(it.kind || 'app_screen'), label: String(it.label || '').slice(0, 30), box: it.box.map(v => Math.max(0, Math.min(1000, Math.round(+v || 0)))) }));
+        return { colors: data.colors || {}, items };
+      } catch (e) { return { items: [], error: String(e.message || e).slice(0, 160) }; } };
+    const [pages, rs, vis] = await Promise.all([Promise.all(links.map(readPage)), research(info), vision()]);
     if (!String(info.srcText || '').trim() && !pages.some(p => p.ok) && !String(info.memo || '').trim()) throw new Error('상품소개서 내용을 읽지 못했습니다. PDF를 다시 올리거나 소개 문구를 붙여넣어 주세요.');
     await save({ aiStep: '문구 작성 중' });
     // 품질이 중요해 상위 모델이 붐비면 25초 간격으로 최대 4번 다시 시도한 뒤에만 가벼운 모델 사용
-    const { data, model } = await geminiBest([{ text: proposalPrompt(info, plan, pages, rs) }], { temperature: 0.7, maxTokens: 24000, timeoutMs: 240000, thinking: 2048 });
-    await save({ aiStatus: '완료', aiStep: '', aiResult: JSON.stringify({ ai: data, model, research: { ok: !!rs.text, sources: rs.sources || [], error: rs.error || '' }, pages: pages.map(p => ({ url: p.url, ok: p.ok, error: p.error || '' })) }), aiDoneAt: new Date().toISOString() });
+    const { data, model } = await geminiBest([{ text: proposalPrompt(info, plan, pages, rs, vis) }], { temperature: 0.7, maxTokens: 24000, timeoutMs: 240000, thinking: 2048 });
+    await save({ aiStatus: '완료', aiStep: '', aiResult: JSON.stringify({ ai: data, model, research: { ok: !!rs.text, sources: rs.sources || [], error: rs.error || '' }, vision: vis, pages: pages.map(p => ({ url: p.url, ok: p.ok, error: p.error || '' })) }), aiDoneAt: new Date().toISOString() });
   } catch (e) {
     console.error(e);
     await save({ aiStatus: '실패', aiStep: '', aiError: String(e.message || e).slice(0, 400) });

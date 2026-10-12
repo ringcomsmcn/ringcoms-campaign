@@ -41,7 +41,7 @@ const SCHEMA = `{
  "product": "제품·서비스명",
  "category": "제품 분야 (예: 반려동물 앱, 저당 간식, 기초 화장품)",
  "color": "#RRGGBB — 소개서·홈페이지에서 보이는 브랜드 메인 컬러 추정 (너무 밝은 색이면 더 진하게)",
- "cover": { "headline": "표지 메인 카피 (짧고 강하게, 2줄이면 \\n)", "sub": "표지 서브 카피 한 줄" },
+ "cover": { "tagline": "표지 1줄 캠페인 컨셉 (= umbrella.oneLine과 같게, 16자 안팎, 28pt로 한 줄에 들어가게)" },
  "market": {
    "title": "시장 장 대제목 (2줄, \\n)", "sub": "소제목 (문장 끝 . ! ? 뒤에서 \\n, 2줄 이내)",
    "stats": [{ "label": "지표 이름 (10자 안팎)", "value": "숫자만 (예: 1,546 / 63.2)", "unit": "단위 (만 명, %, 조 원 등)", "desc": "의미 1~2줄 (\\n으로 끊기)" }],
@@ -51,7 +51,7 @@ const SCHEMA = `{
    "takeaway": "그래서 이 브랜드에 필요한 것 — 3~4줄 (\\n)", "source2": "출처"
  },
  "direction": { "title": "브랜드가 나아갈 방향 대제목 (2줄)", "sub": "소제목", "shifts": [{ "from": "지금", "to": "바뀔 모습 (6자 안팎)", "desc": "한 줄 설명" }], "positioning": "한 줄 포지셔닝 문장" },
- "umbrella": { "name": "캠페인 전체 우산 컨셉명 (2줄 가능, \\n)", "sub": "컨셉 설명 2줄 (\\n)", "hashtags": ["#캠페인해시태그", "#보조해시태그"] },
+ "umbrella": { "name": "캠페인 전체 우산 컨셉명 (2줄, \\n — 세 그룹을 모두 포괄)", "oneLine": "우산 컨셉 1줄 버전 (표지·마지막 장)", "sub": "컨셉 설명 2줄 (\\n)", "hashtags": ["#캠페인해시태그", "#보조해시태그"] },
  "groups": [{
    "key": "A",
    "name": "그룹 이름 (예: 실사용 집사)", "pillar": "단계 역할 (공감·인지 / 참여·확산 / 확장·신규 중 하나)",
@@ -59,18 +59,27 @@ const SCHEMA = `{
    "keywords": ["인플루언서 풀 검색용 카테고리 키워드 3~5개 (예: 반려동물, 강아지, 고양이)"],
    "search": ["유튜브·틱톡·인스타그램에서 이 그룹 인플루언서를 찾을 검색어 2개 — 그룹의 '대상·소재' 명사 중심의 짧은 한국어 (예: 강아지일상, 고양이, 자취생, 육아맘). 툰·만화·브이로그·챌린지 같은 형식어만으로 만들지 않는다 (형식어가 붙으면 다른 분야 채널이 섞임). 제품명·브랜드명은 넣지 않는다"],
    "persona": [{ "type": "섭외하려는 인플루언서 유형 (예: 말티즈 키우는 20대 자취 집사)", "tier": "매크로|마이크로|나노", "why": "왜 이 유형인지 2줄 (\n)" }],
-   "concept": { "name": "그룹 컨셉명 (짧게, 2줄이면 \\n)", "hashtags": ["#짧고임팩트있는해시태그", "#두번째"], "story": ["스토리 4줄 — 문장 하나씩"], "keyMessage": "KEY MESSAGE 한 문장", "features": "보여줄 기능·특징 (· 로 구분)" },
+   "concept": { "name": "그룹 컨셉명 (짧게, 2줄이면 \\n)", "hashtags": ["#짧고임팩트있는해시태그", "#두번째"], "story": ["스토리 4줄 — 문장 하나씩"], "keyMessage": "KEY MESSAGE 한 문장", "features": "보여줄 기능·특징 (· 로 구분)", "line": "우산 컨셉 장 카드용 설명 2줄 (\\n, 한 줄 14자 안팎)" },
    "guide": { "title": "콘텐츠 가이드 대제목 (2줄)", "sub": "소제목", "cuts": [{ "step": "HOOK|FEATURE|PROOF|CTA 등 단계명", "time": "0~3초", "scene": "화면 — 인플루언서가 직접 찍는 장면 (2줄)", "line": "멘션·자막 예시 (2줄)", "prompt": "이 컷의 예시 이미지를 그림 생성 AI로 만들 프롬프트 (한국어, 9:16 세로, 인물·배경·구도·조명·화면 속 폰 화면 등, 실존 인물·다른 브랜드 로고 없이)" }], "caption": "캡션 예시 (#광고 포함, 3~5줄)", "must": ["MUST 3개"], "dont": ["DON'T 3개"] },
    "feature": { "items": [{ "name": "핵심 기능·특징명 (10자 안팎)", "desc": "한 줄 설명 (20자 안팎)" }], "effect": "기대 효과 한 줄" }
  }],
  "tierWhy": { "메가": { "role": "역할 2~4자", "why": "이유 한 줄" }, "매크로": { "role": "", "why": "" }, "마이크로": { "role": "", "why": "" }, "나노": { "role": "", "why": "" } },
  "matrixPoints": ["그룹×티어 구성 포인트 3개 (각 2줄 이내)"],
+ "titles": {
+   "features": { "title": "핵심 전략 장 대제목 (2줄, 예: 공감에서 참여로,\\n참여에서 확장으로)", "sub": "소제목 2줄" },
+   "categories": { "title": "인플루언서 카테고리 장 대제목 (2줄)", "sub": "소제목" },
+   "tiers": { "title": "티어 구성 장 대제목 (2줄, 예: 메가 1명보다,\\n25명이 여기저기서 보이게)", "sub": "소제목 2줄 — 메가 제외/최소 이유를 실측 CPV로" },
+   "matrix": { "title": "그룹×티어 장 대제목 (2줄)", "sub": "소제목" },
+   "showcase": { "title": "섭외 후보 장 대제목 (2줄, 예: 이런 크리에이터와\\n함께하려 합니다)", "sub": "소제목 2줄" },
+   "kpi": { "title": "예상 성과 장 대제목 (2줄, 예: 1,000만원으로 기대하는\\n예상 성과)", "sub": "소제목 2줄 (ER은 보수적으로 2.0%)" }
+ },
+ "screens": { "hero": "표지 오른쪽 폰 화면에 쓸 이미지 id", "mascot": "목차 왼쪽 하단 캐릭터·제품 이미지 id (없으면 빈 문자열)", "mascotClosing": "마지막 장 가운데 이미지 id (없으면 빈 문자열)", "direction": "방향 장 이미지 id", "groupA": "A그룹 컨셉 장 이미지 id", "groupB": "", "groupC": "", "featuresA": "핵심 전략 장 A열 이미지 id", "featuresB": "", "featuresC": "", "cutsA": ["A그룹 컷1~4에 붙일 앱 화면 id (컷 내용과 맞게)"], "cutsB": [], "cutsC": [] },
  "closing": "마지막 장 한 줄 (캠페인 컨셉을 다시 짚는 문장)",
  "checks": ["담당자가 광고주에게 꼭 확인해야 할 사항 (수치 출처·효능 표현·제품 정보 등) 2~5개"],
- "notes": { "cover": "[0:00] 발표 대본 30초~1분", "market1": "", "market2": "", "direction": "", "capability": "", "umbrella": "", "groupA": "", "guideA": "", "groupB": "", "guideB": "", "groupC": "", "guideC": "", "features": "", "categories": "", "tiers": "", "matrix": "", "showcase": "", "kpi": "", "timeline": "" }
+ "notes": { "cover": "[0:00] 발표 대본 30초~1분", "toc": "", "market1": "", "market2": "", "direction": "", "capability": "", "umbrella": "", "features": "", "groupConcept:A": "", "guide:A": "", "groupConcept:B": "", "guide:B": "", "groupConcept:C": "", "guide:C": "", "categories": "", "showcase": "", "tiers": "", "matrix": "", "kpi": "", "timeline": "", "appendix:1": "", "closing": "" }
 }`;
 
-export function proposalPrompt(info, plan, pages, rs) {
+export function proposalPrompt(info, plan, pages, rs, vis) {
   const won = v => Math.round(+v || 0).toLocaleString('ko-KR');
   const tiers = (plan.tiers || []).filter(t => +t.count > 0).map(t => `${t.tier} ${t.count}명 × ${won(t.unit)}원`).join(', ') || '(미정)';
   return `너는 한국 MCN 링컴즈(RINGCOMS)의 인플루언서 마케팅 캠페인 제안서 작가다.
@@ -127,8 +136,27 @@ ${(pages || []).filter(p => p.ok).map((p, i) => `--- 페이지 ${i + 1}: ${p.url
 ${rs && rs.text ? rs.text : '(조사 결과 없음 — 소개서 숫자만 쓰거나 정성 표현)'}
 ${rs && rs.sources && rs.sources.length ? '참고 출처: ' + rs.sources.map(s => s.title).join(' / ') : ''}
 
+[소개서 속 이미지 목록 — screens에는 아래 id만 쓴다. 맞는 이미지가 없으면 빈 문자열]
+${(vis && vis.items && vis.items.length) ? vis.items.map(it => `- ${it.id}: ${it.kind} · ${it.label} (${it.page}쪽)`).join('\n') : '(이미지 없음 — screens는 모두 빈 문자열)'}
+- 앱 화면(app_screen)은 기능 설명과 맞는 것을 고른다. 같은 이미지를 여러 곳에 써도 되지만 표지·방향·그룹 컨셉은 되도록 서로 다르게.
+- 마스코트·캐릭터(mascot)가 있으면 mascot·mascotClosing에, 없으면 제품 사진(product)이나 빈 문자열.
+
+[발표 노트] 숫자는 토큰으로 쓴다: {views} 예상 조회수, {er} ER, {likes} 좋아요, {cpv} CPV, {exec} 광고비, {fee} 대행수수료, {people} 인원. 장당 30초~1분 30초, 전체 약 20분, 각 노트는 [분:초]로 시작.
+
 [개수] 그룹별 persona 2개, search 2개, market.stats 3개, insights 3개, direction.shifts 3개, groups 정확히 3개(A·B·C), 그룹별 concept.story 4줄, guide.cuts 4개, must 3개, dont 3개, feature.items 3개, matrixPoints 3개.
 
 아래 JSON 형식 그대로, JSON만 출력한다:
 ${SCHEMA}`;
+}
+
+/* 소개서 쪽 이미지 분석: 메인 컬러·로고 컬러 + 앱 화면·캐릭터·제품컷 위치 (Gemini 이미지 입력, 무료 한도) */
+export function visionPrompt(n) {
+  return `아래는 광고주 상품소개서 ${n}쪽의 이미지다 (순서대로 1쪽부터).
+1) colors.deckMain: 소개서 전체에서 메인으로 가장 많이 쓰인 브랜드 컬러 (배경·제목·도형). 흰색·검정·회색은 제외. #RRGGBB
+2) colors.logo: 브랜드 로고·CI의 색 (로고가 보이면). #RRGGBB, 모르면 빈 문자열
+3) items: 제안서 장표에 다시 쓸 수 있는 이미지 영역 — 앱 화면(폰 목업 안의 화면 또는 폰 전체, kind "app_screen"), 마스코트·캐릭터(kind "mascot"), 제품 사진(kind "product"). 최대 14개.
+   - box: [ymin, xmin, ymax, xmax] — 각 쪽 이미지 기준 0~1000 정수. 폰 목업이면 폰 테두리까지 포함해 딱 맞게.
+   - label: 무엇인지 한국어 12자 안팎 (예: 채팅 화면, 홈 화면, 고양이 캐릭터)
+   - 글자만 있는 영역, 로고만 있는 영역, 표·차트는 넣지 않는다.
+JSON만: {"colors":{"deckMain":"#","logo":"#","note":"한 줄 판단 근거"},"items":[{"page":1,"kind":"app_screen","label":"","box":[0,0,0,0]}]}`;
 }
