@@ -3,7 +3,7 @@
    - 장면 이미지: Canva 반자동 (프롬프트 복사 → Canva에서 만들기 → 이미지 넣기)
    - 영상 검수: 영상 링크 → 가이드 기준으로 자막·나레이션·구성 점검 → 수정 요청 요약 (/api/review, 백그라운드)
    - AI 영상 제작: 기능 틀만 구축 (연동은 비용 결정 후)
-   - 캠페인 만들기 4단계 (캠페인 > 광고 그룹 > 인플루언서 등록 > 광고 만들기 완료)
+   - 캠페인 만들기 4단계 (캠페인 > 광고 그룹 > 인플루언서 등록 > 새 캠페인 만들기 완료)
    - 상단(GNB) 계정 선택, 인플루언서 풀 선택 삭제(캠페인 이력 보존)
    index.html의 전역 함수·상태(A, DB, ACT, render, esc …)를 그대로 씁니다. */
 
@@ -29,7 +29,7 @@ async function aiFetch(path,body){const tok=await DB.idToken();const r=await fet
 
 /* ============ 상단(GNB) 계정 선택 ============ */
 function gnbAcct(){
-  if(isClientView()||(typeof isExt==='function'&&isExt()))return A.acctInfo&&A.acctInfo.name?`<span class="pill" title="로그인한 광고주 계정">${esc(A.acctInfo.name)}</span>`:'';
+  if(isClientView()||(typeof isExt==='function'&&isExt()))return A.acctInfo&&A.acctInfo.name?`<span class="pill gname" title="로그인한 광고주 계정 · ${esc(A.acctInfo.name)}">${esc(A.acctInfo.name)}</span>`:'';
   if(!isTeam())return '';
   const ids=Object.keys(A.accounts||{}).sort((a,b)=>acctName(a).localeCompare(acctName(b),'ko'));
   const opts=[['','전체 계정'],[TEAM,'RINGCOMS MCN'],...ids.map(id=>[id,acctName(id)])];
@@ -53,7 +53,7 @@ Object.assign(ACT,{
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&A.pbig){A.pbig=false;render()}});
 
 /* ============ 캠페인 만들기 4단계 ============ */
-const WSTEPS=['캠페인','광고 그룹','인플루언서 등록','광고 만들기 완료'];
+const WSTEPS=['캠페인','광고 그룹','인플루언서 등록','새 캠페인 만들기 완료'];
 function draftRows(){if(!A.rowsDoc)A.rowsDoc={rows:{}};if(!A.rowsDoc.rows)A.rowsDoc.rows={};return A.rowsDoc.rows}
 function draftRowsOut(){if(A.view!=='create'&&!A.draft)return {};const out={};let o=0;
   Object.entries(draftRows()).sort((a,b)=>(a[1].order||0)-(b[1].order||0)).forEach(([id,r])=>{if(!String(r.name||'').trim()&&!String(r.acct||'').trim())return;o++;
@@ -63,7 +63,7 @@ function draftRowsOut(){if(A.view!=='create'&&!A.draft)return {};const out={};le
 function viewCreateWizard(){const c=A.draft;if(!c)return '<div class="panel empty">만들 캠페인이 없습니다.</div>';const KM=KINDS[kindOf(c)];const st=A.wstep||1;
   const rows=Object.entries(draftRows());const nr=Object.keys(draftRowsOut()).length;const gs=groupsOf(c);
   const stepper=`<ol class="wz">${WSTEPS.map((l,i)=>`<li class="${st===i+1?'on':st>i+1?'done':''}"><button data-act="wGo" data-s="${i+1}"><b>${st>i+1?'✓':i+1}</b><span>${l}</span></button></li>`).join('')}</ol>`;
-  const nav=`<div class="row"><button class="btn" data-act="draftCancel">취소</button><span class="grow"></span>${st>1?'<button class="btn" data-act="wPrev">← 이전</button>':''}${st<4?`<button class="btn primary" data-act="wNext">다음 · ${WSTEPS[st]} →</button>`:'<button class="btn primary" data-act="draftCreate">광고 만들기 완료</button>'}</div>`;
+  const nav=`<div class="row"><button class="btn" data-act="draftCancel">취소</button><span class="grow"></span>${st>1?'<button class="btn" data-act="wPrev">← 이전</button>':''}${st<4?`<button class="btn primary" data-act="wNext">다음 · ${WSTEPS[st]} →</button>`:'<button class="btn primary" data-act="draftCreate">새 캠페인 만들기 완료</button>'}</div>`;
   let body='';
   if(st===1)body=tabSettings(c);
   else if(st===2)body=`<div class="stack">${groupSettings(c)}<div class="banner info" style="margin:0">그룹 없이 캠페인 전체로 운영해도 됩니다. 이 단계는 건너뛰어도 되고, 만든 뒤에도 캠페인 설정에서 추가할 수 있습니다.</div></div>`;
@@ -80,10 +80,10 @@ function viewCreateWizard(){const c=A.draft;if(!c)return '<div class="panel empt
         return `<tr><td>${f('name','이름',120)}</td><td>${f('acct','@account',110)}</td><td><select id="dr_${id}_ch" data-drow="${id}" data-df="ch"><option value=""></option>${CHANNELS.map(x=>`<option ${x===r.ch?'selected':''}>${x}</option>`).join('')}</select></td><td>${f('chlink','https://',180)}</td><td>${f('fol','예: 12만',80)}</td>${gs.length?`<td><select id="dr_${id}_group" data-drow="${id}" data-df="group"><option value="">미지정</option>${gs.map(g=>`<option value="${g.id}" ${g.id===r.group?'selected':''}>${esc(g.name)}</option>`).join('')}</select></td>`:''}${isTrial(c)||isCom(c)?'':`<td>${f('fee','원',90)}</td>`}<td class="n"><button class="btn sm ghost" data-act="drowDel" data-r="${id}" title="목록에서 빼기">✕</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty" style="padding:22px">아직 등록한 인플루언서가 없습니다. 풀에서 불러오거나 직접 추가하세요.</div>'}
       </section>${pick}${paste}</div>`}
   else{const byG={};Object.values(draftRowsOut()).forEach(r=>{const k=r.group&&c.groups&&c.groups[r.group]?c.groups[r.group].name:'그룹 미지정';byG[k]=(byG[k]||0)+1});
-    body=`<section class="panel"><div class="panel-h"><div><h2>마지막 확인</h2><div class="sub">아래 내용으로 광고를 만듭니다. 「광고 만들기 완료」를 눌러야 저장됩니다.</div></div></div>
+    body=`<section class="panel"><div class="panel-h"><div><h2>마지막 확인</h2><div class="sub">아래 내용으로 새 캠페인을 만듭니다. 「새 캠페인 만들기 완료」를 눌러야 저장됩니다.</div></div></div>
      <dl class="kv wsum"><dt>캠페인</dt><dd>${esc(c.name||'')} <span class="pill">${esc(KM.label)}</span></dd><dt>광고주</dt><dd>${esc(c.advertiser||'–')}${c.brand?' · '+esc(c.brand):''}</dd><dt>기간</dt><dd>${c.start?md(c.start)+' ~ '+md(c.end):'–'}</dd>${isCom(c)?'':`<dt>목적</dt><dd>${esc(c.objective||'–')}</dd>`}
      <dt>광고 그룹</dt><dd>${gs.length?gs.map(g=>esc(g.name)).join(' · '):'그룹 없음 (캠페인 전체)'}</dd><dt>인플루언서</dt><dd>${nr?`${nr}명 · ${Object.entries(byG).map(([k,v])=>`${esc(k)} ${v}명`).join(' · ')} → 「컨택」 단계로 등록`:'없음 (만든 뒤 진행관리에서 추가)'}</dd></dl></section>`}
-  return `<div class="page-h"><div><div class="eyebrow">${KM.newEb}</div><h1>${KM.newH}</h1><div class="sub">캠페인 → 광고 그룹 → 인플루언서 등록 → 광고 만들기 완료 순서로 진행합니다. 마지막 단계에서 「광고 만들기 완료」를 눌러야 저장됩니다.</div></div></div>
+  return `<div class="page-h"><div><div class="eyebrow">${KM.newEb}</div><h1>${KM.newH}</h1><div class="sub">캠페인 → 광고 그룹 → 인플루언서 등록 → 새 캠페인 만들기 완료 순서로 진행합니다. 마지막 단계에서 「새 캠페인 만들기 완료」를 눌러야 저장됩니다.</div></div></div>
   ${stepper}${body}<div class="panel" style="margin-top:16px">${nav}</div>`}
 function wValid(to){const c=A.draft;if(!c)return false;if(to>1&&!String(c.name||'').trim()){toast('캠페인명을 입력하세요.','crit');A.wstep=1;return false}if(to>1&&c.start&&c.end&&c.end<c.start){toast('종료일이 시작일보다 빠릅니다.','crit');A.wstep=1;return false}return true}
 Object.assign(ACT,{
@@ -126,7 +126,7 @@ function newGuide(c){const d=today();return {title:c?(c.brand||c.advertiser||'')
   words:[{no:'치료돼요 / 완치돼요',yes:'관리에 도움이 돼요'},{no:'무조건 / 100% 효과',yes:'제가 써 보니 ~했어요'},{no:'(다른 브랜드)보다 훨씬 나아요',yes:'제가 써 본 것 중에 ~가 좋았어요'}],
   cuts:gCuts(),shoot:[...G_SHOOT],upload:[...G_UPLOAD],submit:{draftDue:'',uploadDue:'',how:[...G_SUBMIT],form:'',extra:''},createdAt:d,updatedAt:T_NOW(),by:A.user?A.user.email:''}}
 function ensureToolWatch(){if(ensureToolWatch.on||!isTeam())return;ensureToolWatch.on=true;
-  DB.watchCol('guides',m=>{A.guides=m;A.guidesLoaded=true;gAiCheck();scheduleRender()},()=>{A.guidesLoaded=true;A.guidesErr=true;scheduleRender()});
+  DB.watchCol('guides',m=>{const g_={},p_={};for(const k in m)(m[k]&&m[k].kind==='proposal'?p_:g_)[k]=m[k];A.guides=g_;A.props=p_;A.guidesLoaded=true;gAiCheck();if(window.ppAiCheck)window.ppAiCheck();scheduleRender()},()=>{A.guidesLoaded=true;A.guidesErr=true;scheduleRender()});
   DB.watchCol('reviews',m=>{A.reviews=m;A.reviewsLoaded=true;scheduleRender()},()=>{A.reviewsLoaded=true;A.reviewsErr=true;scheduleRender()});aiStatus()}
 function curG(){return A.gid&&A.guides?A.guides[A.gid]:null}
 function watchGimg(){if(A.gimgFor===A.gid)return;if(A.unsubGimg){A.unsubGimg();A.unsubGimg=null}A.gimgFor=A.gid;A.gimgs={};if(!A.gid)return;A.unsubGimg=DB.watchDoc('guideimg/'+A.gid,d=>{A.gimgs=(d&&d.imgs)||{};scheduleRender()},()=>{})}
@@ -149,7 +149,7 @@ ACT.aiRecheck=()=>{A.aiSt=null;aiStatus(true);render()};
 /* ---- 화면: 가이드 목록 ---- */
 function viewGuides(){ensureToolWatch();if(A.gid)return guideEditor();
   const L=Object.entries(A.guides||{}).sort((a,b)=>String(b[1].updatedAt||'').localeCompare(String(a[1].updatedAt||'')));const camps=Object.entries(A.campaigns).filter(([,c])=>inAcctScope(c)).sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
-  return `<div class="page-h"><div><div class="eyebrow">Content Guide</div><h1>콘텐츠 가이드</h1><div class="sub">광고주 홈페이지·상품 링크를 넣으면 AI가 표준 가이드를 채우고, 다듬어서 PPT·PDF로 인플루언서에게 보냅니다.</div></div>
+  return `<div class="page-h"><div><div class="eyebrow">Content Guide</div><h1>콘텐츠 가이드 생성</h1><div class="sub">광고주 홈페이지·상품 링크를 넣으면 AI가 표준 가이드를 채우고, 다듬어서 PPT·PDF로 인플루언서에게 보냅니다.</div></div>
    <div class="row">${aiPill()}${canEdit()?`<select id="g-newc" style="width:auto"><option value="">캠페인 연결 안 함</option>${camps.map(([id,c])=>`<option value="${id}">${esc(c.name)}</option>`).join('')}</select><button class="btn primary" data-act="guideNew">+ 새 가이드</button>`:''}</div></div>
   ${A.guidesErr?rulesBanner():''}
   ${L.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>가이드</th><th>광고주 · 브랜드</th><th>연결 캠페인</th><th>채널</th><th class="n">컨셉</th><th>상태</th><th>수정</th></tr></thead><tbody>${L.map(([id,g])=>`<tr class="click" data-act="guideOpen" data-g="${esc(id)}"><td class="bold">${esc(g.title||'제목 없음')}</td><td>${esc([g.advertiser,g.brand].filter(Boolean).join(' · '))}</td><td class="small">${g.cid&&A.campaigns[g.cid]?esc(A.campaigns[g.cid].name):'–'}</td><td class="small">${esc(g.platform||'')}</td><td class="n">${(g.concepts||[]).length}</td><td><span class="pill ${g.status==='완료'?'ok':'accent'}">${esc(g.status||'작성 중')}</span></td><td class="small">${md(String(g.updatedAt||'').slice(0,10))}</td></tr>`).join('')}</tbody></table></div>`
@@ -606,3 +606,31 @@ document.addEventListener('change',e=>{const d=e.target&&e.target.dataset;if(!d)
 .rv-score.ok{border-color:var(--ok);color:var(--ok)}.rv-score.warn{border-color:var(--warn);color:var(--warn)}.rv-score.crit{border-color:var(--crit);color:var(--crit)}
 .rv-msg{white-space:pre-wrap;font-family:var(--font);font-size:13.5px;background:var(--surface2);border-radius:10px;padding:12px 14px;margin:0}
 `;document.head.appendChild(st)})();
+
+/* ============ 인사이트 코멘트 AI 초안 (성과 리포트) ============ */
+/* 리포트 수치를 단위가 붙은 글자로 정리해 /api/ai(insight)로 보냄 → 칸에만 채우고 「저장」을 눌러야 반영 */
+function insightData(c,rows){const gl=A.gf?(A.gf==='__none'?'그룹 미지정':groupName(c,A.gf)):'';const R=buildReport(c,rows.filter(inGroup),true,gl);const m=R.meta,T=R.T,tg=m.targets||{};const W=v=>v==null?null:fmt(v)+'원';
+  const goal={};[['views','조회수',T.views],['eng','참여',T.eng],['clicks','클릭',T.clicks],['conv','전환',T.conv],['revenue','매출',T.rev]].forEach(([k,l,v])=>{if(n(tg[k])>0&&v!=null)goal[l]={목표:fmt(tg[k]),실적:fmt(v),달성률:pct(v/n(tg[k]),0)}});
+  if(n(tg.cpv)>0&&T.cpv)goal.CPV={목표:W(tg.cpv),실적:fmt1(T.cpv)+'원'};
+  const seg=L=>(L||[]).filter(o=>o.n).map(o=>({이름:o.name,콘텐츠:o.n,조회:fmt(o.views),ER:o.er!=null?pct(o.er):null,CPV:o.cpv!=null?fmt1(o.cpv)+'원':null}));
+  const top=[...R.rows].filter(r=>r.views!=null).sort((a,b)=>b.views-a.views).slice(0,5).map(r=>({이름:r.name,티어:r.tier||'',채널:r.ch||'',형식:r.ctype||'',조회:fmt(r.views),ER:r.er!=null?pct(r.er):null,CPV:r.cpv!=null?fmt1(r.cpv)+'원':null}));
+  return {names:true,캠페인:m.name,브랜드:m.brand||m.advertiser,목적:m.objective,기간:[m.start,m.end].filter(Boolean).join(' ~ '),그룹:m.groupLabel||'전체',광고비기준:m.fee&&m.fee.mode==='excl'?'대행수수료 미포함':'대행수수료 포함',
+    T:{콘텐츠:T.contents,인플루언서:T.influencers,총조회:fmt(T.views),평균조회:T.avgViews!=null?fmt(T.avgViews):null,좋아요:fmt(T.likes),댓글:fmt(T.cmts),공유:T.shares?fmt(T.shares):null,저장:T.saves?fmt(T.saves):null,ER:T.er!=null?pct(T.er):null,
+      집행광고비:T.costPosted?W(T.costPosted):null,CPV:T.cpv!=null?fmt1(T.cpv)+'원':null,CPE:T.cpe!=null?fmt(T.cpe)+'원':null,클릭:T.clicks?fmt(T.clicks):null,전환:T.conv?fmt(T.conv):null,매출:T.rev?W(T.rev):null,ROAS:T.roas!=null?pct(T.roas,0):null},
+    목표대비:goal,티어별:seg(R.byTier),채널별:seg(R.byCh),그룹별:seg(R.byGroup),상위콘텐츠:top,
+    링크트래킹:R.track&&R.track.T?{방문:fmt(R.track.T.v),클릭:fmt(R.track.T.c)}:null}}
+function mockInsight(d,en){const T=d.T;return en?`The campaign generated ${T.총조회} views across ${T.콘텐츠} contents with an ER of ${T.ER||'–'}.\nTop-performing content came from the tiers with the highest ER in this report.\nFor the next campaign, we recommend increasing the share of high-ER micro creators and reusing top contents as ads.`
+  :`이번 캠페인은 콘텐츠 ${T.콘텐츠}개로 총 조회수 ${T.총조회}회, ER ${T.ER||'–'}를 기록했습니다.\n티어별로는 ER이 높은 하위 티어 콘텐츠가 참여를 이끌었습니다.\n다음 캠페인에서는 ER이 높은 마이크로·나노 비중을 늘리고, 상위 콘텐츠를 광고 소재로 2차 활용하는 것을 제안드립니다.`}
+Object.assign(ACT,{
+  async insightAi(){const c=curC();if(!c||A.insBusy)return;const rows=curRows();if(!rows.some(r=>r.clink&&n(r.views)>0))return toast('조회수가 들어간 콘텐츠가 있어야 초안을 쓸 수 있습니다.','crit');
+    const cur=(c.insight||'').trim();if(cur&&A.confirm!=='insAi'){A.confirm='insAi';toast('이미 쓴 코멘트가 있습니다. 한 번 더 누르면 AI 초안으로 바꿔 보여 줍니다 (저장 전까지 기존 문구는 그대로).');setTimeout(()=>{if(A.confirm==='insAi')A.confirm=null},6000);return}A.confirm=null;
+    const en=A.rlang==='en';const d=insightData(c,rows);A.insBusy=true;render();
+    try{let text;if(DB.mode==='demo'){await new Promise(r=>setTimeout(r,500));text=mockInsight(d,en)}else{const j=await aiFetch('/api/ai',{action:'insight',lang:en?'en':'ko',data:d});text=j.text}
+      if(!text)throw new Error('AI가 초안을 주지 않았습니다.');A.insDraft={cid:A.cid,text};toast('AI 초안을 넣었습니다. 수치를 확인한 뒤 「저장」을 눌러 주세요.')}
+    catch(e){toast('AI 초안을 만들지 못했습니다: '+(e.message||e),'crit')}finally{A.insBusy=false;render()}},
+  insightSave(){const el=document.getElementById('insight');const v=el?el.value:(A.insDraft||{}).text;A.insDraft=null;patchC('insight',v||null);toast('인사이트 코멘트를 저장했습니다.');render()},
+  insightUndo(){A.insDraft=null;render()}
+});
+['insightAi','insightSave'].forEach(k=>WRITE_ACTS.add(k));
+/* 초안 상태에서 칸을 직접 고치면(자동 저장) 초안 표시는 닫음 */
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='insight'&&A.insDraft)A.insDraft=null},true);

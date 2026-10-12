@@ -190,6 +190,19 @@ label.f .hint{font-weight:400;color:var(--muted);font-size:11.5px}
 .tile .tg i.hit{background:var(--ok)}
 .tile.hero{border-color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
 .tile.hero .v{font-size:26px}
+/* 리포트 KPI 카드 정리 (디자인 버전업 1단계 · 네이버 GFA·카카오모먼트 요약 지표 패턴) — 되돌리려면 이 블록만 삭제 */
+:root{--kpi-radius:14px;--kpi-pad:14px 16px;--kpi-label:11.5px;--kpi-value:20px;--kpi-hero-value:28px;--kpi-bar:6px}
+.rp .tiles:not(:has(.hero)){gap:0;border:1px solid var(--line);border-radius:var(--kpi-radius);overflow:hidden;background:var(--surface)}
+.rp .tiles:not(:has(.hero))>.tile{border:0;border-radius:0;background:transparent;box-shadow:1px 0 0 var(--line),0 1px 0 var(--line);padding:var(--kpi-pad)}
+.rp .tile .l{font-size:var(--kpi-label);font-weight:600;letter-spacing:.01em;color:var(--muted)}
+.rp .tile .v{font-size:var(--kpi-value)}
+.rp .tile.hero{position:relative;border-color:var(--line);box-shadow:none;border-radius:var(--kpi-radius);padding:16px 16px 14px 20px}
+.rp .tile.hero::before{content:"";position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.rp .tile.hero .v{font-size:var(--kpi-hero-value);letter-spacing:-.03em}
+.rp .tile .tg{height:var(--kpi-bar);border-radius:99px;margin-top:10px}
+.rp .tile .tg i{border-radius:99px}
+.rp .tile .tg i.hit{background:var(--ok)}
+@media (max-width:720px){:root{--kpi-pad:11px 12px;--kpi-value:17px;--kpi-hero-value:22px}.rp .tile.hero{padding:12px 12px 12px 16px}.rp .tile.hero::before{top:12px;bottom:12px}}
 .rp{display:flex;flex-direction:column;gap:26px}
 .rp-head{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:16px}
 .rp-eb{font-size:11px;letter-spacing:.14em;color:var(--muted);font-weight:600}
@@ -541,6 +554,10 @@ body.pm .rp .tbl{font-size:calc(10px*var(--pk,1));width:100%} body.pm .rp .tbl t
 .pbig-x{position:fixed;top:14px;right:18px;z-index:62}
 .gacct{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.gacct select{width:auto;max-width:200px;padding:5px 8px;font-size:12.5px;border-radius:8px}
 .gacct-m{display:none}@media (max-width:720px){.top .gacct{display:none}.gacct-m{display:flex;margin:0 0 12px}.gacct-m select{flex:1;max-width:none}}
+/* 광고주 계정 이름 배지: 긴 이름은 말줄임, 모바일에서는 상단 바에서 숨기고 본문 위 한 줄에만 */
+.gname{display:inline-block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+.gacct-m .gname{max-width:100%}
+@media (max-width:720px){.top .gname{display:none}.who{min-width:0}.who .role-pill{max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.who>.pill.warn:not(.role-pill){display:none}}
 </style>
 </head>
 <body>
@@ -1136,11 +1153,11 @@ document.addEventListener('pointerdown',()=>pointerDown=true,true);
 document.addEventListener('pointerup',()=>{pointerDown=false;if(pending){pending=false;setTimeout(render,0)}},true);
 /* ============ 주소(뒤로 가기) ============ */
 /* 화면 이동을 브라우저 기록에 남겨, 뒤로 가기를 누르면 사이트를 나가지 않고 직전 화면으로 돌아감 */
-function routeOf(){const v=A.view;if(v==='campaign')return {v,c:A.cid,t:A.tab||'overview'};if(v==='create')return {v,k:kindOf(A.draft)};if(v==='team')return {v,tt:A.teamTab==='int'?'int':A.teamTab==='accts'?'accts':'members'};if(v==='cvc')return {v,c:A.cvId};if(v==='guides'&&A.gid)return {v,g:A.gid};
+function routeOf(){const v=A.view;if(v==='campaign')return {v,c:A.cid,t:A.tab||'overview'};if(v==='create')return {v,k:kindOf(A.draft)};if(v==='team')return {v,tt:A.teamTab==='int'?'int':A.teamTab==='accts'?'accts':'members'};if(v==='cvc')return {v,c:A.cvId};if(v==='guides'&&A.gid)return {v,g:A.gid};if(v==='proposals'&&A.pid)return {v,g:A.pid};
   if(VIEW_KIND[v])return {v,lt:A.ltab==='groups'?'groups':'camps'};return {v}}
-function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.v==='guides'&&r.g)return '#/guides/'+encodeURIComponent(r.g);if(r.lt==='groups')return `#/${r.v}/groups`;return '#/'+r.v}
+function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.v==='guides'&&r.g)return '#/guides/'+encodeURIComponent(r.g);if(r.v==='proposals'&&r.g)return '#/proposals/'+encodeURIComponent(r.g);if(r.lt==='groups')return `#/${r.v}/groups`;return '#/'+r.v}
 function parseHash(h){const p=String(h||'').replace(/^#\/?/,'').split('/').filter(Boolean).map(x=>{try{return decodeURIComponent(x)}catch(e){return x}});if(!p.length)return null;
-  if(p[0]==='c'&&p[1])return {v:'campaign',c:p[1],t:p[2]||'overview'};if(p[0]==='new')return {v:'create',k:p[1]||'seed'};if(p[0]==='team')return {v:'team',tt:p[1]||'members'};if(p[0]==='cv'&&p[1])return {v:'cvc',c:p[1]};if(p[0]==='guides')return {v:'guides',g:p[1]||''};
+  if(p[0]==='c'&&p[1])return {v:'campaign',c:p[1],t:p[2]||'overview'};if(p[0]==='new')return {v:'create',k:p[1]||'seed'};if(p[0]==='team')return {v:'team',tt:p[1]||'members'};if(p[0]==='cv'&&p[1])return {v:'cvc',c:p[1]};if(p[0]==='guides')return {v:'guides',g:p[1]||''};if(p[0]==='proposals')return {v:'proposals',g:p[1]||''};
   if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':'camps'};if(['pool','updates','history','cv','acct','review','aivideo'].includes(p[0]))return {v:p[0]};return null}
 let ROUTE_LOCK=false;
 function routeSync(){if(A.view==='share'||!A.user||!A.admin||ROUTE_LOCK)return;if(A.skipPop){clearTimeout(routeSync.t);routeSync.t=setTimeout(()=>{A.skipPop=0;routeSync()},400);return}const r=routeOf();const h=routeHash(r);const d=!!(A.drawer||A.modal||A.bellOpen||A.more);const st=history.state;
@@ -1153,7 +1170,7 @@ function allowedView(v){if(A.role==='client')return ['cv','cvc','acct'].includes
 function applyRoute(r){if(!r)return;if(!allowedView(r.v))r={v:homeView()};ROUTE_LOCK=true;try{A.drawer=null;A.modal=null;A.bellOpen=false;A.more=false;A.confirm=null;A.editName=null;
   if(r.v==='campaign'){if(A.cid!==r.c||A.view!=='campaign')openCampaign(r.c,r.t);else{A.tab=r.t;render()}}
   else if(r.v==='create'){if(A.draft&&A.view==='create')render();else{A.view=homeView(r.k);render()}}
-  else{if(A.unsubRows){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(VIEW_KIND[r.v]&&r.v!==A.view){A.csel.clear();A.statusF=''}A.view=r.v;if(r.lt)A.ltab=r.lt;if(r.tt)A.teamTab=r.tt;if(r.v==='cvc')A.cvId=r.c;if(r.v==='guides')A.gid=r.g||'';render()}
+  else{if(A.unsubRows){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(VIEW_KIND[r.v]&&r.v!==A.view){A.csel.clear();A.statusF=''}A.view=r.v;if(r.lt)A.ltab=r.lt;if(r.tt)A.teamTab=r.tt;if(r.v==='cvc')A.cvId=r.c;if(r.v==='guides')A.gid=r.g||'';if(r.v==='proposals')A.pid=r.g||'';render()}
   window.scrollTo(0,0)}finally{ROUTE_LOCK=false}}
 window.addEventListener('popstate',e=>{if(A.view==='share'||!A.user)return;if(A.skipPop){A.skipPop=0;clearTimeout(routeSync.t);setTimeout(routeSync,0);return}const st=e.state;
   if((A.drawer||A.modal||A.bellOpen||A.more)&&!(st&&st.d)&&st&&st.h===routeHash(routeOf())){A.drawer=null;A.modal=null;A.bellOpen=false;A.more=false;A.confirm=null;ROUTE_LOCK=true;try{render()}finally{ROUTE_LOCK=false}return}
@@ -1243,11 +1260,12 @@ function shell(){
 function navItems(){
   if(isClientView())return clientNav();
   const ads={t:'광고 관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'}]};
-  const tools={t:'도구',items:[{v:'guides',l:'콘텐츠 가이드',ms:'가이드',ic:'guide',m:1},{v:'review',l:'영상 검수',ms:'검수',ic:'review',m:1},{v:'aivideo',l:'AI 영상 제작',ic:'aivideo'}]};
+  const tools={t:'콘텐츠 도구',items:[{v:'guides',l:'콘텐츠 가이드 생성',ms:'가이드',ic:'guide',m:1},{v:'review',l:'영상 검수',ms:'검수',ic:'review',m:1},{v:'aivideo',l:'AI 영상 제작',ic:'aivideo'}]};
+  const prop={t:'제안 도구',items:[{v:'proposals',l:'광고 제안서 생성',ms:'제안서',ic:'proposal'}]};
   const infl={t:'인플루언서 관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'}]};
   const comp={t:'구성요소 관리',items:[{v:'team',tt:'members',l:'팀원·권한',ic:'team'},{v:'team',tt:'accts',l:'광고주 계정',ic:'acct'},{v:'team',tt:'int',l:'연동 관리',ic:'int'},{v:'updates',l:'업데이트 제안',badge:updBadge()},{v:'history',l:'업데이트 이력'}]};
-  return [ads,infl,tools,comp]}
-function viewBody(){const v=A.view;return v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
+  return [ads,infl,tools,prop,comp]}
+function viewBody(){const v=A.view;return v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
 function homeView(k){return isClientView()?'cv':kindView(k||'seed')}
 
 /* ---- 계정·클라이언트·업데이트 기능 (아래에서 다시 정의) ---- */
@@ -1588,7 +1606,7 @@ function tabReport(c,rows){
    <div class="rg"><span class="rl">언어 설정</span>${langChips(A.rlang,'rlang')}</div>
    <div class="rg"><span class="rl">보고서 다운로드</span><div class="row"><button class="btn sm" data-act="pptx" data-mode="admin">PPT 다운로드</button><button class="btn sm" data-act="print" data-mode="admin" title="PPT와 같은 구성으로 한 장씩 출력합니다. 인쇄 창에서 'PDF로 저장'을 고르세요">PDF 다운로드</button><button class="btn sm" data-act="xlsx" data-mode="admin">엑셀 보고서 다운로드</button></div></div>
   </div><p class="small muted noprint" style="margin:-4px 0 0">어드민 화면에서는 모든 지표가 보입니다. 광고주 화면은 「광고주 공유」 탭에서 미리 볼 수 있습니다.</p>
-  <div class="noprint">${gc}</div>${themePanel(c)}<section class="panel noprint"><div class="panel-h"><h2>인사이트 코멘트</h2><span class="sub">리포트 하단과 광고주 화면에 표시됩니다</span></div><textarea id="insight" data-cf="insight" rows="5" placeholder="성과 요약, 잘된 점, 다음 캠페인 제안">${esc(c.insight||'')}</textarea></section>
+  <div class="noprint">${gc}</div>${themePanel(c)}<section class="panel noprint"><div class="panel-h"><div><h2>인사이트 코멘트</h2><div class="sub">리포트 하단과 광고주 화면에 표시됩니다</div></div>${canEdit()?`<button class="btn sm" data-act="insightAi" title="리포트 수치(목표 달성률·티어/채널별 ER·CPV·상위 콘텐츠)를 근거로 ${A.rlang==='en'?'영어':'한국어'} 초안을 씁니다">${A.insBusy?'AI 작성 중…':'✦ AI 초안'}</button>`:''}</div><textarea id="insight" data-cf="insight" rows="5" placeholder="성과 요약, 잘된 점, 다음 캠페인 제안" ${canEdit()?'':'readonly'}>${esc(A.insDraft&&A.insDraft.cid===A.cid?A.insDraft.text:(c.insight||''))}</textarea>${A.insDraft&&A.insDraft.cid===A.cid?`<div class="row" style="margin-top:8px;gap:8px;align-items:center"><span class="pill accent">AI 초안 · 아직 저장 안 됨</span><span class="small muted">수치를 확인하고 다듬은 뒤 저장해 주세요.</span><span class="grow"></span><button class="btn sm" data-act="insightUndo">취소</button><button class="btn sm primary" data-act="insightSave">저장</button></div>`:''}</section>
   ${renderReport(R,{admin:true,lang:A.rlang,thumbs:A.thumbs,editLogo:canEdit(),thumbEdit:canEdit()})}</div>`;
 }
 function themePanel(c){const th=themeOf(c);const open=A.themeOpen;
@@ -2633,7 +2651,7 @@ const ACT={
   signIn(){DB.signIn().catch(e=>toast(e&&e.code==='auth/unauthorized-domain'?'이 주소가 Firebase 승인된 도메인에 없습니다. 설치 안내 4단계를 확인하세요.':'로그인하지 못했습니다.','crit'))},
   signOut(){DB.signOut()},
   demoReset(){if(A.confirm!=='reset'){A.confirm='reset';toast('한 번 더 누르면 데모 데이터를 처음 상태로 되돌립니다.');return}A.confirm=null;DB.reset();toast('데모 데이터를 초기화했습니다.');A.view='list';render()},
-  nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(a.dataset.tt)A.teamTab=a.dataset.tt;if(v==='guides')A.gid='';if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
+  nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(a.dataset.tt)A.teamTab=a.dataset.tt;if(v==='guides')A.gid='';if(v==='proposals')A.pid='';if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
   back(a){ACT.nav(a)},
   lnbMini(){A.lnbMini=!A.lnbMini;try{localStorage.setItem('lnb_mini',A.lnbMini?'1':'')}catch(e){}render()},
   moreToggle(){A.more=!A.more;render()},
@@ -3176,6 +3194,7 @@ service cloud.firestore {
   }
 }
 </script>
-<script src="/tools.js?v=0.15.1"></script>
+<script src="/tools.js?v=0.16"></script>
+<script src="/proposal.js?v=0.16"></script>
 </body>
 </html>

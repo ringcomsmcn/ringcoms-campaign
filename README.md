@@ -9,9 +9,13 @@
 | `public/l.html` | 인플루언서 전용 단축 링크(`/l/{코드}`)가 여는 브릿지 페이지 (로그인 없음, 방문·버튼 클릭 집계) |
 | `netlify/functions/social-stats.mjs` | 인스타그램·틱톡 성과·게시일·썸네일 수집 서버 함수 (`/api/social-stats`) |
 | `netlify/functions/ops.mjs` | 업데이트 제안 읽기·승인 서버 함수 (`/api/ops`, GitHub `ops` 브랜치의 `ops/suggestions.json`) |
-| `public/tools.js` | 도구 화면: 콘텐츠 가이드 · 영상 검수 · AI 영상 제작(틀), 캠페인 만들기 4단계, 상단 계정 선택, 풀 선택 삭제 |
+| `public/tools.js` | 콘텐츠 도구 화면: 콘텐츠 가이드 · 영상 검수 · AI 영상 제작(틀), 캠페인 만들기 4단계, 상단 계정 선택, 풀 선택 삭제 |
 | `public/img/ringcoms-wide.png` | 가로형 RINGCOMS 로고 (흰색, 가이드 PPT·PDF 우상단 · 광고주 색으로 자동 변환) |
-| `netlify/functions/ai.mjs` | AI 연결 상태 확인 (`/api/ai`) |
+| `netlify/functions/ai.mjs` | AI 연결 상태 확인·인사이트 코멘트 초안 (`/api/ai`, action `status`·`insight`) |
+| `public/proposal.js` | 제안 도구: 광고 제안서 생성 (소개서 읽기 pdf.js · 티어 자동 구성 · 예상 성과 · PPT/PDF) — 데이터는 `guides/{id}` (`kind: proposal`), 이미지는 `guideimg/{id}` |
+| `netlify/functions/proposal.mjs` | 광고 제안서 AI 백그라운드 함수 (`/api/proposal`): 구글 검색 시장 조사 → Gemini 제안서 문구 → `guides/{id}.aiResult` → 화면이 자동 적용 |
+| `netlify/lib/proposal.mjs` | 제안서 시장 조사·프롬프트 공용 모듈 |
+| `public/vendor/pdf.min.js` | 상품소개서 PDF 읽기 (pdf.js 3.11, 자체 호스팅) |
 | `netlify/functions/guide.mjs` | 콘텐츠 가이드 AI 백그라운드 함수 (`/api/guide`): 광고주 링크 읽기 → Gemini 표준 가이드 초안 → `guides/{id}.aiResult` → 화면이 자동 적용 |
 | `netlify/lib/guide.mjs` | 광고주 페이지 읽기·가이드 프롬프트 공용 모듈 |
 | `netlify/functions/review.mjs` | 영상 검수 백그라운드 함수 (`/api/review`, 최대 15분): 영상 → Gemini → `reviews/{id}`에 결과 |
