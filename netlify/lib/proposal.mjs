@@ -57,9 +57,10 @@ const SCHEMA = `{
    "name": "그룹 이름 (예: 실사용 집사)", "pillar": "단계 역할 (공감·인지 / 참여·확산 / 확장·신규 중 하나)",
    "who": "어떤 인플루언서 (2줄, \\n)", "role": "이 그룹의 역할 (2줄)", "content": "콘텐츠 형식 (2줄)", "effect": "기대 효과 (2줄)",
    "keywords": ["인플루언서 풀 검색용 카테고리 키워드 3~5개 (예: 반려동물, 강아지, 고양이)"],
+   "search": ["유튜브·틱톡·인스타그램에서 이 그룹 인플루언서를 찾을 검색어 2개 — 채널 이름·소개·영상 제목에 실제로 쓰일 짧은 한국어 (예: 강아지일상, 말티즈) — 제품명·브랜드명은 넣지 않는다"],
    "persona": [{ "type": "섭외하려는 인플루언서 유형 (예: 말티즈 키우는 20대 자취 집사)", "tier": "매크로|마이크로|나노", "why": "왜 이 유형인지 2줄 (\n)" }],
    "concept": { "name": "그룹 컨셉명 (짧게, 2줄이면 \\n)", "hashtags": ["#짧고임팩트있는해시태그", "#두번째"], "story": ["스토리 4줄 — 문장 하나씩"], "keyMessage": "KEY MESSAGE 한 문장", "features": "보여줄 기능·특징 (· 로 구분)" },
-   "guide": { "title": "콘텐츠 가이드 대제목 (2줄)", "sub": "소제목", "cuts": [{ "step": "HOOK|FEATURE|PROOF|CTA 등 단계명", "time": "0~3초", "scene": "화면 — 인플루언서가 직접 찍는 장면 (2줄)", "line": "멘션·자막 예시 (2줄)" }], "caption": "캡션 예시 (#광고 포함, 3~5줄)", "must": ["MUST 3개"], "dont": ["DON'T 3개"] },
+   "guide": { "title": "콘텐츠 가이드 대제목 (2줄)", "sub": "소제목", "cuts": [{ "step": "HOOK|FEATURE|PROOF|CTA 등 단계명", "time": "0~3초", "scene": "화면 — 인플루언서가 직접 찍는 장면 (2줄)", "line": "멘션·자막 예시 (2줄)", "prompt": "이 컷의 예시 이미지를 그림 생성 AI로 만들 프롬프트 (한국어, 9:16 세로, 인물·배경·구도·조명·화면 속 폰 화면 등, 실존 인물·다른 브랜드 로고 없이)" }], "caption": "캡션 예시 (#광고 포함, 3~5줄)", "must": ["MUST 3개"], "dont": ["DON'T 3개"] },
    "feature": { "items": [{ "name": "핵심 기능·특징명 (10자 안팎)", "desc": "한 줄 설명 (20자 안팎)" }], "effect": "기대 효과 한 줄" }
  }],
  "tierWhy": { "메가": { "role": "역할 2~4자", "why": "이유 한 줄" }, "매크로": { "role": "", "why": "" }, "마이크로": { "role": "", "why": "" }, "나노": { "role": "", "why": "" } },
@@ -127,7 +128,7 @@ ${(pages || []).filter(p => p.ok).map((p, i) => `--- 페이지 ${i + 1}: ${p.url
 ${rs && rs.text ? rs.text : '(조사 결과 없음 — 소개서 숫자만 쓰거나 정성 표현)'}
 ${rs && rs.sources && rs.sources.length ? '참고 출처: ' + rs.sources.map(s => s.title).join(' / ') : ''}
 
-[개수] market.stats 3개, insights 3개, direction.shifts 3개, groups 정확히 3개(A·B·C), 그룹별 concept.story 4줄, guide.cuts 4개, must 3개, dont 3개, feature.items 3개, matrixPoints 3개.
+[개수] 그룹별 persona 2개, search 2개, market.stats 3개, insights 3개, direction.shifts 3개, groups 정확히 3개(A·B·C), 그룹별 concept.story 4줄, guide.cuts 4개, must 3개, dont 3개, feature.items 3개, matrixPoints 3개.
 
 아래 JSON 형식 그대로, JSON만 출력한다:
 ${SCHEMA}`;

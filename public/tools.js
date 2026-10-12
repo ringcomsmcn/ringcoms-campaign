@@ -126,7 +126,7 @@ function newGuide(c){const d=today();return {title:c?(c.brand||c.advertiser||'')
   words:[{no:'치료돼요 / 완치돼요',yes:'관리에 도움이 돼요'},{no:'무조건 / 100% 효과',yes:'제가 써 보니 ~했어요'},{no:'(다른 브랜드)보다 훨씬 나아요',yes:'제가 써 본 것 중에 ~가 좋았어요'}],
   cuts:gCuts(),shoot:[...G_SHOOT],upload:[...G_UPLOAD],submit:{draftDue:'',uploadDue:'',how:[...G_SUBMIT],form:'',extra:''},createdAt:d,updatedAt:T_NOW(),by:A.user?A.user.email:''}}
 function ensureToolWatch(){if(ensureToolWatch.on||!isTeam())return;ensureToolWatch.on=true;
-  DB.watchCol('guides',m=>{const g_={},p_={};for(const k in m)(m[k]&&m[k].kind==='proposal'?p_:g_)[k]=m[k];A.guides=g_;A.props=p_;A.guidesLoaded=true;gAiCheck();if(window.ppAiCheck)window.ppAiCheck();scheduleRender()},()=>{A.guidesLoaded=true;A.guidesErr=true;scheduleRender()});
+  DB.watchCol('guides',m=>{const g_={},p_={};for(const k in m)(m[k]&&m[k].kind==='proposal'?p_:g_)[k]=m[k];A.guides=g_;A.props=p_;A.guidesLoaded=true;gAiCheck();if(window.ppAiCheck)window.ppAiCheck();if(window.ppDiscCheck)window.ppDiscCheck();scheduleRender()},()=>{A.guidesLoaded=true;A.guidesErr=true;scheduleRender()});
   DB.watchCol('reviews',m=>{A.reviews=m;A.reviewsLoaded=true;scheduleRender()},()=>{A.reviewsLoaded=true;A.reviewsErr=true;scheduleRender()});aiStatus()}
 function curG(){return A.gid&&A.guides?A.guides[A.gid]:null}
 function watchGimg(){if(A.gimgFor===A.gid)return;if(A.unsubGimg){A.unsubGimg();A.unsubGimg=null}A.gimgFor=A.gid;A.gimgs={};if(!A.gid)return;A.unsubGimg=DB.watchDoc('guideimg/'+A.gid,d=>{A.gimgs=(d&&d.imgs)||{};scheduleRender()},()=>{})}

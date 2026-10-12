@@ -111,7 +111,7 @@ export function mapTt(it) {
   return { key: 'tt:' + id, owner: (it.authorMeta && it.authorMeta.name) || null, views: num(it.playCount), likes: num(it.diggCount), cmts: num(it.commentCount), shares: num(it.shareCount), saves: num(it.collectCount), thumbUrl: (it.videoMeta && (it.videoMeta.coverUrl || it.videoMeta.originalCoverUrl)) || null, posted: isoOf(it.createTimeISO || it.createTime) };
 }
 /* 썸네일 이미지 받기: 인스타그램·틱톡 CDN 주소만 허용 (다른 주소로 요청을 보내는 데 쓰이지 않도록) */
-const THUMB_HOSTS = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn\.com|tiktokcdn-us\.com|tiktokcdn-eu\.com|ibyteimg\.com|byteimg\.com|muscdn\.com)$/i;
+const THUMB_HOSTS = /(^|\.)(cdninstagram\.com|fbcdn\.net|tiktokcdn\.com|tiktokcdn-us\.com|tiktokcdn-eu\.com|ibyteimg\.com|byteimg\.com|muscdn\.com|ggpht\.com|googleusercontent\.com|ytimg\.com)$/i;
 export function thumbHostOk(u) { try { const x = new URL(u); return x.protocol === 'https:' && THUMB_HOSTS.test(x.hostname); } catch (e) { return false; } }
 async function fetchThumb(u) {
   if (!thumbHostOk(u)) return { error: '허용되지 않은 이미지 주소입니다.' };

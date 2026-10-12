@@ -14,6 +14,7 @@
 | `netlify/functions/ai.mjs` | AI 연결 상태 확인·인사이트 코멘트 초안 (`/api/ai`, action `status`·`insight`) |
 | `public/proposal.js` | 제안 도구: 광고 제안서 생성 (소개서 읽기 pdf.js · 티어 자동 구성 · 예상 성과 · PPT/PDF) — 데이터는 `guides/{id}` (`kind: proposal`), 이미지는 `guideimg/{id}` |
 | `netlify/functions/proposal.mjs` | 광고 제안서 AI 백그라운드 함수 (`/api/proposal`): 구글 검색 시장 조사 → Gemini 제안서 문구 → `guides/{id}.aiResult` → 화면이 자동 적용 |
+| `netlify/functions/discover.mjs` | 제안서 섭외 후보 탐색 백그라운드 함수 (`/api/discover`): 틱톡 키워드 영상 검색·인스타그램 사용자 검색(Apify) → `guides/{id}.discResult`. 유튜브는 브라우저에서 YouTube API 키로 검색. 프로필 사진은 `guideimg/{id}__av`, 컷 이미지는 `guideimg/{id}__cut` |
 | `netlify/lib/proposal.mjs` | 제안서 시장 조사·프롬프트 공용 모듈 |
 | `public/vendor/pdf.min.js` | 상품소개서 PDF 읽기 (pdf.js 3.11, 자체 호스팅) |
 | `netlify/functions/guide.mjs` | 콘텐츠 가이드 AI 백그라운드 함수 (`/api/guide`): 광고주 링크 읽기 → Gemini 표준 가이드 초안 → `guides/{id}.aiResult` → 화면이 자동 적용 |
