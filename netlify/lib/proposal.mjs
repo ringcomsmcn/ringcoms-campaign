@@ -14,7 +14,8 @@ export async function research(info, timeoutMs = 70000) {
 필요한 것 (가능하면 2024~2026년 자료, 숫자와 출처 기관·매체명을 함께):
 1) 시장 규모·성장률 2) 이용자·타깃 규모 3) 타깃의 정서·행동 지표(설문 등) 4) 경쟁·대체재 동향 5) 숏폼·인플루언서 콘텐츠 트렌드.
 확인되지 않은 숫자는 쓰지 말고, 항목마다 「숫자 — 의미 (출처, 연도)」 형식으로 짧게 정리해 줘.`;
-  for (const m of MODELS.filter(x => !/lite/.test(x))) {
+  let lastErr = '';
+  for (const m of [...new Set([...MODELS.filter(x => !/lite/.test(x)), 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-lite-latest'])]) {
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), timeoutMs);
     try {
       const r = await fetch(`${API}/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
@@ -23,15 +24,15 @@ export async function research(info, timeoutMs = 70000) {
       });
       clearTimeout(t);
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) { if (r.status === 404 || r.status === 503 || r.status === 500) continue; return { text: '', sources: [], error: ((j.error || {}).message || ('HTTP ' + r.status)).slice(0, 160) }; }
+      if (!r.ok) { lastErr = ((j.error || {}).message || ('HTTP ' + r.status)).slice(0, 160); continue; }
       const cand = (j.candidates || [])[0] || {};
       const text = ((cand.content || {}).parts || []).map(p => p.text || '').join('').trim();
       const gm = cand.groundingMetadata || {};
       const sources = (gm.groundingChunks || []).map(c => c.web || {}).filter(w => w.uri).map(w => ({ title: String(w.title || '').slice(0, 120), uri: w.uri })).slice(0, 12);
       return { text: text.slice(0, 9000), sources, model: m };
-    } catch (e) { clearTimeout(t); }
+    } catch (e) { clearTimeout(t); lastErr = e.name === 'AbortError' ? '시간 초과' : String(e.message || e); }
   }
-  return { text: '', sources: [] };
+  return { text: '', sources: [], error: lastErr };
 }
 
 const SCHEMA = `{
@@ -56,6 +57,7 @@ const SCHEMA = `{
    "name": "그룹 이름 (예: 실사용 집사)", "pillar": "단계 역할 (공감·인지 / 참여·확산 / 확장·신규 중 하나)",
    "who": "어떤 인플루언서 (2줄, \\n)", "role": "이 그룹의 역할 (2줄)", "content": "콘텐츠 형식 (2줄)", "effect": "기대 효과 (2줄)",
    "keywords": ["인플루언서 풀 검색용 카테고리 키워드 3~5개 (예: 반려동물, 강아지, 고양이)"],
+   "persona": [{ "type": "섭외하려는 인플루언서 유형 (예: 말티즈 키우는 20대 자취 집사)", "tier": "매크로|마이크로|나노", "why": "왜 이 유형인지 2줄 (\n)" }],
    "concept": { "name": "그룹 컨셉명 (짧게, 2줄이면 \\n)", "hashtags": ["#짧고임팩트있는해시태그", "#두번째"], "story": ["스토리 4줄 — 문장 하나씩"], "keyMessage": "KEY MESSAGE 한 문장", "features": "보여줄 기능·특징 (· 로 구분)" },
    "guide": { "title": "콘텐츠 가이드 대제목 (2줄)", "sub": "소제목", "cuts": [{ "step": "HOOK|FEATURE|PROOF|CTA 등 단계명", "time": "0~3초", "scene": "화면 — 인플루언서가 직접 찍는 장면 (2줄)", "line": "멘션·자막 예시 (2줄)" }], "caption": "캡션 예시 (#광고 포함, 3~5줄)", "must": ["MUST 3개"], "dont": ["DON'T 3개"] },
    "feature": { "items": [{ "name": "핵심 기능·특징명 (10자 안팎)", "desc": "한 줄 설명 (20자 안팎)" }], "effect": "기대 효과 한 줄" }
@@ -65,7 +67,7 @@ const SCHEMA = `{
  "timeline": { "title": "타임라인 대제목 (2줄)", "sub": "소제목" },
  "closing": "마지막 장 한 줄 (캠페인 컨셉을 다시 짚는 문장)",
  "checks": ["담당자가 광고주에게 꼭 확인해야 할 사항 (수치 출처·효능 표현·제품 정보 등) 2~5개"],
- "notes": { "cover": "슬라이드별 발표 노트 — 30초~1분 분량 대본. 키: cover, market1, market2, direction, capability, umbrella, groupA, guideA, groupB, guideB, groupC, guideC, features, categories, tiers, matrix, showcase, kpi, timeline" }
+ "notes": { "cover": "[0:00] 발표 대본 30초~1분", "market1": "", "market2": "", "direction": "", "capability": "", "umbrella": "", "groupA": "", "guideA": "", "groupB": "", "guideB": "", "groupC": "", "guideC": "", "features": "", "categories": "", "tiers": "", "matrix": "", "showcase": "", "kpi": "", "timeline": "" }
 }`;
 
 export function proposalPrompt(info, plan, pages, rs) {
@@ -83,6 +85,9 @@ export function proposalPrompt(info, plan, pages, rs) {
 - 그룹마다 해시태그 2개: 챌린지용 참여형이 아니라 짧고 임팩트 있는 표현 (예: #우리애가말을했다 #처음듣는그목소리).
 - 콘텐츠 가이드는 인플루언서가 직접 촬영·편집하므로 연기·상황극·대사 티키타카를 빼고 설명형(얼굴 정면 한 컷 + 제품·앱 화면 + 설명 멘션)으로. 컷은 4개(HOOK 0~3초 → FEATURE → FEATURE/PROOF → CTA, 합계 25~30초). 캡션 예시는 맨 앞에 #광고.
 - 표지 메인 카피와 우산 컨셉은 캠페인 전체를 말하고, A그룹 컨셉과 섞지 않는다.
+- 해시태그·캡션에도 브랜드 한글 음차(예: Petbbi → 펫비)를 쓰지 않는다. 브랜드 해시태그는 공식 표기 그대로(#Petbbi).
+- B그룹은 제품이 반려동물·아이·캐릭터처럼 '대상'이 있으면 반드시 그 대상이 주인공인 채널(예: 반려동물 계정)로 한다. 대상이 없는 제품일 때만 다른 참여·확산 그룹으로 바꾼다.
+- notes는 모든 키를 채운다 (각 30초~1분 분량, [분:초]로 시작, 전체 약 20분). 숫자는 시스템이 따로 덧붙이니 문장에 인원·금액을 쓰지 않는다.
 - 앱 설치·클릭 수 같은 추정치는 쓰지 않는다. "세 번의 파도" 같은 표현은 쓰지 않는다.
 
 [문구·줄바꿈 규칙 — 반드시 지킬 것]
@@ -94,8 +99,9 @@ export function proposalPrompt(info, plan, pages, rs) {
 - 문장이 길면 줄이거나 풀어서 다시 쓴다.
 
 [시장 숫자 규칙]
-- market.stats(3개)와 insights(3개)의 숫자는 아래 [시장 조사 메모]나 [광고주 소개서]에 있는 숫자만 쓴다. 숫자를 지어내지 않는다.
-- 쓸 숫자가 없으면 value에 정성 표현(예: "↑", "확대")을 쓰고 desc로 설명하며, checks에 "시장 수치 출처 확인 필요"를 넣는다.
+- market.stats(3개)와 insights(3개)의 숫자는 [시장 조사 메모]·[광고주 소개서]에 있는 숫자를 우선 쓴다.
+- 조사 메모가 없거나 부족하면, 네가 확실히 알고 있는 공신력 있는 공개 통계(정부·공공기관·주요 연구소·주요 언론 발표, 기관명과 연도를 댈 수 있는 것)만 쓴다. 이때 source에 기관명·연도를 적고, checks에 "시장 수치(○○ 통계)는 최신 자료로 확인 필요"를 넣는다.
+- 기관·연도를 댈 수 없는 숫자는 절대 만들지 않는다. 그런 경우 value에 정성 표현("↑", "확대")을 쓴다. stats 3개 중 최소 2개는 숫자로 채우도록 노력한다.
 - source/source2에는 실제로 쓴 숫자의 출처만 적는다.
 
 [기초 정보]

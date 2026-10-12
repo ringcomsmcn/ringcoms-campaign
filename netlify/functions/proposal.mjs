@@ -3,7 +3,7 @@
 // ① 구글 검색 근거로 시장 조사 → ② 소개서·기초 정보·조사 메모로 제안서 문구(JSON)
 // 결과는 Firestore guides/{pid} (kind: proposal) 에: aiStatus(진행 중 → 완료 | 실패), aiResult(JSON 문자열), aiError
 // 화면(편집 권한 있는 사람)이 결과를 받아 제안서에 넣고 aiStatus를 「적용됨」으로 바꿈
-import { gemini, checkEditor, fsPatch } from '../lib/gemini.mjs';
+import { geminiBest, checkEditor, fsPatch } from '../lib/gemini.mjs';
 import { readPage } from '../lib/guide.mjs';
 import { research, proposalPrompt } from '../lib/proposal.mjs';
 
@@ -23,7 +23,8 @@ export default async (req) => {
     const [pages, rs] = await Promise.all([Promise.all(links.map(readPage)), research(info)]);
     if (!String(info.srcText || '').trim() && !pages.some(p => p.ok) && !String(info.memo || '').trim()) throw new Error('상품소개서 내용을 읽지 못했습니다. PDF를 다시 올리거나 소개 문구를 붙여넣어 주세요.');
     await save({ aiStep: '문구 작성 중' });
-    const { data, model } = await gemini([{ text: proposalPrompt(info, plan, pages, rs) }], { temperature: 0.7, maxTokens: 24000, timeoutMs: 240000, thinking: 2048 });
+    // 품질이 중요해 상위 모델이 붐비면 25초 간격으로 최대 4번 다시 시도한 뒤에만 가벼운 모델 사용
+    const { data, model } = await geminiBest([{ text: proposalPrompt(info, plan, pages, rs) }], { temperature: 0.7, maxTokens: 24000, timeoutMs: 240000, thinking: 2048 });
     await save({ aiStatus: '완료', aiStep: '', aiResult: JSON.stringify({ ai: data, model, research: { ok: !!rs.text, sources: rs.sources || [], error: rs.error || '' }, pages: pages.map(p => ({ url: p.url, ok: p.ok, error: p.error || '' })) }), aiDoneAt: new Date().toISOString() });
   } catch (e) {
     console.error(e);
