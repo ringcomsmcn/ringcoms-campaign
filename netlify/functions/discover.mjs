@@ -18,11 +18,11 @@ async function apify(path, opts = {}) {
   if (!token) throw new Error('Apify 토큰이 설정되지 않았습니다 (Netlify 환경변수 APIFY_TOKEN).');
   const r = await fetch(APIFY + path, { ...opts, headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json', ...(opts.headers || {}) } });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) { const m = (d.error && (d.error.message || d.error.type)) || ('HTTP ' + r.status); throw new Error(/limit|credit|usage|payment/i.test(m) ? 'Apify 이번 달 무료 사용량을 다 썼습니다.' : m); }
+  if (!r.ok) { const m = (d.error && (d.error.message || d.error.type)) || ('HTTP ' + r.status); throw new Error(/monthly usage|usage limit|credit|payment|plan.*exceed/i.test(m) ? 'Apify 이번 달 무료 사용량을 다 썼습니다.' : /memory/i.test(m) ? 'Apify 동시 실행 메모리 한도 (잠시 뒤 다시 탐색해 주세요)' : m.slice(0, 160)); }
   return d;
 }
 async function run(actor, input, maxMs = 420000) {
-  const st = (await apify(`/acts/${actor}/runs`, { method: 'POST', body: JSON.stringify(input) })).data;
+  const st = (await apify(`/acts/${actor}/runs?memory=1024`, { method: 'POST', body: JSON.stringify(input) })).data;
   const end = Date.now() + maxMs;
   while (Date.now() < end) {
     await new Promise(r => setTimeout(r, 8000));
@@ -42,13 +42,14 @@ async function tiktok(terms) {
   const by = {};
   items.forEach(it => {
     const a = it.authorMeta || {}; const id = String(a.name || '').toLowerCase(); if (!id) return;
-    const o = by[id] || (by[id] = { plat: 'tt', id: 'tt:' + id, acct: a.name, name: a.nickName || a.name, url: 'https://www.tiktok.com/@' + a.name, followers: num(a.fans), avatar: a.avatar || a.originalAvatarUrl || '', bio: String(a.signature || '').slice(0, 120), plays: [], ers: [], ko: false, text: '' });
+    const o = by[id] || (by[id] = { plat: 'tt', id: 'tt:' + id, acct: a.name, name: a.nickName || a.name, url: 'https://www.tiktok.com/@' + a.name, followers: num(a.fans), avatar: a.avatar || a.originalAvatarUrl || '', bio: String(a.signature || '').slice(0, 120), plays: [], ers: [], ko: false, text: '', caps: [] });
     const p = num(it.playCount); o.plays.push(p);
     if (p) o.ers.push(((num(it.diggCount) || 0) + (num(it.commentCount) || 0) + (num(it.shareCount) || 0)) / p);
     if (HANGUL.test([a.nickName, a.signature, it.text].join(' '))) o.ko = true;
     if (!o.text) o.text = String(it.text || '').slice(0, 80);
+    if (o.caps.length < 4) o.caps.push(String(it.text || '').slice(0, 100));
   });
-  return Object.values(by).map(o => ({ plat: o.plat, id: o.id, acct: o.acct, name: o.name, url: o.url, followers: o.followers, avatar: o.avatar, bio: o.bio || o.text, avg: med(o.plays), er: med(o.ers), basis: `검색 영상 ${o.plays.length}개 조회 중앙값`, ko: o.ko }));
+  return Object.values(by).map(o => ({ plat: o.plat, id: o.id, acct: o.acct, name: o.name, url: o.url, followers: o.followers, avatar: o.avatar, bio: o.bio || o.text, avg: med(o.plays), er: med(o.ers), n: o.plays.length, basis: `검색된 영상 ${o.plays.length}개 조회 중앙값`, ko: o.ko, hay: o.caps.join(' ').slice(0, 400) }));
 }
 
 /* 인스타그램: 사용자 검색(프로필 상세) */
@@ -61,7 +62,7 @@ async function instagram(term) {
     const fol = num(it.followersCount);
     const ko = HANGUL.test([it.fullName, it.biography, ...posts.slice(0, 3).map(p => p.caption || '')].join(' '));
     return { plat: 'ig', id: 'ig:' + String(it.username).toLowerCase(), acct: it.username, name: it.fullName || it.username, url: 'https://www.instagram.com/' + it.username + '/', followers: fol, avatar: it.profilePicUrlHD || it.profilePicUrl || '', bio: String(it.biography || '').slice(0, 120),
-      avg: med(views), er: fol && likes.length ? med(likes) / fol : null, basis: views.length ? `최근 릴스 ${views.length}개 조회 중앙값` : '최근 게시물 기준', erBasis: '좋아요 ÷ 팔로워', ko, cat: it.businessCategoryName || '' };
+      avg: med(views), er: fol && likes.length ? med(likes) / fol : null, basis: views.length ? `최근 릴스 ${views.length}개 조회 중앙값` : '최근 게시물 기준', erBasis: '좋아요 ÷ 팔로워', ko, cat: it.businessCategoryName || '', n: views.length, hay: posts.slice(0, 4).map(p => String(p.caption || '').slice(0, 100)).join(' ').slice(0, 400) };
   });
 }
 
@@ -78,13 +79,10 @@ export default async (req) => {
   const plats = (Array.isArray(body.platforms) ? body.platforms : []).filter(p => ['tt', 'ig'].includes(p));
   const out = {}; const errors = [];
   try {
-    const tasks = [];
-    groups.forEach(g => {
-      out[g.key] = [];
-      if (plats.includes('tt')) tasks.push(tiktok(g.terms).then(L => out[g.key].push(...L)).catch(e => errors.push(`틱톡(${g.key}): ${e.message}`)));
-      if (plats.includes('ig')) tasks.push(instagram(g.terms[0]).then(L => out[g.key].push(...L)).catch(e => errors.push(`인스타그램(${g.key}): ${e.message}`)));
-    });
-    await Promise.all(tasks);
+    groups.forEach(g => { out[g.key] = []; });
+    // 무료 요금제 동시 실행 메모리 한도 때문에 틱톡 3개 → 인스타그램 3개 순서로 (각 1GB)
+    if (plats.includes('tt')) await Promise.all(groups.map(g => tiktok(g.terms).then(L => out[g.key].push(...L)).catch(e => errors.push(`틱톡(${g.key}): ${e.message}`))));
+    if (plats.includes('ig')) await Promise.all(groups.map(g => instagram(g.terms[0]).then(L => out[g.key].push(...L)).catch(e => errors.push(`인스타그램(${g.key}): ${e.message}`))));
     const n = Object.values(out).reduce((a, L) => a + L.length, 0);
     if (!n && errors.length) throw new Error(errors.join(' / '));
     await save({ discStatus: '완료', discResult: JSON.stringify({ groups: out, errors }).slice(0, 700000), discDoneAt: new Date().toISOString() });

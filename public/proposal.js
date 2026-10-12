@@ -353,12 +353,16 @@ async function ytDiscover(groups){let key=((A.settings||{}).ytKey||'').trim();if
   return out}
 /* 그룹별 6명 고르기: 원하는 티어·한국어 채널·반응 좋은 순, 채널(플랫폼)을 섞어서, 다른 그룹과 겹치지 않게 */
 function pickFound(P,raw){const M=matrixOf(ppCalc(P).R);const used=new Set();const res={};const plats=platsOf(P.info||{}).map(x=>PLAT_K[x]);
-  GKEYS.forEach(k=>{const want=PT.filter(t=>M[k][t]>0);const L=(raw[k]||[]).filter(c=>plats.includes(c.plat)&&c.followers!=null&&c.followers>=1000&&c.ko!==false).map(c=>{const t=TK[tierOf(c.followers)]||'';
-      const sc=(want.includes(t)?4:t==='메가'?-3:0)+(c.avg?Math.min(3,Math.log10(c.avg)-2):0)+(c.er?Math.min(2,c.er*40):0)+(c.ko?1:0);return {...c,tier:t,sc}}).sort((a,b)=>b.sc-a.sc);
-    const by={};L.forEach(c=>{if(!used.has(c.id))(by[c.plat]=by[c.plat]||[]).push(c)});const out=[];const order=plats.filter(x=>by[x]);let i=0;
+  GKEYS.forEach(k=>{const g=((P.ai||{}).groups||[]).find(x=>x.key===k)||{};const want=PT.filter(t=>M[k][t]>0);
+    const kw=[...new Set([...(g.keywords||[]),...(g.search||[])].map(x=>String(x).replace(/^#/,'').replace(/(브이로그|일상툰|만화|툰|채널|챌린지|일상)$/,'').trim()).filter(x=>x.length>=2))];
+    const L=(raw[k]||[]).filter(c=>plats.includes(c.plat)&&c.followers!=null&&c.followers>=1000&&c.ko!==false).map(c=>{const t=TK[tierOf(c.followers)]||'';const hay=[c.name,c.acct,c.bio,c.hay,c.cat].join(' ');const rel=kw.some(w=>hay.includes(w));
+      const eff=c.avg?Math.min(c.avg,Math.max(c.followers*2,1000)):0;/* 영상 1개가 터진 소형 계정 과대평가 방지 */
+      const sc=(rel?5:0)+(want.includes(t)?3:t==='메가'?-3:0)+(eff?Math.min(3,Math.log10(eff)-2):0)+(c.er?Math.min(1.5,c.er*30):0)+(c.n>=3?0.5:0);return {...c,tier:t,sc,rel}}).sort((a,b)=>b.sc-a.sc);
+    const pool=L.filter(c=>c.rel).length>=DISC_N?L.filter(c=>c.rel):L;
+    const by={};pool.forEach(c=>{if(!used.has(c.id))(by[c.plat]=by[c.plat]||[]).push(c)});const out=[];const order=plats.filter(x=>by[x]);let i=0;
     while(out.length<DISC_N&&order.some(x=>by[x].length)){const pl=order[i++%order.length];const c=by[pl].shift();if(c&&!used.has(c.id)){used.add(c.id);
       c.why=[c.basis&&c.avg?`${c.basis} ${cK(c.avg)}`:'',c.bio?c.bio.replace(/\s+/g,' ').slice(0,46):''].filter(Boolean).join(' · ');out.push(c)}}
-    res[k]=out.map(({sc,ko,...c})=>c)});return res}
+    res[k]=out.sort((a,b)=>b.sc-a.sc).map(({sc,ko,rel,hay,...c})=>c)});return res}
 async function avFetch(found){const all=GKEYS.flatMap(k=>found[k]||[]).filter(c=>c.avatar&&!(A.pavs||{})[c.id]);const got={};
   await Promise.all(all.map(async c=>{try{let d=null;if(c.plat==='yt'){const r=await fetch(c.avatar);if(r.ok){const b=await r.blob();d=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>res(null);fr.readAsDataURL(b)})}}
     if(!d){const j=await aiFetch('/api/social-stats',{action:'thumb',url:c.avatar});d=j.data||null}if(d)got[c.id]=await shrink(d,96)}catch(e){}}));
