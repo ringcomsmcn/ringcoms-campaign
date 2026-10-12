@@ -65,7 +65,6 @@ const SCHEMA = `{
  }],
  "tierWhy": { "메가": { "role": "역할 2~4자", "why": "이유 한 줄" }, "매크로": { "role": "", "why": "" }, "마이크로": { "role": "", "why": "" }, "나노": { "role": "", "why": "" } },
  "matrixPoints": ["그룹×티어 구성 포인트 3개 (각 2줄 이내)"],
- "timeline": { "title": "타임라인 대제목 (2줄)", "sub": "소제목" },
  "closing": "마지막 장 한 줄 (캠페인 컨셉을 다시 짚는 문장)",
  "checks": ["담당자가 광고주에게 꼭 확인해야 할 사항 (수치 출처·효능 표현·제품 정보 등) 2~5개"],
  "notes": { "cover": "[0:00] 발표 대본 30초~1분", "market1": "", "market2": "", "direction": "", "capability": "", "umbrella": "", "groupA": "", "guideA": "", "groupB": "", "guideB": "", "groupC": "", "guideC": "", "features": "", "categories": "", "tiers": "", "matrix": "", "showcase": "", "kpi": "", "timeline": "" }
