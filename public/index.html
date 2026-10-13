@@ -1389,7 +1389,7 @@ async function runBackup(withImg){if(!isTeam())return toast('링컴즈 팀원만
     toast(`백업 파일을 내려받았습니다 · 문서 ${docs.toLocaleString()}개 · ${info.mb}MB${fail.length?` · 읽지 못한 항목: ${fail.join(', ')}`:''}`,fail.length?'warn':'')}
   catch(e){console.error(e);toast('백업하지 못했습니다: '+(e.message||e),'crit')}finally{A.bkBusy=null;render()}}
 function backupPanel(){if(!isTeam())return '';const L=bkLast();
-  return `<section class="panel" style="max-width:980px;margin-bottom:14px"><div class="panel-h"><div><h2>데이터 백업 · 롤백</h2><div class="sub">큰 업데이트를 배포하기 전에 백업 파일을 받아 두면, 데이터가 잘못 바뀌었을 때 그 시점으로 되돌릴 수 있습니다. 코드는 버전마다 GitHub 태그(v0.14 ~)와 Netlify 배포본으로 보관되어 언제든 이전 버전으로 롤백할 수 있습니다.</div></div></div>
+  return `<section class="panel" style="max-width:980px;margin-bottom:14px"><div class="panel-h"><div><h2>데이터 백업 · 롤백</h2><div class="sub">큰 업데이트를 배포하기 전에 백업 파일을 받아 두면, 데이터가 잘못 바뀌었을 때 그 시점으로 되돌릴 수 있습니다. 코드는 버전마다 GitHub 보관 브랜치(release/v0.12 ~)와 Netlify 배포본으로 보관되어 언제든 이전 버전으로 롤백할 수 있습니다.</div></div></div>
    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><button class="btn primary" data-act="backup" data-img="1" ${A.bkBusy?'disabled':''}>${A.bkBusy?`백업 중… (${esc(A.bkBusy)})`:'데이터 백업 받기'}</button><button class="btn" data-act="backup" data-img="0" ${A.bkBusy?'disabled':''}>이미지 빼고 받기 (가볍게)</button>
     <span class="small muted">${L?`이 브라우저의 마지막 백업: ${esc(new Date(L.at).toLocaleString('ko-KR'))} · ${esc(L.version||'')} · 문서 ${Number(L.docs||0).toLocaleString()}개 · ${L.mb}MB${L.img?'':' (이미지 제외)'}`:'이 브라우저에서 받은 백업이 아직 없습니다.'}</span></div>
    <p class="small muted" style="margin:8px 0 0">파일에는 캠페인·인플루언서 풀·리포트·제안서·권한·연동 설정(API 키 포함)이 모두 들어 있으니 팀 공용 드라이브 등 안전한 곳에 보관해 주세요. 되돌릴 때는 파일을 Claude에게 주고 「이 백업으로 복원해줘」라고 하면 됩니다.</p></section>`}
