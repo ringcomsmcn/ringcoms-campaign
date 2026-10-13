@@ -548,6 +548,13 @@ body.pm .rp .tbl{font-size:calc(10px*var(--pk,1));width:100%} body.pm .rp .tbl t
 /* 0.14: LNB 3단 메뉴 · 풀 크게 보기 · 상단 계정 선택 · 도구 화면 */
 .lnb .lt{font-size:12px;letter-spacing:.02em;color:var(--ink2);font-weight:700;padding:4px 10px 6px}
 .lnb .lg+.lg{padding-top:12px;border-top:1px solid var(--line)}
+/* 0.19: 대메뉴 접기·펼치기 */
+.lnb button.lt-tg{min-height:28px;padding:4px 10px 6px;font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--ink2);gap:6px;border-radius:6px}
+.lnb button.lt-tg:hover{background:var(--surface2);color:var(--ink)}
+.lnb button.lt-tg i{margin-left:auto;font-style:normal;font-size:13px;line-height:1;color:var(--muted);transition:transform .15s}
+.lnb button.lt-tg em{margin-left:6px}
+.lnb button.lt-tg.fold i{transform:rotate(-90deg)}
+.lnb .lg.folded{gap:2px}
 .pool-wrap{max-height:calc(100vh - 290px);resize:vertical}
 .pool-wrap.big{position:fixed;inset:60px 16px 16px;z-index:61;max-height:none;box-shadow:var(--shadow);resize:none}
 .pbig-bg{position:fixed;inset:0;background:rgba(10,12,18,.42);z-index:60}
@@ -1060,7 +1067,7 @@ function buildReport(c,rows,admin,groupLabel,mode){
 }
 
 /* ============ 앱 상태 ============ */
-const A={lnbMini:(()=>{try{return localStorage.getItem('lnb_mini')==='1'}catch(e){return false}})(),logo:null,modal:null,thumbs:{},shareThumbs:{},unsubThumbs:null,role:null,ltab:'camps',csel:new Set(),listRows:{},listLoading:new Set(),gstatF:'',editName:null,lang:'ko',rlang:'ko',plang:'ko',shareFee:'',user:null,admin:false,campaigns:{},admins:{},rowsDoc:null,view:'list',cid:null,tab:'overview',gf:'',pf:{},q:'',statusF:'',hide:new Set(),sel:new Set(),stageF:'',rq:'',drawer:null,confirm:null,topMetric:null,unsubRows:null,shareView:null,err:null,pool:{},pq:'',pch:'',ptier:'',pcat:'',psort:{k:'last',dir:-1},psel:new Set()};
+const A={lnbMini:(()=>{try{return localStorage.getItem('lnb_mini')==='1'}catch(e){return false}})(),lnbFold:(()=>{try{return new Set(JSON.parse(localStorage.getItem('lnb_fold')||'[]'))}catch(e){return new Set()}})(),logo:null,modal:null,thumbs:{},shareThumbs:{},unsubThumbs:null,role:null,ltab:'camps',csel:new Set(),listRows:{},listLoading:new Set(),gstatF:'',editName:null,lang:'ko',rlang:'ko',plang:'ko',shareFee:'',user:null,admin:false,campaigns:{},admins:{},rowsDoc:null,view:'list',cid:null,tab:'overview',gf:'',pf:{},q:'',statusF:'',hide:new Set(),sel:new Set(),stageF:'',rq:'',drawer:null,confirm:null,topMetric:null,unsubRows:null,shareView:null,err:null,pool:{},pq:'',pch:'',ptier:'',pcat:'',psort:{k:'last',dir:-1},psel:new Set()};
 const SYNC={};
 function curC(){return A.view==='create'?A.draft:A.campaigns[A.cid]}
 function setPath(o,path,v){const ks=path.split('.');let t=o;for(let i=0;i<ks.length-1;i++){if(!isObj(t[ks[i]]))t[ks[i]]={};t=t[ks[i]]}const k=ks[ks.length-1];if(v===DB.DEL||v===undefined)delete t[k];else t[k]=clone(v)}
@@ -1248,7 +1255,10 @@ function shell(){
   const ck=A.view==='campaign'||A.view==='create'?kindOf(curC()):'';const curV=ck?kindView(ck):A.view==='cvc'?'cv':A.view;
   const navs=navItems();const onOf=it=>it.tt?(curV==='team'&&(A.teamTab||'members')===it.tt):curV===it.v;const cnt=k=>Object.values(A.campaigns).filter(c=>kindOf(c)===k&&inAcctScope(c)).length;
   const nb=it=>`<button class="${onOf(it)?'on':''}" data-act="nav" data-v="${it.v}"${it.tt?` data-tt="${it.tt}"`:''} title="${esc(it.l)}">${IC[it.ic||it.v]||IC.list}<span>${it.l}</span>${it.badge?`<em class="nw">${it.badge}</em>`:it.kind?`<em>${cnt(it.kind)}</em>`:''}</button>`;
-  const lnb=`<aside class="lnb noprint ${A.lnbMini?'mini':''}" aria-label="메뉴">${navs.map(g=>`<div class="lg">${g.t?`<div class="lt">${g.t}</div>`:''}${g.items.map(nb).join('')}</div>`).join('')}<span class="grow"></span><button class="lnb-tg" data-act="lnbMini" title="${A.lnbMini?'메뉴 펼치기':'메뉴 접기'}">${A.lnbMini?'›':'‹'}<span>${A.lnbMini?'':'메뉴 접기'}</span></button></aside>`;
+  const lgHtml=g=>{const fold=!A.lnbMini&&g.t&&A.lnbFold.has(g.t);const items=fold?g.items.filter(onOf):g.items;
+    const head=g.t?(A.lnbMini?`<div class="lt">${g.t}</div>`:`<button class="lt lt-tg${fold?' fold':''}" data-act="lnbFold" data-g="${esc(g.t)}" aria-expanded="${fold?'false':'true'}" title="${fold?'펼치기':'접기'}"><span>${g.t}</span>${fold?`<em>${g.items.length}</em>`:''}<i aria-hidden="true">⌄</i></button>`):'';
+    return `<div class="lg${fold?' folded':''}">${head}${items.map(nb).join('')}</div>`};
+  const lnb=`<aside class="lnb noprint ${A.lnbMini?'mini':''}" aria-label="메뉴">${navs.map(lgHtml).join('')}<span class="grow"></span><button class="lnb-tg" data-act="lnbMini" title="${A.lnbMini?'메뉴 펼치기':'메뉴 접기'}">${A.lnbMini?'›':'‹'}<span>${A.lnbMini?'':'메뉴 접기'}</span></button></aside>`;
   const flat=navs.flatMap(g=>g.items);const mainM=flat.filter(x=>x.m).slice(0,5);const moreM=flat.filter(x=>!mainM.includes(x));
   const mb=it=>`<button class="${onOf(it)?'on':''}" data-act="nav" data-v="${it.v}"${it.tt?` data-tt="${it.tt}"`:''}>${IC[it.ic||it.v]||IC.list}<span>${it.ms||it.l}</span>${it.badge?`<i class="dot"></i>`:''}</button>`;
   const moreOn=moreM.some(onOf);
@@ -2686,6 +2696,7 @@ const ACT={
   demoReset(){if(A.confirm!=='reset'){A.confirm='reset';toast('한 번 더 누르면 데모 데이터를 처음 상태로 되돌립니다.');return}A.confirm=null;DB.reset();toast('데모 데이터를 초기화했습니다.');A.view='list';render()},
   nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(a.dataset.tt)A.teamTab=a.dataset.tt;if(v==='guides')A.gid='';if(v==='proposals')A.pid='';if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
   back(a){ACT.nav(a)},
+  lnbFold(el){const g=el.dataset.g;if(!g)return;A.lnbFold.has(g)?A.lnbFold.delete(g):A.lnbFold.add(g);try{localStorage.setItem('lnb_fold',JSON.stringify([...A.lnbFold]))}catch(e){}render()},
   lnbMini(){A.lnbMini=!A.lnbMini;try{localStorage.setItem('lnb_mini',A.lnbMini?'1':'')}catch(e){}render()},
   moreToggle(){A.more=!A.more;render()},
   logoView(){A.modal={type:'logo'};render()},
