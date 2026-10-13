@@ -33,7 +33,7 @@
 | 이름 | 필수 | 설명 |
 |---|---|---|
 | `META_IG_TOKEN` | 권장 | Meta 시스템 사용자 토큰(만료 없음) — 인스타그램 Business Discovery 조회 (무료) |
-| `META_IG_USER_ID` | 권장 | 링컴즈 인스타그램 비즈니스 계정 ID (숫자) |
+| `META_IG_USER_ID` | 아니오 | 비우면 토큰에 연결된 페이지의 인스타그램 비즈니스 계정을 자동으로 찾음 (계정 지정 시에만) |
 | `META_GRAPH_VERSION` | 아니오 | 기본 `v24.0` |
 | `APIFY_TOKEN` | 예 | Apify API 토큰 (섭외 후보 탐색, Meta API로 못 가져온 인스타그램·틱톡 보조 수집) |
 | `APIFY_IG_ACTOR` | 아니오 | 기본 `apify~instagram-scraper` |

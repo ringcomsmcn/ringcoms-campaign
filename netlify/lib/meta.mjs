@@ -3,14 +3,15 @@
 //   - 프로필: 팔로워·게시물 수·소개글·프로필 사진
 //   - 게시물: 조회·좋아요·댓글·게시일·릴스/피드 구분·썸네일·영상 주소
 // 개인 계정·비공개 계정·연령 제한 계정은 조회되지 않아 → 호출한 쪽에서 Apify로 대체합니다.
-// 환경변수: META_IG_TOKEN (시스템 사용자 토큰 권장 — 만료 없음), META_IG_USER_ID (링컴즈 인스타그램 비즈니스 계정 ID),
+// 환경변수: META_IG_TOKEN (시스템 사용자 토큰 권장 — 만료 없음),
+//           META_IG_USER_ID (선택 — 비우면 토큰에 연결된 페이지의 인스타그램 비즈니스 계정을 자동으로 찾음),
 //           META_GRAPH_VERSION (선택, 기본 v24.0)
 // 이 파일은 netlify/functions 의 함수들이 import 하는 공용 모듈입니다 (단독 배포되지 않음).
 
 const VER = process.env.META_GRAPH_VERSION || 'v24.0';
 const TOKEN = () => process.env.META_IG_TOKEN || '';
 const IGID = () => process.env.META_IG_USER_ID || '';
-export const metaOn = () => !!(TOKEN() && IGID());
+export const metaOn = () => !!TOKEN();
 
 const MEDIA_FIELDS = 'id,permalink,media_type,media_product_type,media_url,thumbnail_url,timestamp,like_count,comments_count,view_count';
 const MAX_PAGES = 4;   // 계정당 최근 게시물 최대 4페이지(약 200개)까지 찾아봄
@@ -42,12 +43,25 @@ async function graph(path, params = {}) {
   if (!r.ok || d.error) throw classify(d.error, r.status);
   return d;
 }
-const bd = (user, inner) => graph(IGID(), { fields: `business_discovery.username(${user}){${inner}}` }).then(d => d.business_discovery || {});
+/* 조회에 쓸 링컴즈 인스타그램 계정 ID: 환경변수 → 없으면 토큰의 페이지에서 찾기 (함수 인스턴스 동안 기억) */
+let cachedId = null;
+async function igId() {
+  if (IGID()) return { id: IGID(), username: '' };
+  if (cachedId) return cachedId;
+  let d;
+  try { d = await graph('me/accounts', { fields: 'name,instagram_business_account{id,username}', limit: '100' }); }
+  catch (e) { throw new MetaError('TOKEN', '토큰으로 페이지 목록을 읽지 못했습니다: ' + e.message); }
+  const hit = (d.data || []).map(p => p.instagram_business_account).find(x => x && x.id);
+  if (!hit) throw new MetaError('TOKEN', '토큰에 연결된 인스타그램 비즈니스 계정을 찾지 못했습니다. 시스템 사용자에 페이스북 페이지·인스타그램 계정이 할당되어 있는지, 토큰 권한에 pages_show_list가 있는지 확인해 주세요.');
+  cachedId = { id: hit.id, username: hit.username || '' };
+  return cachedId;
+}
+const bd = async (user, inner) => graph((await igId()).id, { fields: `business_discovery.username(${user}){${inner}}` }).then(d => d.business_discovery || {});
 
 /* 연결 확인 (연결 현황 화면용) */
 export async function metaStatus() {
   if (!metaOn()) return { configured: false };
-  try { const d = await graph(IGID(), { fields: 'username,name' }); return { configured: true, ok: true, account: d.username || '' }; }
+  try { const me = await igId(); const d = await graph(me.id, { fields: 'username,name' }); return { configured: true, ok: true, account: d.username || me.username || '', igId: me.id, auto: !IGID() }; }
   catch (e) { return { configured: true, ok: false, error: e.message, kind: e.kind }; }
 }
 

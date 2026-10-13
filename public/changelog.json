@@ -2,6 +2,14 @@
  "updatedAt": "2026-10-13",
  "versions": [
   {
+   "version": "v0.19.1",
+   "date": "2026-10-13",
+   "title": "Meta 연결 간소화",
+   "items": [
+    "Meta 인스타그램 API는 토큰(META_IG_TOKEN)만 넣으면 연결 — 링컴즈 인스타그램 계정 ID를 토큰으로 자동으로 찾음 (META_IG_USER_ID 입력 불필요)"
+   ]
+  },
+  {
    "version": "v0.19",
    "date": "2026-10-13",
    "title": "인스타그램 수집 Meta 공식 API 전환 · 메뉴 접기",
