@@ -32,7 +32,10 @@
 ## 환경변수 (Netlify → Site configuration → Environment variables)
 | 이름 | 필수 | 설명 |
 |---|---|---|
-| `APIFY_TOKEN` | 예 | Apify API 토큰 (인스타그램 수집, 틱톡 보조 수집) |
+| `META_IG_TOKEN` | 권장 | Meta 시스템 사용자 토큰(만료 없음) — 인스타그램 Business Discovery 조회 (무료) |
+| `META_IG_USER_ID` | 권장 | 링컴즈 인스타그램 비즈니스 계정 ID (숫자) |
+| `META_GRAPH_VERSION` | 아니오 | 기본 `v24.0` |
+| `APIFY_TOKEN` | 예 | Apify API 토큰 (섭외 후보 탐색, Meta API로 못 가져온 인스타그램·틱톡 보조 수집) |
 | `APIFY_IG_ACTOR` | 아니오 | 기본 `apify~instagram-scraper` |
 | `APIFY_TT_ACTOR` | 아니오 | 기본 `clockworks~tiktok-scraper` |
 | `FIREBASE_PROJECT_ID` | 아니오 | 기본 `ringcoms-campaign` |
@@ -42,14 +45,15 @@
 
 ## 성과 불러오기 동작
 - 유튜브: 브라우저에서 YouTube Data API 직접 호출 (키는 팀원 관리 → 연동 설정)
+- 인스타그램: Meta 공식 API(Business Discovery)로 행의 계정에서 게시물을 찾음 → 개인 계정·계정명 없음·한도 초과 시 Apify
 - 틱톡: 서버 함수가 공개 페이지를 읽음 → 실패 시 Apify
-- 인스타그램: 서버 함수가 Apify 실행 → 30초~1분 뒤 결과 반영 (조회수·좋아요·댓글·썸네일)
+- 인스타그램: Meta API로 찾은 게시물은 바로 반영, 나머지만 Apify 실행 → 30초~1분 뒤 반영 (조회수·좋아요·댓글·썸네일)
 - 서버 함수는 로그인한 팀원(마스터·매니저)만 호출 가능 (Firestore 보안 규칙으로 확인)
 - 게시자 계정이 진행관리의 계정 ID와 다르면 반영하지 않고 결과 창에 표시
 
 ## 링크 자동 채우기
 - **채널 링크**(직접 입력·엑셀 업로드): 링크 모양으로 채널·계정 ID를 바로 채우고, 이어서 팔로워/구독자·카테고리를 불러옴. 진행관리의 「채널 정보 불러오기」로 다시 불러올 수 있음(선택한 행만 가능).
-  - 인스타그램: `/api/social-stats` `action: profile` → Apify `instagram-scraper`(resultsType: details)
+  - 인스타그램: `/api/social-stats` `action: profile` → Meta Business Discovery, 안 되면 Apify `instagram-scraper`(resultsType: details)
   - 틱톡: 공개 프로필 페이지를 바로 읽고, 실패하면 Apify `tiktok-scraper`(profiles)
   - 유튜브: 브라우저에서 YouTube Data API `channels`(구독자·주제) — YouTube 키 필요
   - 팔로워·계정 ID는 새 값으로 덮어쓰고, 카테고리·이름은 비어 있을 때만 채움(카테고리는 플랫폼 카테고리·주제·소개글 키워드로 추정)
@@ -118,7 +122,7 @@
 
 ## 영상 검수 (도구 → 영상 검수)
 - 기준 가이드·컨셉 선택 → 영상 링크 → 「검수 시작」 → 1~5분 뒤 결과 (점수·판정·수정 요청 표·장면 구성 비교·체크리스트·나레이션/자막 받아쓰기·인플루언서에게 보낼 메시지)
-- 지원 링크: 유튜브(공개), 구글 드라이브(「링크가 있는 모든 사용자」), 영상 파일 주소, 인스타그램·틱톡 게시물(Apify 사용) · 1GB 이하 (8MB씩 나눠 올려 서버 메모리를 거의 쓰지 않음)
+- 지원 링크: 유튜브(공개), 구글 드라이브(「링크가 있는 모든 사용자」), 영상 파일 주소, 인스타그램 게시물(작성자 계정명을 알면 Meta API, 아니면 Apify)·틱톡 게시물(Apify) · 1GB 이하 (8MB씩 나눠 올려 서버 메모리를 거의 쓰지 않음)
 - 업로드 전 초안은 구글 드라이브 링크로 받는 것을 권장. 캡션·해시태그는 영상만으로 확인할 수 없어 판정하지 않음
 - 주요 장면: 영상을 10구간으로 나눠 1장씩 캡처(ffmpeg-static, `review` 함수에만 포함) → `guideimg/rv_{id}.frames` · 유튜브는 자동 썸네일 4장
 - 데이터: `reviews/{id}` (진행 상태·결과 JSON)

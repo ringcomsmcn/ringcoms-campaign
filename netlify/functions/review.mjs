@@ -3,9 +3,10 @@
 //   status: 영상 받는 중 → 분석 중 → 완료 | 실패,  resultJson: 검수 결과(JSON 문자열)
 // 주요 장면: 영상을 10구간으로 나눠 1장씩 캡처(ffmpeg) → guideimg/rv_{id}.frames (유튜브는 유튜브 자동 썸네일 4장)
 // 영상 가져오기: 유튜브(공개) = Gemini가 직접 / 구글 드라이브(링크 공개)·영상 파일 주소 = 내려받아 Gemini Files API
-//               인스타그램·틱톡 = Apify로 영상 주소 확인 후 내려받기 (APIFY_TOKEN 필요)
+//               인스타그램 = 계정명을 알면 Meta 공식 API로 영상 주소 확인(무료), 안 되면 Apify / 틱톡 = Apify (APIFY_TOKEN 필요)
 // 환경변수: GEMINI_API_KEY (필수), APIFY_TOKEN (인스타·틱톡), APIFY_IG_ACTOR, APIFY_TT_ACTOR
 import { geminiBest, uploadFile, deleteFile, checkEditor, fsPatch } from '../lib/gemini.mjs';
+import { metaOn, metaPosts, handleOf } from '../lib/meta.mjs';
 import { createWriteStream, createReadStream, promises as fsp } from 'node:fs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -64,7 +65,7 @@ async function captureFrames(file, n = 10) {
   return out;
 }
 /* 링크 → Gemini에 넘길 영상 part (+ 지울 파일 이름, 장면 캡처) */
-async function videoPart(url, id) {
+async function videoPart(url, id, owner = '') {
   const yt = ytId(url);
   if (yt) return { part: { fileData: { fileUri: 'https://www.youtube.com/watch?v=' + yt, mimeType: 'video/*' } }, kind: '유튜브',
     frames: [['처음', 'hqdefault'], ['약 25%', '1'], ['약 50%', '2'], ['약 75%', '3']].map(([t, k]) => ({ t, src: `https://i.ytimg.com/vi/${yt}/${k}.jpg` })) };
@@ -73,8 +74,13 @@ async function videoPart(url, id) {
     const did = driveId(url); if (!did) throw new Error('구글 드라이브 파일 링크가 아닙니다. 파일의 「링크 복사」 주소를 넣어 주세요.');
     got = await download(`https://drive.usercontent.google.com/download?id=${did}&export=download&confirm=t`); kind = '구글 드라이브';
   } else if (/instagram\.com/.test(url)) {
-    const it = (await apifyItems(IG_ACTOR, { directUrls: [url], resultsType: 'posts', resultsLimit: 1, addParentData: false }))[0] || {};
-    const v = it.videoUrl || (Array.isArray(it.childPosts) && (it.childPosts.find(c => c.videoUrl) || {}).videoUrl);
+    const code = (String(url).match(/instagram\.com\/(?:[^/]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i) || [])[1];
+    const pathUser = (String(url).match(/instagram\.com\/([A-Za-z0-9._]+)\/(?:p|reel|reels|tv)\//i) || [])[1];
+    const who = handleOf(owner) || handleOf(pathUser);
+    let mv = null;
+    if (metaOn() && who && code) { try { mv = ((await metaPosts(who, [code]))[code] || {}).videoUrl || null; } catch (e) { console.error('meta video', e.message); } }
+    const it = mv ? {} : (await apifyItems(IG_ACTOR, { directUrls: [url], resultsType: 'posts', resultsLimit: 1, addParentData: false }))[0] || {};
+    const v = mv || it.videoUrl || (Array.isArray(it.childPosts) && (it.childPosts.find(c => c.videoUrl) || {}).videoUrl);
     if (!v) throw new Error('인스타그램 게시물에서 영상을 찾지 못했습니다 (비공개이거나 사진 게시물).');
     got = await download(v); kind = '인스타그램';
   } else if (/tiktok\.com/.test(url)) {
@@ -168,7 +174,7 @@ export default async (req) => {
     const url = String(body.url || '');
     if (!/^https?:\/\//i.test(url)) throw new Error('영상 링크가 올바르지 않습니다.');
     await save({ status: '영상 받는 중' });
-    const v = await videoPart(url, id); file = v.file || '';
+    const v = await videoPart(url, id, String(body.acct || body.infl || '')); file = v.file || '';
     if ((v.frames || []).length) await fsPatch(who.tok, 'guideimg/rv_' + id, { frames: JSON.stringify(v.frames), updatedAt: new Date().toISOString() }).catch(e => console.error('frames save', e.message));
     await save({ status: '분석 중', source: v.kind, frameN: String((v.frames || []).length) });
     const ci = body.concept == null || body.concept === '' ? null : +body.concept;

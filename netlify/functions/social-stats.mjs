@@ -1,11 +1,14 @@
 // RINGCOMS 캠페인 관리 · 인스타그램/틱톡 성과 수집 서버 함수
 // POST /api/social-stats
-//   { action: 'start', urls: [...] }  → 틱톡은 바로 수집, 인스타그램(및 틱톡 실패분)은 Apify 실행 시작
+//   { action: 'start', urls: [...], owners: { url: 계정명 } }
+//        → 인스타그램은 Meta 공식 API(Business Discovery)로 먼저 수집, 못 찾은 것만 Apify / 틱톡은 바로 수집, 실패분만 Apify
 //   { action: 'poll',  jobs: [...] }  → Apify 실행이 끝났으면 결과 반환
-//   { action: 'profile', urls: [...] } → 채널(프로필) 링크로 계정·팔로워·카테고리·소개글 (틱톡은 바로, 인스타그램은 Apify)
+//   { action: 'profile', urls: [...] } → 채널(프로필) 링크로 계정·팔로워·카테고리·소개글 (틱톡은 바로, 인스타그램은 Meta 공식 API → 안 되면 Apify)
 //   { action: 'thumb', url }            → 게시물 썸네일 이미지를 서버에서 받아 data URL로 반환 (인스타그램 CDN은 브라우저에서 직접 못 받음)
 // 성과 결과에는 게시일(posted, ISO)도 들어감 → 사이트가 업로드일로 사용
 // 호출 권한: Firebase에 로그인한 링컴즈 팀원(마스터·매니저)과 광고주 계정 관리자만. Apify 토큰은 Netlify 환경변수 APIFY_TOKEN에만 보관.
+
+import { metaOn, metaStatus, metaProfile, metaPosts, handleOf } from '../lib/meta.mjs';
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'ringcoms-campaign';
 const APIFY = 'https://api.apify.com/v2';
@@ -127,6 +130,42 @@ async function fetchThumb(u) {
     return { data: `data:${type};base64,${buf.toString('base64')}` };
   } catch (e) { return { error: '이미지를 받지 못했습니다.' }; }
 }
+/* 동시에 n개씩 실행 */
+async function pool(items, n, fn) { const q = [...items]; await Promise.all(Array.from({ length: Math.min(n, q.length) }, async () => { while (q.length) await fn(q.shift()); })); }
+
+/* 인스타그램 게시물: Meta 공식 API로 먼저 → { results, rest(Apify로 넘길 주소), warn } */
+async function igPostsViaMeta(urls, owners) {
+  const results = {}, warn = []; if (!metaOn() || !urls.length) return { results, rest: urls, warn };
+  const byOwner = {}; const rest = [];
+  urls.forEach(u => { const o = handleOf(owners[u]) || handleOf(igUser(u)); if (o) (byOwner[o] = byOwner[o] || []).push(u); else rest.push(u); });
+  let stop = null;
+  await pool(Object.entries(byOwner), 4, async ([owner, list]) => {
+    if (stop) { rest.push(...list); return; }
+    try {
+      const found = await metaPosts(owner, list.map(igCode));
+      list.forEach(u => { const r = found[igCode(u)]; if (r) results[u] = { ...r, via: 'meta' }; else rest.push(u); });
+    } catch (e) {
+      rest.push(...list);
+      if (e.kind === 'TOKEN' || e.kind === 'RATE') { stop = stop || e.message; }
+      else if (e.kind !== 'NOT_FOUND') warn.push(e.message);
+    }
+  });
+  if (stop) warn.push(stop);
+  return { results, rest: [...new Set(rest)], warn };
+}
+/* 인스타그램 프로필: Meta 공식 API로 먼저 */
+async function igProfilesViaMeta(urls) {
+  const results = {}, warn = []; if (!metaOn() || !urls.length) return { results, rest: urls, warn };
+  const rest = []; let stop = null;
+  await pool(urls, 4, async u => {
+    if (stop) { rest.push(u); return; }
+    try { results[u] = { ...(await metaProfile(igUser(u))), via: 'meta' }; }
+    catch (e) { rest.push(u); if (e.kind === 'TOKEN' || e.kind === 'RATE') stop = stop || e.message; else if (e.kind !== 'NOT_FOUND') warn.push(e.message); }
+  });
+  if (stop) warn.push(stop);
+  return { results, rest, warn };
+}
+
 const keyOf = (u, platform) => platform === 'igp' ? 'igp:' + String(igUser(u) || '').toLowerCase() : platform === 'ttp' ? 'ttp:' + String(ttUser(u) || '').toLowerCase() : platformOf(u) === 'ig' ? 'ig:' + igCode(u) : 'tt:' + ttId(u);
 const MAPPERS = { ig: mapIg, tt: mapTt, igp: mapIgProfile, ttp: mapTtProfile };
 const apifyErr = e => e.message === 'NO_TOKEN' ? 'Apify 토큰이 설정되지 않았습니다 (Netlify 환경변수 APIFY_TOKEN).' : /limit|credit|usage|payment/i.test(e.message) ? 'Apify 이번 달 무료 사용량을 다 썼습니다. 다음 달에 초기화됩니다.' : 'Apify 실행을 시작하지 못했습니다: ' + e.message;
@@ -149,6 +188,9 @@ export default async (req) => {
       if (d) results[u] = { ...d, via: 'direct' }; else ttFail.push(u);
     }));
     const jobs = []; const warnings = [];
+    const owners = body.owners && typeof body.owners === 'object' ? body.owners : {};
+    const mp = await igPostsViaMeta(ig, owners); Object.assign(results, mp.results); mp.warn.forEach(w => warnings.push(w));
+    ig.length = 0; ig.push(...mp.rest);
     try {
       if (ig.length) jobs.push({ platform: 'ig', urls: ig, ...(await startRun(IG_ACTOR, { directUrls: ig, resultsType: 'posts', resultsLimit: 1, addParentData: false })) });
       if (ttFail.length) jobs.push({ platform: 'tt', urls: ttFail, ...(await startRun(TT_ACTOR, { postURLs: ttFail, resultsPerPage: 1, shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadSubtitles: false })) });
@@ -170,6 +212,8 @@ export default async (req) => {
       results[u] = { error: '인스타그램·틱톡 채널 주소 형식이 아닙니다.' };
     }));
     const jobs = []; const warnings = [];
+    const mp = await igProfilesViaMeta(ig); Object.assign(results, mp.results); mp.warn.forEach(w => warnings.push(w));
+    ig.length = 0; ig.push(...mp.rest);
     try {
       if (ig.length) jobs.push({ platform: 'igp', urls: ig, ...(await startRun(IG_ACTOR, { directUrls: [...new Set(ig.map(u => 'https://www.instagram.com/' + igUser(u) + '/'))], resultsType: 'details', resultsLimit: 1, addParentData: false })) });
       if (ttFail.length) jobs.push({ platform: 'ttp', urls: ttFail, ...(await startRun(TT_ACTOR, { profiles: [...new Set(ttFail.map(ttUser))], resultsPerPage: 1, shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadSubtitles: false })) });
@@ -195,7 +239,7 @@ export default async (req) => {
         if (lim.maxMonthlyUsageUsd != null) apify.usage = { used: +(cur.monthlyUsageUsd || 0), limit: +lim.maxMonthlyUsageUsd, resetAt: cyc.endAt || null };
       } catch (e) { apify.ok = !/401|403|token|auth/i.test(e.message); apify.error = e.message; }
     }
-    return json({ apify });
+    return json({ apify, meta: await metaStatus() });
   }
 
   if (body.action === 'poll') {

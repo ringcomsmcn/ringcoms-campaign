@@ -1887,13 +1887,14 @@ async function ytUpdate(cid,rows){let key=((A.settings||{}).ytKey||'').trim();if
   const up={};let ok=0;const miss=[];const now=new Date().toISOString();
   rows.forEach(r=>{const s=stat[ytId(r.clink)];if(!s){miss.push(r.name);return}const b=`rows.${r.id}.`;if(s.viewCount!=null)up[b+'views']=+s.viewCount;if(s.likeCount!=null)up[b+'likes']=+s.likeCount;if(s.commentCount!=null)up[b+'cmts']=+s.commentCount;if(s._pub){const ud=kstDate(s._pub);if(ud&&ud!==r.up)up[b+'up']=ud}up[b+'upd']=today();up[b+'ytAt']=now;ok++});
   if(Object.keys(up).length)await DB.update('rows/'+cid,up);scheduleSync(cid);return {ok,miss}}
-/* 인스타그램·틱톡: 서버 함수(/api/social-stats) → Apify·틱톡 페이지 */
+/* 인스타그램·틱톡: 서버 함수(/api/social-stats) → 인스타그램은 Meta 공식 API 우선(안 되면 Apify), 틱톡은 공개 페이지(안 되면 Apify) */
 async function socialUpdate(cid,rows,prog){const list=socialRows(rows);if(!list.length)return null;
   let tok='';try{tok=await DB.idToken()}catch(e){}
   const call=async body=>{const r=await fetch('/api/social-stats',{method:'POST',headers:{'content-type':'application/json',...(tok?{authorization:'Bearer '+tok}:{})},body:JSON.stringify(body)});
     if(r.status===404)throw new Error('NOFN');const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('서버 오류 '+r.status));return j};
   const urls=[...new Set(list.map(r=>r.clink))];const res={};const warn=[];const addW=w=>{if(w&&!warn.includes(w))warn.push(w)};
-  const st=await call({action:'start',urls});Object.assign(res,st.results||{});(st.warnings||[]).forEach(addW);let jobs=st.jobs||[];const t0=Date.now();
+  const owners={};list.forEach(r=>{const a=String(r.acct||'').trim().replace(/^@/,'');if(a&&/instagram\.com/.test(r.clink))owners[r.clink]=a});
+  const st=await call({action:'start',urls,owners});Object.assign(res,st.results||{});(st.warnings||[]).forEach(addW);let jobs=st.jobs||[];const t0=Date.now();
   while(jobs.length&&Date.now()-t0<180000){prog&&prog(Math.round((Date.now()-t0)/1000));await new Promise(r=>setTimeout(r,4000));
     try{const p=await call({action:'poll',jobs});Object.assign(res,p.results||{});(p.warnings||[]).forEach(addW)}catch(e){addW(e.message)}
     jobs=jobs.filter(j=>!(j.urls||[]).every(u=>res[u]))}
@@ -1952,20 +1953,30 @@ async function loadIntStatus(){if(A.intBusy||!canEdit())return;A.intBusy=true;sc
   finally{A.intBusy=false;scheduleRender()}}
 function connectionPanel(){const st=A.intStatus;const on=!!(((A.settings||{}).ytKey||'').trim());
   if(!st&&!A.intBusy&&canEdit()&&DB.mode!=='demo')setTimeout(loadIntStatus,0);
-  const ap=st&&!st.error?st.apify||{}:null;
+  const ap=st&&!st.error?st.apify||{}:null;const mt=st&&!st.error?st.meta||{}:null;
+  const mtPill=!canEdit()?'<span class="pill">확인 권한 없음</span>':A.intBusy?'<span class="pill">확인 중…</span>':st&&st.error?'<span class="pill crit">확인 실패</span>':mt?(mt.configured?(mt.ok?'<span class="pill ok">연결됨</span>':'<span class="pill warn">토큰 오류</span>'):'<span class="pill warn">미연결</span>'):'<span class="pill">–</span>';
+  const mtNote=mt&&mt.configured?(mt.ok?`<div class="small" style="margin-top:6px">조회 계정 <b>@${esc(mt.account||'')}</b></div>`:`<div class="small" style="margin-top:6px;color:var(--crit,#d33)">${esc(mt.error||'')}</div>`):'';
   const apPill=!canEdit()?'<span class="pill">확인 권한 없음</span>':A.intBusy?'<span class="pill">확인 중…</span>':st&&st.error?'<span class="pill crit">확인 실패</span>':ap?(ap.token?(ap.ok===false?'<span class="pill warn">토큰 오류</span>':'<span class="pill ok">연결됨</span>'):'<span class="pill warn">미연결</span>'):'<span class="pill">–</span>';
   let apUse='';if(ap&&ap.usage&&ap.usage.limit){const u=ap.usage,p=Math.min(100,Math.round(u.used/u.limit*100));apUse=`<div class="small" style="margin-top:6px">이번 달 사용량 <b>$${(+u.used).toFixed(2)}</b> / $${(+u.limit).toFixed(2)} (${p}%)${u.resetAt?` · ${md(String(u.resetAt).slice(0,10))} 초기화`:''}</div><div style="height:6px;background:var(--line);border-radius:3px;margin-top:4px;max-width:360px"><div style="height:6px;width:${p}%;background:${p>=80?'var(--crit,#d33)':'var(--accent,#2a6)'};border-radius:3px"></div></div>`}
   const row=(name,pill,what,how)=>`<tr><td class="bold" style="white-space:nowrap">${name}</td><td>${pill}</td><td>${what}</td><td class="small muted">${how}</td></tr>`;
   return `<section class="panel"><div class="panel-h"><div><h2>연결 현황</h2><div class="sub">이 사이트가 사용하는 외부 서비스입니다. 변경은 마스터만 할 수 있습니다.</div></div>${canEdit()&&DB.mode!=='demo'?`<button class="btn sm" data-act="intCheck">${A.intBusy?'확인 중…':'상태 다시 확인'}</button>`:''}</div>
    <div class="tblwrap"><table class="tbl"><thead><tr><th>서비스</th><th>상태</th><th>하는 일</th><th>관리 위치</th></tr></thead><tbody>
    ${row('YouTube Data API',`<span class="pill ${on?'ok':'warn'}">${on?'연결됨':'미연결'}</span>`,'유튜브 조회수·좋아요·댓글 수 (「성과 불러오기」), 유튜브 채널 구독자·카테고리 (「채널 정보 불러오기」)','아래 YouTube 연결 · Google Cloud 콘솔')}
-   ${row('Apify',apPill,'인스타그램 조회수·좋아요·댓글·썸네일, 인스타그램 채널 팔로워·카테고리, 틱톡 수집 실패분 재시도'+apUse,'Netlify 환경변수 <code>APIFY_TOKEN</code> (보안상 사이트에서 입력하지 않음)')}
+   ${row('Meta 인스타그램 API',mtPill,'인스타그램 조회수·좋아요·댓글·썸네일, 인스타그램 채널 팔로워·소개글, 영상 검수용 영상 (무료 · 프로페셔널 계정만)'+mtNote,'Netlify 환경변수 <code>META_IG_TOKEN</code>, <code>META_IG_USER_ID</code> · 아래 연결 방법')}
+   ${row('Apify',apPill,'섭외 후보 탐색(인스타그램·틱톡 키워드 검색), Meta API로 못 가져온 인스타그램(개인 계정 등)·틱톡 수집 실패분 대체'+apUse,'Netlify 환경변수 <code>APIFY_TOKEN</code> (보안상 사이트에서 입력하지 않음)')}
    ${row('모두싸인','<span class="pill accent">링크 연결</span>','진행관리의 「계약하기」로 모두싸인을 열고, 계약 진행 상태·계약서 링크를 기록 (서명 완료 자동 반영은 API 연동 시)','모두싸인 팀 계정 · API는 미연결')}
    ${row('틱톡 공개 페이지','<span class="pill ok">키 불필요</span>','틱톡 조회수·좋아요·댓글·공유·저장 수를 직접 읽음','설정 없음')}
    ${row('Firebase',`<span class="pill ok">연결됨</span>`,'Google 로그인, 캠페인·진행관리·인플루언서 풀 데이터 저장, 권한 규칙','Firebase 콘솔 (ringcoms-campaign)')}
    ${row('Netlify',`<span class="pill ok">연결됨</span>`,`사이트 호스팅(${esc(location.host)}), 성과 수집 서버 함수, GitHub 자동 배포`,'Netlify 사이트 설정')}
    </tbody></table></div>
-   ${st&&st.error?`<p class="small" style="margin:8px 0 0;color:var(--crit,#d33)">${esc(st.error)}</p>`:''}${st&&st.at?`<p class="small muted" style="margin:8px 0 0">마지막 확인 ${fmtDT(st.at)}</p>`:''}</section>`}
+   ${st&&st.error?`<p class="small" style="margin:8px 0 0;color:var(--crit,#d33)">${esc(st.error)}</p>`:''}${st&&st.at?`<p class="small muted" style="margin:8px 0 0">마지막 확인 ${fmtDT(st.at)}</p>`:''}
+   ${canEdit()?`<details style="margin-top:10px"><summary class="small bold" style="cursor:pointer">Meta 인스타그램 API 연결 방법 (무료, 약 15분)</summary><ol class="steps small" style="margin-top:8px">
+    <li>링컴즈 인스타그램 계정을 <b>프로페셔널 계정(비즈니스)</b>으로 두고, 인스타그램 설정 → 계정 센터에서 <b>링컴즈 페이스북 페이지</b>와 연결합니다.</li>
+    <li><a href="https://developers.facebook.com/apps/creation/" target="_blank" rel="noopener">Meta for Developers</a>에서 앱을 만들고(유형: 비즈니스), <b>Instagram</b> 제품(Facebook 로그인 방식)을 추가합니다. 개발 모드 그대로 두면 됩니다.</li>
+    <li><a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noopener">비즈니스 설정 → 시스템 사용자</a>에서 관리자 시스템 사용자를 만들고, 앱과 페이스북 페이지·인스타그램 계정을 자산으로 할당합니다.</li>
+    <li>「새 토큰 생성」에서 앱을 고르고 만료 <b>없음</b>, 권한 <code>instagram_basic</code>, <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>business_management</code>를 체크해 토큰을 만듭니다.</li>
+    <li><a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener">그래프 API 탐색기</a>에서 그 토큰으로 <code>me/accounts?fields=instagram_business_account</code>를 조회해 인스타그램 계정 ID(숫자)를 확인합니다.</li>
+    <li>Netlify 사이트 설정 → 환경변수에 <code>META_IG_TOKEN</code>(토큰), <code>META_IG_USER_ID</code>(계정 ID)를 넣고 다시 배포한 뒤 위 「상태 다시 확인」을 누릅니다.</li></ol></details>`:''}</section>`}
 function trialSettings(c,fld){const tr=c.trial||{};const tc=trialCalc(c,summaryOf(c,curRows()).n);
   return `<section class="panel"><div class="panel-h"><div><h2>체험단 제품·모집 정보</h2><div class="sub">무상으로 제공하는 제품 정보와 모집 결과입니다. 광고주 리포트의 「체험단 모집 성과」와 체험단 목록의 카테고리별 신청 분석에 쓰입니다.</div></div></div>
    <div class="fgrid">${fld('trial.product','제공 제품명',tr.product)}${fld('trial.cat','제품 카테고리',tr.cat,null,'카테고리별 신청 경쟁률 분석 기준',TRIAL_CATS)}${fld('trial.price','제품 판매단가 (원)',tr.price,'num','소비자 판매가 기준')}${fld('trial.qty','1인당 제공 수량',has(tr.qty)?tr.qty:1,'num')}

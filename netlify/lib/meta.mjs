@@ -1,0 +1,88 @@
+// RINGCOMS 캠페인 관리 · Meta 인스타그램 공식 API (Business Discovery)
+// 링컴즈 인스타그램 프로페셔널 계정으로 다른 비즈니스·크리에이터 계정의 공개 데이터를 조회합니다 (무료).
+//   - 프로필: 팔로워·게시물 수·소개글·프로필 사진
+//   - 게시물: 조회·좋아요·댓글·게시일·릴스/피드 구분·썸네일·영상 주소
+// 개인 계정·비공개 계정·연령 제한 계정은 조회되지 않아 → 호출한 쪽에서 Apify로 대체합니다.
+// 환경변수: META_IG_TOKEN (시스템 사용자 토큰 권장 — 만료 없음), META_IG_USER_ID (링컴즈 인스타그램 비즈니스 계정 ID),
+//           META_GRAPH_VERSION (선택, 기본 v24.0)
+// 이 파일은 netlify/functions 의 함수들이 import 하는 공용 모듈입니다 (단독 배포되지 않음).
+
+const VER = process.env.META_GRAPH_VERSION || 'v24.0';
+const TOKEN = () => process.env.META_IG_TOKEN || '';
+const IGID = () => process.env.META_IG_USER_ID || '';
+export const metaOn = () => !!(TOKEN() && IGID());
+
+const MEDIA_FIELDS = 'id,permalink,media_type,media_product_type,media_url,thumbnail_url,timestamp,like_count,comments_count,view_count';
+const MAX_PAGES = 4;   // 계정당 최근 게시물 최대 4페이지(약 200개)까지 찾아봄
+const PAGE = 50;
+
+const num = v => (v == null || v === '' || !isFinite(+v) || +v < 0) ? null : Math.round(+v);
+export const codeOfPermalink = u => (String(u || '').match(/instagram\.com\/(?:[^/]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i) || [])[1] || null;
+export const handleOf = s => { const m = String(s || '').trim().replace(/^@/, '').match(/^[A-Za-z0-9._]{1,30}$/); return m ? m[0].toLowerCase() : null; };
+
+/* 오류 종류: TOKEN(토큰 문제 → 전체 중단), RATE(호출 한도 → 이번엔 Apify로), NOT_FOUND(개인·비공개 계정 → 그 계정만 Apify로) */
+export class MetaError extends Error { constructor(kind, msg) { super(msg); this.kind = kind; } }
+function classify(err, status) {
+  const e = err || {}; const code = +e.code, sub = +e.error_subcode; const msg = String(e.message || ('HTTP ' + status));
+  if (code === 190 || code === 102 || code === 10 || code === 200 || (code >= 200 && code < 300)) return new MetaError('TOKEN', 'Meta 토큰·권한 오류: ' + msg);
+  if ([4, 17, 32, 613, 80002].includes(code)) return new MetaError('RATE', 'Meta 호출 한도에 걸렸습니다. 이번에는 Apify로 대신 수집합니다.');
+  if (code === 100 && /nonexist(ing|ent) field|Unknown field|Syntax error/i.test(msg)) return new MetaError('OTHER', 'Meta 요청 형식 오류: ' + msg.slice(0, 160));
+  if (code === 110 || code === 100 || sub === 2207013) return new MetaError('NOT_FOUND', '프로페셔널(비즈니스·크리에이터) 계정이 아니거나 찾을 수 없는 계정입니다.');
+  return new MetaError('OTHER', 'Meta 응답 오류: ' + msg.slice(0, 160));
+}
+
+async function graph(path, params = {}) {
+  const q = new URLSearchParams({ ...params, access_token: TOKEN() });
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 15000);
+  let r;
+  try { r = await fetch(`https://graph.facebook.com/${VER}/${path}?${q}`, { signal: ctl.signal }); }
+  catch (e) { throw new MetaError('OTHER', 'Meta 서버에 연결하지 못했습니다.'); }
+  finally { clearTimeout(t); }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.error) throw classify(d.error, r.status);
+  return d;
+}
+const bd = (user, inner) => graph(IGID(), { fields: `business_discovery.username(${user}){${inner}}` }).then(d => d.business_discovery || {});
+
+/* 연결 확인 (연결 현황 화면용) */
+export async function metaStatus() {
+  if (!metaOn()) return { configured: false };
+  try { const d = await graph(IGID(), { fields: 'username,name' }); return { configured: true, ok: true, account: d.username || '' }; }
+  catch (e) { return { configured: true, ok: false, error: e.message, kind: e.kind }; }
+}
+
+/* 게시물 하나를 사이트 형식으로 */
+export function mapMetaMedia(m, owner) {
+  const code = codeOfPermalink(m.permalink);
+  const likes = num(m.like_count);
+  const video = m.media_type === 'VIDEO' || m.media_product_type === 'REELS';
+  return {
+    key: 'ig:' + code, owner: owner || null,
+    views: num(m.view_count), likes, cmts: num(m.comments_count), shares: null, saves: null,
+    thumbUrl: m.thumbnail_url || (!video ? m.media_url : null) || null, videoUrl: video ? (m.media_url || null) : null,
+    likesHidden: likes == null, kind: video ? 'reel' : 'feed', posted: m.timestamp ? new Date(m.timestamp).toISOString() : null
+  };
+}
+
+/* 프로필 */
+export async function metaProfile(user) {
+  const u = handleOf(user); if (!u) throw new MetaError('NOT_FOUND', '계정명 형식이 아닙니다.');
+  const p = await bd(u, 'username,name,biography,followers_count,media_count,profile_picture_url');
+  return { key: 'igp:' + String(p.username || u).toLowerCase(), acct: p.username || u, name: p.name || '', bio: p.biography || '', followers: num(p.followers_count), category: '', private: false, avatar: p.profile_picture_url || '' };
+}
+
+/* 한 계정의 게시물 중 원하는 shortcode들 찾기 → { code: 결과 } (못 찾은 코드는 빠짐) */
+export async function metaPosts(user, codes) {
+  const u = handleOf(user); if (!u) throw new MetaError('NOT_FOUND', '계정명 형식이 아닙니다.');
+  const want = new Set(codes.filter(Boolean)); const found = {};
+  let after = '';
+  for (let i = 0; i < MAX_PAGES && want.size; i++) {
+    const edge = `media${after ? `.after(${after})` : ''}.limit(${PAGE}){${MEDIA_FIELDS}}`;
+    const p = await bd(u, `username,${edge}`);
+    const media = p.media || {}; const list = media.data || [];
+    for (const m of list) { const r = mapMetaMedia(m, p.username || u); const c = r.key.slice(3); if (want.has(c)) { found[c] = r; want.delete(c); } }
+    after = (media.paging && media.paging.cursors && media.paging.cursors.after) || '';
+    if (!after || !list.length) break;
+  }
+  return found;
+}
