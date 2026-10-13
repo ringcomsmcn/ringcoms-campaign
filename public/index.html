@@ -850,6 +850,7 @@ async function firebaseStore(){
     watchDoc:(p,cb,err)=>fs.doc(p).onSnapshot(d=>cb(d.exists?d.data():null),err),
     query:(c,fld,val)=>fs.collection(c).where(fld,'==',val).get().then(q=>{const m={};q.forEach(d=>m[d.id]=d.data());return m}),
     get:p=>fs.doc(p).get().then(d=>d.exists?d.data():null),
+    listCol:c=>fs.collection(c).get().then(q=>{const m={};q.forEach(d=>m[d.id]=d.data());return m}),
     set:(p,d)=>fs.doc(p).set(d),update:(p,d)=>fs.doc(p).update(d),del:p=>fs.doc(p).delete(),
     onAuth:cb=>au.onAuthStateChanged(u=>cb(u?{email:(u.email||'').toLowerCase(),name:u.displayName||u.email}:null)),
     signIn:()=>au.signInWithPopup(new firebase.auth.GoogleAuthProvider()),
@@ -867,6 +868,7 @@ function demoStore(){
     watchDoc(p,cb){const s=()=>cb(data[p]?clone(data[p]):null);subs.add(s);setTimeout(s,0);return()=>subs.delete(s)},
     watchQuery(c,fld,val,cb,err,f2,v2){const s=()=>{const m={};for(const p in data){const i=p.indexOf('/');if(p.slice(0,i)===c&&data[p]&&data[p][fld]===val&&(!f2||data[p][f2]===v2))m[p.slice(i+1)]=clone(data[p])}cb(m)};subs.add(s);setTimeout(s,0);return()=>subs.delete(s)},
     get:p=>Promise.resolve(data[p]?clone(data[p]):null),
+    listCol(c){const m={};for(const p in data){const i=p.indexOf('/');if(p.slice(0,i)===c)m[p.slice(i+1)]=clone(data[p])}return Promise.resolve(m)},
     query(c,fld,val){const m={};for(const p in data){const i=p.indexOf('/');if(p.slice(0,i)===c&&data[p]&&data[p][fld]===val)m[p.slice(i+1)]=clone(data[p])}return Promise.resolve(m)},
     set(p,d){data[p]=clone(d);save();return Promise.resolve()},
     update(p,o){if(!data[p])return Promise.reject({code:'not-found'});for(const k in o){const ks=k.split('.');let t=data[p];for(let i=0;i<ks.length-1;i++){if(!isObj(t[ks[i]]))t[ks[i]]={};t=t[ks[i]]}const last=ks[ks.length-1];if(o[k]===DEL)delete t[last];else t[last]=clone(o[k])}save();return Promise.resolve()},
@@ -1372,10 +1374,29 @@ function updGoModal(){const m=A.modal;const items=((A.ops&&A.ops.items)||[]).fil
    <div class="lb-f"><span class="grow"></span><button class="btn" data-act="lbClose">취소</button><button class="btn primary" data-act="updConfirm">진행</button></div></div>`}
 /* 업데이트 이력: 배포한 버전별 변경 사항 (public/changelog.json) */
 async function loadHist(){if(A.histBusy)return;A.histBusy=true;try{const r=await fetch('/changelog.json?nc='+Date.now(),{cache:'no-store'});A.hist=r.ok?await r.json():{versions:[]};if(!r.ok)A.histErr='이력 파일을 불러오지 못했습니다.'}catch(e){A.hist={versions:[]};A.histErr='이력 파일을 불러오지 못했습니다.'}finally{A.histBusy=false;scheduleRender()}}
+/* 데이터 백업: 팀원이 읽을 수 있는 모든 컬렉션을 JSON 파일 하나로 내려받기 (배포 전 롤백 대비) */
+const BK_COLS=['admins','accounts','campaigns','rows','thumbs','pool','guides','guideimg','reviews','cview','cconfirm','settings','links','linkstat','linkday'];
+const BK_IMG=['thumbs','guideimg'];
+function bkLast(){try{return JSON.parse(localStorage.getItem('ring_backup_last')||'null')}catch(e){return null}}
+function bkVal(v){if(v&&typeof v==='object'){if(typeof v.toDate==='function'&&'seconds' in v)return {__ts:v.toDate().toISOString()};if(Array.isArray(v))return v.map(bkVal);const o={};for(const k in v)o[k]=bkVal(v[k]);return o}return v}
+async function runBackup(withImg){if(!isTeam())return toast('링컴즈 팀원만 백업할 수 있습니다.','crit');if(A.bkBusy)return;A.bkBusy='준비 중';render();
+  const out={app:'ringcoms-campaign',version:((A.hist||{}).versions||[])[0]?.version||'',exportedAt:new Date().toISOString(),by:A.user&&A.user.email,images:!!withImg,collections:{}},cnt={},fail=[];
+  try{for(const c of BK_COLS){if(!withImg&&BK_IMG.includes(c))continue;A.bkBusy=c;scheduleRender();try{const m=await DB.listCol(c);out.collections[c]=bkVal(m);cnt[c]=Object.keys(m).length}catch(e){console.error('backup',c,e);fail.push(c)}}
+    out.counts=cnt;if(fail.length)out.failed=fail;
+    const st=new Date(Date.now()+9*36e5).toISOString().slice(0,16).replace(/[-:T]/g,'').replace(/^(\d{8})/,'$1_');
+    const blob=new Blob([JSON.stringify(out)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`ringcoms_backup_${out.version||'v'}_${st}${withImg?'':'_noimg'}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+    const docs=Object.values(cnt).reduce((x,y)=>x+y,0);const info={at:out.exportedAt,version:out.version,docs,mb:+(blob.size/1048576).toFixed(1),img:!!withImg};try{localStorage.setItem('ring_backup_last',JSON.stringify(info))}catch(e){}
+    toast(`백업 파일을 내려받았습니다 · 문서 ${docs.toLocaleString()}개 · ${info.mb}MB${fail.length?` · 읽지 못한 항목: ${fail.join(', ')}`:''}`,fail.length?'warn':'')}
+  catch(e){console.error(e);toast('백업하지 못했습니다: '+(e.message||e),'crit')}finally{A.bkBusy=null;render()}}
+function backupPanel(){if(!isTeam())return '';const L=bkLast();
+  return `<section class="panel" style="max-width:980px;margin-bottom:14px"><div class="panel-h"><div><h2>데이터 백업 · 롤백</h2><div class="sub">큰 업데이트를 배포하기 전에 백업 파일을 받아 두면, 데이터가 잘못 바뀌었을 때 그 시점으로 되돌릴 수 있습니다. 코드는 버전마다 GitHub 태그(v0.14 ~)와 Netlify 배포본으로 보관되어 언제든 이전 버전으로 롤백할 수 있습니다.</div></div></div>
+   <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><button class="btn primary" data-act="backup" data-img="1" ${A.bkBusy?'disabled':''}>${A.bkBusy?`백업 중… (${esc(A.bkBusy)})`:'데이터 백업 받기'}</button><button class="btn" data-act="backup" data-img="0" ${A.bkBusy?'disabled':''}>이미지 빼고 받기 (가볍게)</button>
+    <span class="small muted">${L?`이 브라우저의 마지막 백업: ${esc(new Date(L.at).toLocaleString('ko-KR'))} · ${esc(L.version||'')} · 문서 ${Number(L.docs||0).toLocaleString()}개 · ${L.mb}MB${L.img?'':' (이미지 제외)'}`:'이 브라우저에서 받은 백업이 아직 없습니다.'}</span></div>
+   <p class="small muted" style="margin:8px 0 0">파일에는 캠페인·인플루언서 풀·리포트·제안서·권한·연동 설정(API 키 포함)이 모두 들어 있으니 팀 공용 드라이브 등 안전한 곳에 보관해 주세요. 되돌릴 때는 파일을 Claude에게 주고 「이 백업으로 복원해줘」라고 하면 됩니다.</p></section>`}
 function viewHistory(){if(!A.hist&&!A.histBusy)setTimeout(loadHist,0);const V=((A.hist||{}).versions||[]);const q=(A.hq||'').trim().toLowerCase();
   const L=V.filter(v=>!q||[v.version,v.title,v.date,...(v.items||[])].join(' ').toLowerCase().includes(q));const byDate={};L.forEach(v=>(byDate[v.date]=byDate[v.date]||[]).push(v));
   return `<div class="page-h"><div><div class="eyebrow">Release History</div><h1>업데이트 이력</h1><div class="sub">버전을 올릴 때마다 바뀐 점을 날짜별로 남깁니다. 현재 버전 <b>${esc((V[0]||{}).version||'-')}</b>${V[0]?` · ${md(V[0].date)} 배포`:''} · 총 ${V.length}번 업데이트</div></div><input type="text" id="hq" data-ui="hq" value="${esc(A.hq||'')}" placeholder="기능·버전 검색" style="max-width:240px"></div>
-  ${A.histErr?`<div class="banner">${esc(A.histErr)}</div>`:''}<div class="hist" style="max-width:980px">${!A.hist?'<div class="panel empty">불러오는 중…</div>':!L.length?'<div class="panel empty">검색 결과가 없습니다.</div>':Object.entries(byDate).map(([d,vs])=>`<section class="hd"><div class="hdt"><b>${esc(d)}</b><span class="small muted">${['일','월','화','수','목','금','토'][new Date(d+'T00:00:00').getDay()]}요일</span></div>
+  ${backupPanel()}  ${A.histErr?`<div class="banner">${esc(A.histErr)}</div>`:''}<div class="hist" style="max-width:980px">${!A.hist?'<div class="panel empty">불러오는 중…</div>':!L.length?'<div class="panel empty">검색 결과가 없습니다.</div>':Object.entries(byDate).map(([d,vs])=>`<section class="hd"><div class="hdt"><b>${esc(d)}</b><span class="small muted">${['일','월','화','수','목','금','토'][new Date(d+'T00:00:00').getDay()]}요일</span></div>
    ${vs.map(v=>`<article class="panel hv"><div class="row" style="gap:8px"><span class="pill accent">${esc(v.version)}</span><b>${esc(v.title||'')}</b><span class="grow"></span>${v.by?`<span class="small muted">${esc(v.by)}</span>`:''}${(v.commits||[]).length?`<code class="small">${v.commits.map(esc).join(' · ')}</code>`:''}</div>${(v.items||[]).length?`<ul>${v.items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${v.note?`<p class="small muted" style="margin:6px 0 0">${esc(v.note)}</p>`:''}</article>`).join('')}</section>`).join('')}</div>`}
 /* ============ 캠페인 목록 ============ */
 function viewList(){
@@ -2648,6 +2669,7 @@ async function exportXlsx(mode){
   XLSX.writeFile(wb,`${String(m.name||'campaign').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'_')}_${sh?t('결과리포트','Report'):'캠페인관리'}.xlsx`);
 }
 const ACT={
+  backup(a){runBackup(a.dataset.img==='1')},
   signIn(){DB.signIn().catch(e=>toast(e&&e.code==='auth/unauthorized-domain'?'이 주소가 Firebase 승인된 도메인에 없습니다. 설치 안내 4단계를 확인하세요.':'로그인하지 못했습니다.','crit'))},
   signOut(){DB.signOut()},
   demoReset(){if(A.confirm!=='reset'){A.confirm='reset';toast('한 번 더 누르면 데모 데이터를 처음 상태로 되돌립니다.');return}A.confirm=null;DB.reset();toast('데모 데이터를 초기화했습니다.');A.view='list';render()},
