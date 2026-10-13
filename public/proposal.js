@@ -258,7 +258,7 @@ async function ppExport(kind){const P=curP();if(!P||ppExport.busy)return;if(!P.a
   const br=String((P.ai||{}).brand||(P.info||{}).brand||'Brand').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')||'Brand';const name=`${br}_Influencer_Campaign_${sum?'Summary_7p':'Proposal'}`;
   try{toast(PDF?'PDF를 만드는 중입니다… 인쇄 창이 열리면 「PDF로 저장」을 고르세요.':'PPT를 만드는 중입니다…');if(!PDF&&!window.PptxGenJS)await loadScript('/vendor/pptxgen.bundle.js');pretendard();
 
-    const D=await toD(P);const deck=PDF?new (PPD().PvDeck)():new PptxGenJS();deck.layout='LAYOUT_WIDE';deck.title=P.title||'Proposal';if(!PDF){deck.author='RINGCOMS MCN 광고콘텐츠팀';deck.company='RINGCOMS';{const f=PPD().fontOf(fontId(P));deck.theme=f.id==='pretendard'?{headFontFace:'Pretendard ExtraBold',bodyFontFace:'Pretendard'}:{headFontFace:f.fam,bodyFontFace:f.fam}}}
+    const D=await toD(P);const deck=PDF?new (PPD().PvDeck)():new PptxGenJS();deck.layout='LAYOUT_WIDE';deck.title=P.title||'Proposal';if(!PDF){deck.author='RINGCOMS MCN 광고콘텐츠팀';deck.company='RINGCOMS';{const f=PPD().fontOf(fontId(P));const w=PPD().weightsOf(f);deck.theme=f.id==='pretendard'?{headFontFace:'Pretendard ExtraBold',bodyFontFace:'Pretendard'}:{headFontFace:(PPD().dlOf(f.id,w.xb)||{name:f.fam}).name,bodyFontFace:(PPD().dlOf(f.id,w.r)||{name:f.fam}).name}}}
     await PPD().build(deck,D,sum?SEQ_SUM:SEQ,{perSlideNo:sum,notes:D.notes});if(PDF)await deck.print(name);else await deck.writeFile({fileName:name+'.pptx'})}
   catch(e){console.error(e);toast('제안서를 만들지 못했습니다: '+(e.message||e),'crit')}finally{ppExport.busy=false}}
 
@@ -367,7 +367,7 @@ function ppEditor(){const P=curP();if(!P)return A.guidesLoaded?`<div class="pane
   const ed=canEdit(),I=P.info||{},tab=A.ptab||(P.ai?'edit':'info');const K=ppCalc(P);
   const tabs=[['info','① 기초 정보'],['edit','② 제안서 구성 수정'],['preview','③ 미리보기']];
   const head=`<div class="page-h"><div><button class="btn sm ghost" data-act="ppBack">← 제안서 목록</button><h1 style="margin-top:6px">${esc(P.title||'제목 없음')}</h1><div class="sub">${esc([I.advertiser,I.brand,I.budget?'총 '+won(K.total)+'원 (VAT 별도)':''].filter(Boolean).join(' · '))} · 마지막 수정 ${esc(String(P.updatedAt||'').slice(0,16).replace('T',' '))}</div></div>
-   <div class="row"><button class="btn" data-act="ppExp" data-k="pptx" ${P.ai?'':'disabled'}>PPT 본편</button><button class="btn" data-act="ppExp" data-k="sum" ${P.ai?'':'disabled'} title="표지·시장·컨셉·핵심 전략·티어·예상 성과·타임라인 + 감사합니다">요약본 7장</button><button class="btn" data-act="ppExp" data-k="pdf" ${P.ai?'':'disabled'}>PDF</button></div></div>
+   <div class="row"><button class="btn" data-act="ppExp" data-k="pptx" ${P.ai?'':'disabled'}>PPT 본편</button><button class="btn" data-act="ppExp" data-k="sum" ${P.ai?'':'disabled'} title="표지·시장·컨셉·핵심 전략·티어·예상 성과·타임라인 + 감사합니다">요약본 7장</button><button class="btn" data-act="ppExp" data-k="pdf" ${P.ai?'':'disabled'}>PDF</button><button class="btn" data-act="ppFontGo" title="PPT를 받는 PC에 설치할 폰트 파일 (전체·선택)">글꼴 받기</button></div></div>
    <div class="tabs pp-tabs" role="tablist">${tabs.map(([k,l])=>`<button class="tab ${tab===k?'on':''}" data-act="ppTab" data-k="${k}" role="tab" aria-selected="${tab===k}">${l}</button>`).join('')}</div>`;
   let body='';if(tab==='info')body=infoTab(P,ed,K);else if(tab==='edit')body=editTab(P,ed,K);else body=previewTab(P);
   return `${head}${A.guidesErr?rulesBanner():''}<div class="stack ppedit">${body}
@@ -468,14 +468,31 @@ function fontPicker(P,ed){const L=PPD().FONTS;const id=fontId(P);const cur=PPD()
     <div style="font-weight:${w.r};font-size:14px">본문 · 브랜드 메시지를 인플루언서의 언어로 자연스럽게 전합니다. 123,456원 <span class="small muted" style="font-family:var(--font);font-weight:500">${WN[w.r]||w.r}</span></div>
     <div style="font-weight:${w.l};font-size:13px;color:var(--muted)">설명 · 출처와 기준을 함께 적어 신뢰도를 높입니다. <span class="small" style="font-family:var(--font);font-weight:500">${WN[w.l]||w.l}</span></div></div>
     ${cur.w.length<3?'<span class="hint">이 폰트는 굵기가 적어 일부 단계가 같은 굵기로 보입니다.</span>':''}</div>
-   <div class="f wide"><div class="pp-fonts">${L.map(f=>`<button type="button" class="pp-fontchip ${f.id===cur.id?'on':''}" data-act="ppFont" data-id="${f.id}" ${ed?'':'disabled'} style="font-family:${ff(f)};font-weight:${PPD().weightsOf(f).xb}" title="${esc(f.name)}">가나다 Aa<span>${esc(f.name)}</span></button>`).join('')}</div></div>`}
+   <div class="f wide"><div class="pp-fonts">${L.map(f=>`<button type="button" class="pp-fontchip ${f.id===cur.id?'on':''}" data-act="ppFont" data-id="${f.id}" ${ed?'':'disabled'} style="font-family:${ff(f)};font-weight:${PPD().weightsOf(f).xb}" title="${esc(f.name)}">가나다 Aa<span>${esc(f.name)}</span></button>`).join('')}</div></div>
+   ${fontDlBox(cur)}`}
+/* 폰트 파일 받기: 설치용 TTF·OTF — 전체 또는 골라서 */
+function fontDlBox(cur){const L=PPD().filesOf(cur.id);const used=PPD().usedFiles(cur.id);const WN={100:'Thin',200:'ExtraLight',300:'Light',400:'Regular',500:'Medium',600:'SemiBold',700:'Bold',800:'ExtraBold',900:'Black'};
+  if(!A.pfsel||A.pfsel.font!==cur.id)A.pfsel={font:cur.id,set:new Set(used)};const sel=A.pfsel.set;const busy=A.pfdl;
+  return `<div class="f wide" id="pp-fontdl"><div class="pp-fontdl"><div class="row" style="justify-content:space-between;gap:8px"><b>폰트 파일 받기 · ${esc(cur.name)}</b><span class="row" style="gap:6px"><button class="btn sm" data-act="ppFontDl" data-k="sel" ${busy||!sel.size?'disabled':''}>선택 받기 (${sel.size}개)</button><button class="btn sm primary" data-act="ppFontDl" data-k="all" ${busy?'disabled':''}>${busy?esc(busy):`전체 받기 (${L.length}개)`}</button></span></div>
+    <div class="pp-fdl-list">${L.map(x=>`<label class="pp-fdl"><input type="checkbox" data-ppfdl="${x.w}" ${sel.has(x.w)?'checked':''}><span><b>${WN[x.w]||x.w}</b> <span class="muted">${x.w}</span>${used.includes(x.w)?' <em>제안서에 사용</em>':''}<br><span class="small muted">${esc(x.file)}</span></span></label>`).join('')}</div>
+    <span class="hint">PPT를 받는 PC에 설치하면(파일 더블클릭 → 설치) PowerPoint를 다시 열었을 때 제안서 글꼴이 그대로 보입니다. 「제안서에 사용」 표시가 PPT에 쓰인 굵기입니다. 여러 개를 고르면 ZIP으로 받습니다. 폰트 라이선스는 각 배포처 기준을 따릅니다.</span></div></div>`}
+async function fontDownload(id,all){const f=PPD().fontOf(id);const L=PPD().filesOf(id).filter(x=>all||(A.pfsel&&A.pfsel.set.has(x.w)));if(!L.length)return toast('받을 굵기를 골라 주세요.','crit');
+  const save=(blob,name)=>{const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)};
+  try{A.pfdl='받는 중… 0/'+L.length;render();const out=[];let i=0;
+    for(const x of L){const r=await fetch(x.url);if(!r.ok)throw new Error(`${x.file} (${r.status})`);out.push({...x,blob:await r.blob()});A.pfdl=`받는 중… ${++i}/${L.length}`;render()}
+    if(out.length===1){save(out[0].blob,out[0].file)}
+    else{if(!window.JSZip)await loadScript('/vendor/pptxgen.bundle.js');const z=new JSZip();const dir=z.folder(f.name.replace(/[\\/:*?"<>|]/g,''));out.forEach(x=>dir.file(x.file,x.blob));
+      dir.file('설치 방법.txt',`${f.name} 글꼴 (${out.length}개)\r\n\r\n[Windows] 폰트 파일을 모두 선택 → 마우스 오른쪽 → 「설치」 (또는 「모든 사용자용으로 설치」)\r\n[Mac] 폰트 파일을 더블클릭 → 「서체 설치」\r\n\r\n설치 후 PowerPoint를 완전히 닫았다가 다시 열면 제안서 글꼴이 그대로 보입니다.\r\nPPT에서 쓰는 글꼴 이름: ${[...new Set(out.map(x=>x.name))].join(', ')}\r\n\r\n폰트 라이선스는 각 배포처의 기준을 따릅니다.\r\nRINGCOMS MCN 광고콘텐츠팀`);
+      save(await z.generateAsync({type:'blob'}),`${f.name.replace(/[\\/:*?"<>|\s()]+/g,'_')}_글꼴_${out.length}개.zip`)}
+    toast(`${f.name} 글꼴 ${out.length}개를 받았습니다.`)}
+  catch(e){console.error(e);toast('글꼴을 받지 못했습니다: '+(e.message||e),'crit')}finally{A.pfdl=null;render()}}
 function designForm(P,ed,f){const t=P.theme||{};const T=themeFor(P);const SRC={deck:'소개서 메인 컬러','logo':'로고·CI 컬러','logo+accent':'소개서 메인 컬러가 너무 밝거나 화려해 포인트로 쓰고, 로고·CI 컬러를 메인 배경으로','deck-dark':'소개서 메인 컬러를 어둡게 (포인트는 원래 색)',manual:'직접 고른 색',default:'기본 색'};
   const crops=P.crops||[];
   return f.sec('브랜드 컬러',`<div class="f wide"><div class="pp-colors"><div><span class="pp-sw lg" style="background:#${T.primary}"></span><b>메인 #${T.primary}</b><span class="small muted">배경·제목 강조</span></div><div><span class="pp-sw lg" style="background:#${T.accent}"></span><b>포인트 #${T.accent}</b><span class="small muted">차트·도형</span></div></div>
       <div class="small muted" style="margin-top:6px">선택 근거: ${esc(SRC[T.src]||'')}${t.deckMain?` · 소개서 메인 #${esc(t.deckMain)}`:''}${t.logo?` · 로고 #${esc(t.logo)}`:''}${t.note?` · ${esc(t.note)}`:''}</div>
       <span class="hint">우선순위: ① 소개서에서 메인으로 쓰인 컬러 → 너무 밝거나 화려하면 포인트로만 쓰고 ② 로고·CI 컬러를 메인 배경으로 → ③ 소개서 메인 컬러를 어둡게</span></div>
      ${ed?`<label class="f">메인 컬러 직접 고르기<span class="row" style="flex-wrap:nowrap"><input type="color" id="pp_th_p" data-ppth="primary" value="#${T.primary}" style="width:48px;height:34px;padding:2px"></span></label><label class="f">포인트 컬러<span class="row" style="flex-wrap:nowrap"><input type="color" id="pp_th_a" data-ppth="accent" value="#${T.accent}" style="width:48px;height:34px;padding:2px"></span></label>${t.manual?'<div class="f"><button class="btn sm" data-act="ppThemeAuto">자동 선택으로 되돌리기</button></div>':''}`:''}`)
-   +f.sec('폰트',fontPicker(P,ed),'무료 폰트 30종 중에서 고르면 대제목·소제목·본문·설명에 맞는 굵기가 자동으로 정해져 미리보기·PDF·PPT에 모두 적용됩니다. PPT는 받는 PC에 같은 폰트가 설치되어 있어야 그대로 보입니다.')
+   +f.sec('폰트',fontPicker(P,ed),'무료 폰트 30종 중에서 고르면 대제목·소제목·본문·설명에 맞는 굵기가 자동으로 정해져 미리보기·PDF·PPT에 모두 적용됩니다. PPT는 받는 PC에 같은 폰트가 설치되어 있어야 그대로 보이니, 아래 「폰트 파일 받기」로 함께 전달하세요.')
    +f.sec('표지 이미지 (선택)',`<div class="f wide"><b class="small">표지</b></div>${slotPicker(P,'cover',ed)}<div class="f wide"><b class="small">간지 (그룹 컨셉 장)</b></div>${slotPicker(P,'divider',ed)}<div class="f wide"><b class="small">마지막 장</b></div>${slotPicker(P,'closing',ed)}`,'표지·간지·마지막 장에 넣을 이미지를 3가지 후보 중에서 고르거나 직접 넣습니다. 후보는 소개서에서 자른 이미지와 무료로 그린 그래픽입니다.')
    +f.sec('배경',['cover','divider','closing','body'].map(kd=>bgPicker(P,kd,ed)).join(''),'장 성격에 맞게 도형·그라데이션을 고릅니다. 본문 장은 글이 잘 읽히도록 아주 옅게만 들어갑니다.')
    +`<section class="panel"><div class="panel-h"><div><h2>소개서에서 자른 이미지 ${crops.length?crops.length+'개':''}</h2><div class="sub">AI가 소개서에서 앱 화면·캐릭터·제품을 찾아 잘랐습니다. 잘못 잘렸으면 「다시 자르기」로 고치고, 필요한 이미지는 「새로 자르기」로 더할 수 있습니다.</div></div>${ed&&pagesOf().length?'<button class="btn sm" data-act="ppCropAdd">+ 새로 자르기</button>':''}</div>
@@ -489,7 +506,7 @@ function cropModal(){const C=A.pcrop;const pages=pagesOf();const pg=pages.find(p
     <div class="fgrid" style="margin-top:10px"><label class="f">이름<input type="text" id="pp_crop_label" value="${esc(C.label||'')}" placeholder="예: 채팅 화면"></label><label class="f">종류<select id="pp_crop_kind">${[['app_screen','앱 화면'],['mascot','캐릭터 (배경 지우기)'],['product','제품']].map(([k,l])=>`<option value="${k}" ${C.kind===k?'selected':''}>${l}</option>`).join('')}</select></label></div>
     <div class="row" style="margin-top:10px"><span class="small muted grow">이미지 위에서 마우스로 끌어 영역을 고르세요.</span><button class="btn primary" data-act="ppCropSave">저장</button></div></div>`}
 
-function setFontP(P,id){if(!canEdit())return toast('보기 전용 권한이라 수정할 수 없습니다.','crit');P.design=P.design||{};P.design.font=id;PPD().loadFontCss(id);pSave('design',P);GFXT.clear();render();schedPv(true);toast(`제안서 폰트를 「${PPD().fontOf(id).name}」(으)로 바꿨습니다.`)}
+function setFontP(P,id){if(!canEdit())return toast('보기 전용 권한이라 수정할 수 없습니다.','crit');P.design=P.design||{};P.design.font=id;A.pfsel=null;PPD().loadFontCss(id);pSave('design',P);GFXT.clear();render();schedPv(true);toast(`제안서 폰트를 「${PPD().fontOf(id).name}」(으)로 바꿨습니다.`)}
 /* ============ 입력 저장 ============ */
 document.addEventListener('input',e=>{const t=e.target;if(!t.dataset||A.view!=='proposals')return;const P=curP();if(!P)return;
   if(t.dataset.pv&&/^ai\.|^title$/.test(t.dataset.pv)){setIn(P,t.dataset.pv,t.value);schedPv()}
@@ -505,6 +522,7 @@ document.addEventListener('change',e=>{const t=e.target;if(!t.dataset)return;con
   if(t.dataset.ppop&&P){pSave('design',P);render();return}
   if(t.dataset.ppth&&P){pSave('theme',P);GFXT.clear();render();return}
   if(t.dataset.ppfont&&P){setFontP(P,t.value);return}
+  if(t.dataset.ppfdl&&A.pfsel){const w=+t.dataset.ppfdl;t.checked?A.pfsel.set.add(w):A.pfsel.set.delete(w);render();return}
   if(t.dataset.ppsrc&&t.files&&t.files[0]){const f=t.files[0];t.value='';if(t.dataset.ppsrc==='new'){readSrc(f,A.pnew.info,'new').then(()=>render())}else if(P){const info={...(P.info||{})};readSrc(f,info,A.pid).then(ok=>{if(ok){P.info=info;pSave('info',P)}render()})}return}
   if(t.dataset.ppimg&&t.files&&t.files[0]){const f=t.files[0];const k=t.dataset.ppimg;t.value='';ppImgIn(k,f)}});
 function ppImgIn(slot,f){const cut=/^cut:/.test(slot);const bg=/^bg_/.test(slot);fileToDataUrl(f,cut?540:bg?1600:1100,cut?960:bg?900:1100,'image/jpeg',cut?0.72:0.8).then(async d=>{await pimgPut(cut?slot.slice(4):slot,d,cut?'cut':'p');const P=curP();if(!P||cut)return;P.design=P.design||{};
@@ -535,6 +553,8 @@ Object.assign(ACT,{
   ppExp(a){ppExport(a.dataset.k)},
   async ppScreen(a){const P=curP();P.ai=P.ai||{};P.ai.screens=P.ai.screens||{};setIn(P,a.dataset.path,a.dataset.id);await pSave('ai',P);schedPv();render()},
   async ppSlot(a){const P=curP();P.design=P.design||{};P.design.img={...(P.design.img||{}),[a.dataset.slot]:a.dataset.k};await pSave('design',P);schedPv();render()},
+  ppFontDl(a){const P=curP();if(!P||A.pfdl)return;fontDownload(fontId(P),a.dataset.k==='all')},
+  ppFontGo(){A.ptab='edit';A.psub='design';A.pcrop=null;render();setTimeout(()=>{const el=document.getElementById('pp-fontdl');if(el)el.scrollIntoView({behavior:'smooth',block:'center'})},120)},
   ppFont(a){const P=curP();if(P&&canEdit())setFontP(P,a.dataset.id)},
   async ppBg(a){const P=curP();P.design=P.design||{};P.design.bg={...(P.design.bg||{}),[a.dataset.kind]:a.dataset.k};await pSave('design',P);schedPv();render()},
   async ppThemeAuto(){const P=curP();const t={...(P.theme||{})};delete t.manual;P.theme=t;await DB.update('guides/'+A.pid,{theme:t});GFXT.clear();schedPv();render()},
@@ -582,7 +602,7 @@ function mockVision(n){return n?{colors:{deckMain:'#FF7E47',logo:'#FF7E47',note:
 .pp-live-h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin:0 0 8px}
 .pp-pc-note{display:none}
 .pp-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
-.pp-fonts{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}.pp-fontchip{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;font-size:17px;line-height:1.25;color:var(--ink)}.pp-fontchip span{display:block;font:500 11px var(--font);color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pp-fontchip:hover{border-color:var(--line2)}.pp-fontchip.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--accent-soft)}.pp-fontchip:disabled{cursor:default;opacity:.7}
+.pp-fonts{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}.pp-fontchip{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;font-size:17px;line-height:1.25;color:var(--ink)}.pp-fontchip span{display:block;font:500 11px var(--font);color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pp-fontchip:hover{border-color:var(--line2)}.pp-fontchip.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--accent-soft)}.pp-fontchip:disabled{cursor:default;opacity:.7}.pp-fontdl{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:10px;background:var(--surface)}.pp-fdl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px}.pp-fdl{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:7px 9px;cursor:pointer;font-size:12.5px;line-height:1.35}.pp-fdl input{margin-top:2px}.pp-fdl em{font-style:normal;font-size:10.5px;background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:1px 6px;font-weight:600}.pp-fdl .small{word-break:break-all}
 .pp-th{all:unset;cursor:pointer;width:96px;display:flex;flex-direction:column;gap:3px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px;box-sizing:border-box;background:var(--surface)}
 .pp-th.wide{width:150px}.pp-th img,.pp-th>span{width:100%;height:70px;object-fit:contain;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);background:var(--surface2,#f4f5f7)}
 .pp-th.wide img,.pp-th.wide>span{height:84px;object-fit:cover}.pp-th i{font-style:normal;font-size:11px;color:var(--muted);text-align:center;line-height:1.25}

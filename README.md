@@ -133,3 +133,6 @@
 - 가이드·컨셉을 고르면 장면별 영상 프롬프트를 만들어 복사 가능. 실제 생성 버튼은 연동 전 비활성
 - 연동 시: 서비스(Veo·Runway·Kling) 결정 → API 키 → Netlify 환경변수 `AI_VIDEO_PROVIDER`·키 → `/api/ai`의 `video` 동작 구현 → 생성 영상 저장소(Firebase Storage는 Blaze 요금제)
 
+## 제안서 폰트
+- `public/proposal-deck.js`의 `FONTS`(무료 30종, 웹폰트)와 `DL`(설치용 TTF·OTF 주소 + 폰트 파일 속 글꼴 이름)
+- PPT는 `DL`의 글꼴 이름으로 저장 → 「글꼴 받기」로 받은 파일을 설치하면 그대로 보임
