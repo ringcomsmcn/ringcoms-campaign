@@ -128,7 +128,11 @@ const BG_KIND={cover:'표지',divider:'간지 (캠페인·그룹 컨셉)',closin
 async function bgOf(P,kind,T){const b=((P.design||{}).bg||{})[kind]||(kind==='body'?'none':'skill');if(b==='up'){const src=(A.pimgs||{})['bg_'+kind];if(!src)return null;const op=N((((P.design||{}).bgOp)||{})[kind]||(kind==='body'?15:35))/100;return PPD().veilImage(src,T,kind,op)}return PPD().bgImage(T,kind,b)}
 
 /* ============ 장표 데이터 (스킬 data.json 형식) ============ */
-async function toD(P){const I=P.info||{},AI=P.ai||{},K=ppCalc(P),M=matrixOf(K.R);const T=themeFor(P);const BR=AI.brand||I.brand||I.advertiser||'Brand';const sc=AI.screens||{};
+const fontId=P=>((P&&P.design)||{}).font||'pretendard';
+/* 고른 폰트를 불러오고(최대 3초 대기) 장표 그리기에 적용 */
+async function useFontOf(P){const id=fontId(P);PPD().useFont(id);PPD().loadFontCss(id);const f=PPD().fontOf(id);const w=PPD().weightsOf(f);
+  try{await Promise.race([Promise.all([w.xb,w.b,w.r,w.l].map(x=>document.fonts.load(`${x} 20px '${f.fam}'`,'가A'))),new Promise(r=>setTimeout(r,3000))])}catch(e){}return id}
+async function toD(P){const font=await useFontOf(P);const I=P.info||{},AI=P.ai||{},K=ppCalc(P),M=matrixOf(K.R);const T=themeFor(P);const BR=AI.brand||I.brand||I.advertiser||'Brand';const sc=AI.screens||{};
   const G={};(AI.groups||[]).forEach(g=>{if(g&&g.key)G[g.key]=g});GKEYS.forEach((k,i)=>{G[k]=G[k]||{key:k,name:`그룹 ${k}`,pillar:['공감·인지','참여·확산','확장·신규'][i],concept:{},guide:{cuts:[]},feature:{items:[]}}});
   const tt=(k,f,d)=>((AI.titles||{})[k]||{})[f]||d;const L=logoData.v||await logoData();const weeks=weeksOf(I);const used=K.R.filter(r=>r.count>0);
   const screens={};cropsOf(P).forEach(c=>screens[c.id]=A.psrc[c.id]);
@@ -136,7 +140,7 @@ async function toD(P){const I=P.info||{},AI=P.ai||{},K=ppCalc(P),M=matrixOf(K.R)
   const peopleOf=()=>{const out=[];GKEYS.forEach(k=>{const ps=picksOf(P,k).slice(0,4);if(ps.length)ps.forEach(c=>out.push({group:k,name:c.name,img:c.av,sub:c.sub,tier:c.tier,stat:c.stat,why:lnz(c.why)}));else L_(G[k].persona).slice(0,2).forEach(q=>out.push({group:k,persona:true,name:lnz(q.type),sub:'섭외 예정 프로필',tier:q.tier||'',stat:'',why:lnz(q.why)}))});return out};
   const bm=K.bm;const refCpv=`티어별 CPV(${bm.real?'링컴즈 집행 실측':'묵끄럽 8월 실측'}) · 메가 ${bm.cpv.메가.toFixed(1)}원 / 매크로 ${bm.cpv.매크로.toFixed(1)}원 / 마이크로 ${bm.cpv.마이크로.toFixed(1)}원 / 나노 ${bm.cpv.나노.toFixed(1)}원`;
   const TW=AI.tierWhy||{};const upW=4;
-  const D={meta:{brand:BR,date:`${new Date().getFullYear()}. ${String(new Date().getMonth()+1).padStart(2,'0')}`},theme:T,K,budget:{feeRatePct:K.f.rate},
+  const D={font,meta:{brand:BR,date:`${new Date().getFullYear()}. ${String(new Date().getMonth()+1).padStart(2,'0')}`},theme:T,K,budget:{feeRatePct:K.f.rate},
     assets:{logoDark:L.dark,logoWhite:L.white,screens,heroPhone:await slotImg(P,'cover',T),mascot:cropOf(sc.mascot)||null,mascotClosing:await slotImg(P,'closing',T)},
     dividerImg:await slotImg(P,'divider',T),
     bg:{cover:await bgOf(P,'cover',T),divider:await bgOf(P,'divider',T),closing:await bgOf(P,'closing',T),body:await bgOf(P,'body',T)},
@@ -253,8 +257,8 @@ window.addEventListener('resize',()=>{clearTimeout(fitPv.t);fitPv.t=setTimeout((
 async function ppExport(kind){const P=curP();if(!P||ppExport.busy)return;if(!P.ai)return toast('먼저 「AI로 제안서 만들기」로 내용을 채워 주세요.','crit');ppExport.busy=true;const PDF=kind==='pdf';const sum=kind==='sum';
   const br=String((P.ai||{}).brand||(P.info||{}).brand||'Brand').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')||'Brand';const name=`${br}_Influencer_Campaign_${sum?'Summary_7p':'Proposal'}`;
   try{toast(PDF?'PDF를 만드는 중입니다… 인쇄 창이 열리면 「PDF로 저장」을 고르세요.':'PPT를 만드는 중입니다…');if(!PDF&&!window.PptxGenJS)await loadScript('/vendor/pptxgen.bundle.js');pretendard();
-    if(PDF&&!document.getElementById('pretendard-print')){const st=document.createElement('style');st.id='pretendard-print';st.textContent="#deck-print .dk-page{font-family:'Pretendard','Malgun Gothic',sans-serif!important}";document.head.appendChild(st)}
-    const D=await toD(P);const deck=PDF?new (PPD().PvDeck)():new PptxGenJS();deck.layout='LAYOUT_WIDE';deck.title=P.title||'Proposal';if(!PDF){deck.author='RINGCOMS MCN 광고콘텐츠팀';deck.company='RINGCOMS';deck.theme={headFontFace:'Pretendard ExtraBold',bodyFontFace:'Pretendard'}}
+
+    const D=await toD(P);const deck=PDF?new (PPD().PvDeck)():new PptxGenJS();deck.layout='LAYOUT_WIDE';deck.title=P.title||'Proposal';if(!PDF){deck.author='RINGCOMS MCN 광고콘텐츠팀';deck.company='RINGCOMS';{const f=PPD().fontOf(fontId(P));deck.theme=f.id==='pretendard'?{headFontFace:'Pretendard ExtraBold',bodyFontFace:'Pretendard'}:{headFontFace:f.fam,bodyFontFace:f.fam}}}
     await PPD().build(deck,D,sum?SEQ_SUM:SEQ,{perSlideNo:sum,notes:D.notes});if(PDF)await deck.print(name);else await deck.writeFile({fileName:name+'.pptx'})}
   catch(e){console.error(e);toast('제안서를 만들지 못했습니다: '+(e.message||e),'crit')}finally{ppExport.busy=false}}
 
@@ -453,12 +457,25 @@ function planForm(P,ed,K,f){const R=K.R;const bm=K.bm;const M=matrixOf(R);
     <section class="panel"><div class="panel-h"><div><h2>그룹 × 티어</h2><div class="sub">A ${GW.A*100}% · B ${GW.B*100}% · C ${GW.C*100}% 비율로 나눕니다.</div></div></div>
       <div class="tblwrap"><table class="tbl"><thead><tr><th>그룹</th>${PT.map(t=>`<th class="n">${t}</th>`).join('')}<th class="n">합계</th></tr></thead><tbody>${GKEYS.map(k=>{const g=((P.ai||{}).groups||[]).find(x=>x.key===k)||{};const tot=PT.reduce((a,t)=>a+(M[k][t]||0),0);return `<tr><td class="bold">${k} ${esc(g.name||'')}</td>${PT.map(t=>`<td class="n">${M[k][t]||'–'}</td>`).join('')}<td class="n bold">${tot}명</td></tr>`}).join('')}</tbody></table></div></section>
     ${pickPanel(P,ed)}`}
+/* 폰트 고르기: 분류별 목록 + 고른 폰트의 굵기 구성 미리보기 */
+function fontPicker(P,ed){const L=PPD().FONTS;const id=fontId(P);const cur=PPD().fontOf(id);const w=PPD().weightsOf(cur);L.forEach(f=>PPD().loadFontCss(f.id));
+  const WN={100:'Thin',200:'ExtraLight',300:'Light',400:'Regular',500:'Medium',600:'SemiBold',700:'Bold',800:'ExtraBold',900:'Black'};const ff=f=>`'${f.fam}','Pretendard',sans-serif`;
+  const cats=[...new Set(L.map(f=>f.cat))];
+  return `<label class="f">제안서 폰트<select id="pp_font" data-ppfont="1" ${ed?'':'disabled'}>${cats.map(c=>`<optgroup label="${c}">${L.filter(f=>f.cat===c).map(f=>`<option value="${f.id}" ${f.id===cur.id?'selected':''}>${esc(f.name)}${f.w.length>1?` · 굵기 ${f.w.length}종`:''}</option>`).join('')}</optgroup>`).join('')}</select><span class="hint">${esc(cur.fam)} · ${cur.cat}</span></label>
+   <div class="f wide"><div class="pp-font-pv" style="font-family:${ff(cur)};border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:6px;background:var(--surface2)">
+    <div style="font-weight:${w.xb};font-size:24px;line-height:1.2">대제목 · 인플루언서 마케팅 제안서 <span class="small muted" style="font-family:var(--font);font-weight:500">${WN[w.xb]||w.xb}</span></div>
+    <div style="font-weight:${w.b};font-size:16px">소제목 · 그룹별 컨셉과 핵심 전략 <span class="small muted" style="font-family:var(--font);font-weight:500">${WN[w.b]||w.b}</span></div>
+    <div style="font-weight:${w.r};font-size:14px">본문 · 브랜드 메시지를 인플루언서의 언어로 자연스럽게 전합니다. 123,456원 <span class="small muted" style="font-family:var(--font);font-weight:500">${WN[w.r]||w.r}</span></div>
+    <div style="font-weight:${w.l};font-size:13px;color:var(--muted)">설명 · 출처와 기준을 함께 적어 신뢰도를 높입니다. <span class="small" style="font-family:var(--font);font-weight:500">${WN[w.l]||w.l}</span></div></div>
+    ${cur.w.length<3?'<span class="hint">이 폰트는 굵기가 적어 일부 단계가 같은 굵기로 보입니다.</span>':''}</div>
+   <div class="f wide"><div class="pp-fonts">${L.map(f=>`<button type="button" class="pp-fontchip ${f.id===cur.id?'on':''}" data-act="ppFont" data-id="${f.id}" ${ed?'':'disabled'} style="font-family:${ff(f)};font-weight:${PPD().weightsOf(f).xb}" title="${esc(f.name)}">가나다 Aa<span>${esc(f.name)}</span></button>`).join('')}</div></div>`}
 function designForm(P,ed,f){const t=P.theme||{};const T=themeFor(P);const SRC={deck:'소개서 메인 컬러','logo':'로고·CI 컬러','logo+accent':'소개서 메인 컬러가 너무 밝거나 화려해 포인트로 쓰고, 로고·CI 컬러를 메인 배경으로','deck-dark':'소개서 메인 컬러를 어둡게 (포인트는 원래 색)',manual:'직접 고른 색',default:'기본 색'};
   const crops=P.crops||[];
   return f.sec('브랜드 컬러',`<div class="f wide"><div class="pp-colors"><div><span class="pp-sw lg" style="background:#${T.primary}"></span><b>메인 #${T.primary}</b><span class="small muted">배경·제목 강조</span></div><div><span class="pp-sw lg" style="background:#${T.accent}"></span><b>포인트 #${T.accent}</b><span class="small muted">차트·도형</span></div></div>
       <div class="small muted" style="margin-top:6px">선택 근거: ${esc(SRC[T.src]||'')}${t.deckMain?` · 소개서 메인 #${esc(t.deckMain)}`:''}${t.logo?` · 로고 #${esc(t.logo)}`:''}${t.note?` · ${esc(t.note)}`:''}</div>
       <span class="hint">우선순위: ① 소개서에서 메인으로 쓰인 컬러 → 너무 밝거나 화려하면 포인트로만 쓰고 ② 로고·CI 컬러를 메인 배경으로 → ③ 소개서 메인 컬러를 어둡게</span></div>
      ${ed?`<label class="f">메인 컬러 직접 고르기<span class="row" style="flex-wrap:nowrap"><input type="color" id="pp_th_p" data-ppth="primary" value="#${T.primary}" style="width:48px;height:34px;padding:2px"></span></label><label class="f">포인트 컬러<span class="row" style="flex-wrap:nowrap"><input type="color" id="pp_th_a" data-ppth="accent" value="#${T.accent}" style="width:48px;height:34px;padding:2px"></span></label>${t.manual?'<div class="f"><button class="btn sm" data-act="ppThemeAuto">자동 선택으로 되돌리기</button></div>':''}`:''}`)
+   +f.sec('폰트',fontPicker(P,ed),'무료 폰트 30종 중에서 고르면 대제목·소제목·본문·설명에 맞는 굵기가 자동으로 정해져 미리보기·PDF·PPT에 모두 적용됩니다. PPT는 받는 PC에 같은 폰트가 설치되어 있어야 그대로 보입니다.')
    +f.sec('표지 이미지 (선택)',`<div class="f wide"><b class="small">표지</b></div>${slotPicker(P,'cover',ed)}<div class="f wide"><b class="small">간지 (그룹 컨셉 장)</b></div>${slotPicker(P,'divider',ed)}<div class="f wide"><b class="small">마지막 장</b></div>${slotPicker(P,'closing',ed)}`,'표지·간지·마지막 장에 넣을 이미지를 3가지 후보 중에서 고르거나 직접 넣습니다. 후보는 소개서에서 자른 이미지와 무료로 그린 그래픽입니다.')
    +f.sec('배경',['cover','divider','closing','body'].map(kd=>bgPicker(P,kd,ed)).join(''),'장 성격에 맞게 도형·그라데이션을 고릅니다. 본문 장은 글이 잘 읽히도록 아주 옅게만 들어갑니다.')
    +`<section class="panel"><div class="panel-h"><div><h2>소개서에서 자른 이미지 ${crops.length?crops.length+'개':''}</h2><div class="sub">AI가 소개서에서 앱 화면·캐릭터·제품을 찾아 잘랐습니다. 잘못 잘렸으면 「다시 자르기」로 고치고, 필요한 이미지는 「새로 자르기」로 더할 수 있습니다.</div></div>${ed&&pagesOf().length?'<button class="btn sm" data-act="ppCropAdd">+ 새로 자르기</button>':''}</div>
@@ -472,6 +489,7 @@ function cropModal(){const C=A.pcrop;const pages=pagesOf();const pg=pages.find(p
     <div class="fgrid" style="margin-top:10px"><label class="f">이름<input type="text" id="pp_crop_label" value="${esc(C.label||'')}" placeholder="예: 채팅 화면"></label><label class="f">종류<select id="pp_crop_kind">${[['app_screen','앱 화면'],['mascot','캐릭터 (배경 지우기)'],['product','제품']].map(([k,l])=>`<option value="${k}" ${C.kind===k?'selected':''}>${l}</option>`).join('')}</select></label></div>
     <div class="row" style="margin-top:10px"><span class="small muted grow">이미지 위에서 마우스로 끌어 영역을 고르세요.</span><button class="btn primary" data-act="ppCropSave">저장</button></div></div>`}
 
+function setFontP(P,id){if(!canEdit())return toast('보기 전용 권한이라 수정할 수 없습니다.','crit');P.design=P.design||{};P.design.font=id;PPD().loadFontCss(id);pSave('design',P);GFXT.clear();render();schedPv(true);toast(`제안서 폰트를 「${PPD().fontOf(id).name}」(으)로 바꿨습니다.`)}
 /* ============ 입력 저장 ============ */
 document.addEventListener('input',e=>{const t=e.target;if(!t.dataset||A.view!=='proposals')return;const P=curP();if(!P)return;
   if(t.dataset.pv&&/^ai\.|^title$/.test(t.dataset.pv)){setIn(P,t.dataset.pv,t.value);schedPv()}
@@ -486,6 +504,7 @@ document.addEventListener('change',e=>{const t=e.target;if(!t.dataset)return;con
   if(t.dataset.ptier!=null&&P){if(!canEdit())return;const R=tierRows(P);const r=R[+t.dataset.ptier];r[t.dataset.f]=Math.max(0,Math.round(N(t.value)));P.plan=P.plan||{};P.plan.tiers=R;pSave('plan',P);schedPv();render();return}
   if(t.dataset.ppop&&P){pSave('design',P);render();return}
   if(t.dataset.ppth&&P){pSave('theme',P);GFXT.clear();render();return}
+  if(t.dataset.ppfont&&P){setFontP(P,t.value);return}
   if(t.dataset.ppsrc&&t.files&&t.files[0]){const f=t.files[0];t.value='';if(t.dataset.ppsrc==='new'){readSrc(f,A.pnew.info,'new').then(()=>render())}else if(P){const info={...(P.info||{})};readSrc(f,info,A.pid).then(ok=>{if(ok){P.info=info;pSave('info',P)}render()})}return}
   if(t.dataset.ppimg&&t.files&&t.files[0]){const f=t.files[0];const k=t.dataset.ppimg;t.value='';ppImgIn(k,f)}});
 function ppImgIn(slot,f){const cut=/^cut:/.test(slot);const bg=/^bg_/.test(slot);fileToDataUrl(f,cut?540:bg?1600:1100,cut?960:bg?900:1100,'image/jpeg',cut?0.72:0.8).then(async d=>{await pimgPut(cut?slot.slice(4):slot,d,cut?'cut':'p');const P=curP();if(!P||cut)return;P.design=P.design||{};
@@ -516,6 +535,7 @@ Object.assign(ACT,{
   ppExp(a){ppExport(a.dataset.k)},
   async ppScreen(a){const P=curP();P.ai=P.ai||{};P.ai.screens=P.ai.screens||{};setIn(P,a.dataset.path,a.dataset.id);await pSave('ai',P);schedPv();render()},
   async ppSlot(a){const P=curP();P.design=P.design||{};P.design.img={...(P.design.img||{}),[a.dataset.slot]:a.dataset.k};await pSave('design',P);schedPv();render()},
+  ppFont(a){const P=curP();if(P&&canEdit())setFontP(P,a.dataset.id)},
   async ppBg(a){const P=curP();P.design=P.design||{};P.design.bg={...(P.design.bg||{}),[a.dataset.kind]:a.dataset.k};await pSave('design',P);schedPv();render()},
   async ppThemeAuto(){const P=curP();const t={...(P.theme||{})};delete t.manual;P.theme=t;await DB.update('guides/'+A.pid,{theme:t});GFXT.clear();schedPv();render()},
   ppImgDel(a){const k=a.dataset.k;if(/^cut:/.test(k))pimgDel(k.slice(4),'cut');else pimgDel(k)},
@@ -562,6 +582,7 @@ function mockVision(n){return n?{colors:{deckMain:'#FF7E47',logo:'#FF7E47',note:
 .pp-live-h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin:0 0 8px}
 .pp-pc-note{display:none}
 .pp-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.pp-fonts{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}.pp-fontchip{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;font-size:17px;line-height:1.25;color:var(--ink)}.pp-fontchip span{display:block;font:500 11px var(--font);color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pp-fontchip:hover{border-color:var(--line2)}.pp-fontchip.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--accent-soft)}.pp-fontchip:disabled{cursor:default;opacity:.7}
 .pp-th{all:unset;cursor:pointer;width:96px;display:flex;flex-direction:column;gap:3px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px;box-sizing:border-box;background:var(--surface)}
 .pp-th.wide{width:150px}.pp-th img,.pp-th>span{width:100%;height:70px;object-fit:contain;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);background:var(--surface2,#f4f5f7)}
 .pp-th.wide img,.pp-th.wide>span{height:84px;object-fit:cover}.pp-th i{font-style:normal;font-size:11px;color:var(--muted);text-align:center;line-height:1.25}

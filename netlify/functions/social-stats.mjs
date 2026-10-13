@@ -167,6 +167,37 @@ async function igProfilesViaMeta(urls) {
 }
 
 const keyOf = (u, platform) => platform === 'igp' ? 'igp:' + String(igUser(u) || '').toLowerCase() : platform === 'ttp' ? 'ttp:' + String(ttUser(u) || '').toLowerCase() : platformOf(u) === 'ig' ? 'ig:' + igCode(u) : 'tt:' + ttId(u);
+/* Netlify 크레딧 잔량 (환경변수 NETLIFY_TOKEN: Netlify 개인 액세스 토큰, 선택 NETLIFY_TEAM: 팀 슬러그) */
+const DEPLOY_CREDITS = 15;
+async function netlifyCredits() {
+  const token = process.env.NETLIFY_TOKEN;
+  if (!token) return { configured: false };
+  const get = async path => {
+    const r = await fetch('https://api.netlify.com/api/v1' + path, { headers: { authorization: 'Bearer ' + token, 'user-agent': 'ringcoms-campaign' } });
+    if (!r.ok) { const e = new Error(String(r.status)); e.status = r.status; throw e; }
+    return r.json();
+  };
+  try {
+    let slug = process.env.NETLIFY_TEAM || '';
+    if (!slug) { const acc = await get('/accounts'); slug = (Array.isArray(acc) && acc[0] && acc[0].slug) || ''; }
+    if (!slug) return { configured: true, ok: false, error: 'Netlify 팀을 찾지 못했습니다.' };
+    const [cr, use] = await Promise.all([get(`/${encodeURIComponent(slug)}/billing/credits`), get(`/${encodeURIComponent(slug)}/billing/credit_usage`).catch(() => ({}))]);
+    const pc = cr.plan_credits || {}, ad = cr.credit_addons || {};
+    const blocks = Array.isArray(cr.active_credit_blocks) ? cr.active_credit_blocks : [];
+    const plan = blocks.find(b => b.subscription_allocation) || {};
+    const pd = use.production_deploys || {};
+    const avail = +pc.available || 0;
+    return {
+      configured: true, ok: true, team: slug,
+      plan: { used: +pc.used || 0, available: avail, total: +pc.total || 0, resetAt: plan.expiry_date || null },
+      extra: ad.total ? { available: +ad.available || 0, total: +ad.total || 0 } : null,
+      deploys: { count: +pd.usage_used || 0, credits: +pd.credits_used || 0, per: DEPLOY_CREDITS, left: Math.floor(avail / DEPLOY_CREDITS) },
+    };
+  } catch (e) {
+    return { configured: true, ok: false, error: e.status === 401 || e.status === 403 ? 'Netlify 토큰이 올바르지 않거나 권한이 없습니다.' : 'Netlify에서 크레딧 정보를 받지 못했습니다 (' + e.message + ').' };
+  }
+}
+
 const MAPPERS = { ig: mapIg, tt: mapTt, igp: mapIgProfile, ttp: mapTtProfile };
 const apifyErr = e => e.message === 'NO_TOKEN' ? 'Apify 토큰이 설정되지 않았습니다 (Netlify 환경변수 APIFY_TOKEN).' : /limit|credit|usage|payment/i.test(e.message) ? 'Apify 이번 달 무료 사용량을 다 썼습니다. 다음 달에 초기화됩니다.' : 'Apify 실행을 시작하지 못했습니다: ' + e.message;
 
@@ -239,7 +270,7 @@ export default async (req) => {
         if (lim.maxMonthlyUsageUsd != null) apify.usage = { used: +(cur.monthlyUsageUsd || 0), limit: +lim.maxMonthlyUsageUsd, resetAt: cyc.endAt || null };
       } catch (e) { apify.ok = !/401|403|token|auth/i.test(e.message); apify.error = e.message; }
     }
-    return json({ apify, meta: await metaStatus() });
+    return json({ apify, meta: await metaStatus(), netlify: await netlifyCredits() });
   }
 
   if (body.action === 'poll') {

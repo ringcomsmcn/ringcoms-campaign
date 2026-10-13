@@ -13,7 +13,9 @@
 <meta name="apple-mobile-web-app-title" content="RINGCOMS MCN">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script>
 /* ================================================================
    ▼▼▼ 설치할 때 여기만 수정하세요 ▼▼▼
@@ -37,7 +39,7 @@ window.FIREBASE_CONFIG = {
   --accent:#2347D4;--accent-ink:#FFFFFF;--accent-soft:#E6EBFC;
   --ok:#157A3C;--ok-soft:#E2F3E8;--warn:#A95205;--warn-soft:#FCEFDD;--crit:#C22727;--crit-soft:#FBE6E6;
   --shadow:0 1px 2px rgba(19,24,34,.05),0 8px 28px rgba(19,24,34,.08);
-  --font:"IBM Plex Sans KR",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root{color-scheme:dark;
@@ -565,6 +567,21 @@ body.pm .rp .tbl{font-size:calc(10px*var(--pk,1));width:100%} body.pm .rp .tbl t
 .gname{display:inline-block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
 .gacct-m .gname{max-width:100%}
 @media (max-width:720px){.top .gname{display:none}.who{min-width:0}.who .role-pill{max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.who>.pill.warn:not(.role-pill){display:none}}
+
+/* ===== 타이포그래피: 전체 Pretendard · 굵기 배리에이션 (대제목 ExtraBold / 소제목 Bold / 메뉴·버튼 Medium / 본문 Regular / 설명 Light) ===== */
+body{font-weight:400;letter-spacing:-.005em}
+h1,.page-h h1,.login-card h1{font-weight:800;letter-spacing:-.02em}
+h2,.panel h2,.sect-h h2{font-weight:800;letter-spacing:-.015em}
+h3{font-weight:700}
+.brand b{font-weight:800}
+.lnb button,.tabs button,.ltabs button,.btn,.chip,.mnav button,.msheet button{font-weight:500}
+.lnb button.on,.tabs button.on,.ltabs button.on{font-weight:600}
+.lnb .lt,.lnb button.lt-tg{font-weight:800}
+.tile .v{font-weight:800}
+.sub,.sect-h .sub,label.f .hint,.hint,.panel-h .sub{font-weight:300}
+label.f{font-weight:500}
+th{font-weight:600}
+.bold,b,strong{font-weight:700}
 </style>
 </head>
 <body>
@@ -1256,7 +1273,7 @@ function shell(){
   const navs=navItems();const onOf=it=>it.tt?(curV==='team'&&(A.teamTab||'members')===it.tt):curV===it.v;const cnt=k=>Object.values(A.campaigns).filter(c=>kindOf(c)===k&&inAcctScope(c)).length;
   const nb=it=>`<button class="${onOf(it)?'on':''}" data-act="nav" data-v="${it.v}"${it.tt?` data-tt="${it.tt}"`:''} title="${esc(it.l)}">${IC[it.ic||it.v]||IC.list}<span>${it.l}</span>${it.badge?`<em class="nw">${it.badge}</em>`:it.kind?`<em>${cnt(it.kind)}</em>`:''}</button>`;
   const lgHtml=g=>{const fold=!A.lnbMini&&g.t&&A.lnbFold.has(g.t);const items=fold?g.items.filter(onOf):g.items;
-    const head=g.t?(A.lnbMini?`<div class="lt">${g.t}</div>`:`<button class="lt lt-tg${fold?' fold':''}" data-act="lnbFold" data-g="${esc(g.t)}" aria-expanded="${fold?'false':'true'}" title="${fold?'펼치기':'접기'}"><span>${g.t}</span>${fold?`<em>${g.items.length}</em>`:''}<i aria-hidden="true">⌄</i></button>`):'';
+    const head=g.t?(A.lnbMini?`<div class="lt">${g.t}</div>`:`<button class="lt lt-tg${fold?' fold':''}" data-act="lnbFold" data-g="${esc(g.t)}" aria-expanded="${fold?'false':'true'}" title="${fold?'펼치기':'접기'}"><span>${g.t}</span><i aria-hidden="true">⌄</i></button>`):'';
     return `<div class="lg${fold?' folded':''}">${head}${items.map(nb).join('')}</div>`};
   const lnb=`<aside class="lnb noprint ${A.lnbMini?'mini':''}" aria-label="메뉴">${navs.map(lgHtml).join('')}<span class="grow"></span><button class="lnb-tg" data-act="lnbMini" title="${A.lnbMini?'메뉴 펼치기':'메뉴 접기'}">${A.lnbMini?'›':'‹'}<span>${A.lnbMini?'':'메뉴 접기'}</span></button></aside>`;
   const flat=navs.flatMap(g=>g.items);const mainM=flat.filter(x=>x.m).slice(0,5);const moreM=flat.filter(x=>!mainM.includes(x));
@@ -1867,6 +1884,11 @@ function queueProfiles(cid,rids){const Q=queueProfiles.q||(queueProfiles.q={});(
 function onChLink(rid,v){const p=parseChLink(v);if(!p)return;const r=((A.rowsDoc||{}).rows||{})[rid]||{};const b=`rows.${rid}.`;const up={};
   if(p.ch&&p.ch!==r.ch)up[b+'ch']=p.ch;if(p.acct&&p.acct!==r.acct)up[b+'acct']=p.acct;if(Object.keys(up).length)DB.update('rows/'+A.cid,up).catch(saveErr);
   if(p.kind){queueProfiles(A.cid,[rid]);toast(`${p.ch} 채널 정보를 불러옵니다${p.kind==='ig'?' (30초~1분)':''}…`)}}
+/* 업로드 콘텐츠 링크를 바꾸거나 지우면 이전 콘텐츠의 성과·업로드일·썸네일을 함께 지움 (클릭·전환·매출 등 직접 입력한 값은 유지) */
+const CONTENT_FIELDS=['views','likes','cmts','shares','saves','reach','up','upd','ytAt','socialAt'];
+function clearContentData(rid,removed){if(!canEdit()||!A.cid)return;const cid=A.cid;const up={};CONTENT_FIELDS.forEach(k=>up[`rows.${rid}.${k}`]=DB.DEL);
+  DB.update('rows/'+cid,up).catch(saveErr);DB.update('thumbs/'+cid,{['t.'+rid]:DB.DEL,['a.'+rid]:DB.DEL}).catch(()=>{});scheduleSync(cid);
+  toast(removed?'콘텐츠 링크를 지워 이전 콘텐츠의 성과 데이터·썸네일도 함께 지웠습니다.':'콘텐츠 링크가 바뀌어 이전 성과 데이터·썸네일을 지우고 새 콘텐츠 기준으로 다시 불러옵니다.')}
 function onCLink(rid,v){if(!v)return;const r=((A.rowsDoc||{}).rows||{})[rid]||{};const ct=ctypeFor(v,r.ctype);
   if(ct){DB.update('rows/'+A.cid,{[`rows.${rid}.ctype`]:ct}).catch(saveErr);scheduleSync(A.cid)}
   const auto=!!(ytId(v)||/instagram\.com|tiktok\.com/.test(v));if(auto&&canEdit())queuePerf(A.cid,[rid]);
@@ -1967,25 +1989,25 @@ function connectionPanel(){const st=A.intStatus;const on=!!(((A.settings||{}).yt
   const mtPill=!canEdit()?'<span class="pill">확인 권한 없음</span>':A.intBusy?'<span class="pill">확인 중…</span>':st&&st.error?'<span class="pill crit">확인 실패</span>':mt?(mt.configured?(mt.ok?'<span class="pill ok">연결됨</span>':'<span class="pill warn">토큰 오류</span>'):'<span class="pill warn">미연결</span>'):'<span class="pill">–</span>';
   const mtNote=mt&&mt.configured?(mt.ok?`<div class="small" style="margin-top:6px">조회 계정 <b>@${esc(mt.account||'')}</b></div>`:`<div class="small" style="margin-top:6px;color:var(--crit,#d33)">${esc(mt.error||'')}</div>`):'';
   const apPill=!canEdit()?'<span class="pill">확인 권한 없음</span>':A.intBusy?'<span class="pill">확인 중…</span>':st&&st.error?'<span class="pill crit">확인 실패</span>':ap?(ap.token?(ap.ok===false?'<span class="pill warn">토큰 오류</span>':'<span class="pill ok">연결됨</span>'):'<span class="pill warn">미연결</span>'):'<span class="pill">–</span>';
+  const nt=st&&!st.error?st.netlify||{}:null;
+  const ntPill=!canEdit()?'<span class="pill">확인 권한 없음</span>':A.intBusy?'<span class="pill">확인 중…</span>':st&&st.error?'<span class="pill crit">확인 실패</span>':nt?(nt.configured?(nt.ok?`<span class="pill ${nt.deploys&&nt.deploys.left<=5?'warn':'ok'}">연결됨</span>`:'<span class="pill warn">토큰 오류</span>'):'<span class="pill warn">크레딧 미연결</span>'):'<span class="pill">–</span>';
+  let ntUse='';if(nt&&nt.ok&&nt.plan&&nt.plan.total){const pl=nt.plan,p=Math.min(100,Math.round(pl.used/pl.total*100)),dp=nt.deploys||{};
+    ntUse=`<div class="small" style="margin-top:6px">이번 달 크레딧 <b>${fmt(Math.round(pl.available))}</b> / ${fmt(pl.total)} 남음 · 배포 약 <b>${fmt(dp.left||0)}회</b> 가능 (1회 ${dp.per||15} 크레딧 · 이번 달 ${fmt(dp.count||0)}회 배포)${pl.resetAt?` · ${md(String(pl.resetAt).slice(0,10))} 초기화`:''}</div><div style="height:6px;background:var(--line);border-radius:3px;margin-top:4px;max-width:360px"><div style="height:6px;width:${p}%;background:${p>=80?'var(--crit,#d33)':'var(--accent,#2a6)'};border-radius:3px"></div></div>${nt.extra?`<div class="small muted" style="margin-top:4px">사이트 유지용 운영 크레딧 ${(+nt.extra.available).toFixed(1)} / ${fmt(nt.extra.total)} (배포에는 쓰이지 않음)</div>`:''}`}
+  else if(nt&&nt.configured&&!nt.ok)ntUse=`<div class="small" style="margin-top:6px;color:var(--crit,#d33)">${esc(nt.error||'')}</div>`;
   let apUse='';if(ap&&ap.usage&&ap.usage.limit){const u=ap.usage,p=Math.min(100,Math.round(u.used/u.limit*100));apUse=`<div class="small" style="margin-top:6px">이번 달 사용량 <b>$${(+u.used).toFixed(2)}</b> / $${(+u.limit).toFixed(2)} (${p}%)${u.resetAt?` · ${md(String(u.resetAt).slice(0,10))} 초기화`:''}</div><div style="height:6px;background:var(--line);border-radius:3px;margin-top:4px;max-width:360px"><div style="height:6px;width:${p}%;background:${p>=80?'var(--crit,#d33)':'var(--accent,#2a6)'};border-radius:3px"></div></div>`}
   const row=(name,pill,what,how)=>`<tr><td class="bold" style="white-space:nowrap">${name}</td><td>${pill}</td><td>${what}</td><td class="small muted">${how}</td></tr>`;
   return `<section class="panel"><div class="panel-h"><div><h2>연결 현황</h2><div class="sub">이 사이트가 사용하는 외부 서비스입니다. 변경은 마스터만 할 수 있습니다.</div></div>${canEdit()&&DB.mode!=='demo'?`<button class="btn sm" data-act="intCheck">${A.intBusy?'확인 중…':'상태 다시 확인'}</button>`:''}</div>
    <div class="tblwrap"><table class="tbl"><thead><tr><th>서비스</th><th>상태</th><th>하는 일</th><th>관리 위치</th></tr></thead><tbody>
    ${row('YouTube Data API',`<span class="pill ${on?'ok':'warn'}">${on?'연결됨':'미연결'}</span>`,'유튜브 조회수·좋아요·댓글 수 (「성과 불러오기」), 유튜브 채널 구독자·카테고리 (「채널 정보 불러오기」)','아래 YouTube 연결 · Google Cloud 콘솔')}
-   ${row('Meta 인스타그램 API',mtPill,'인스타그램 조회수·좋아요·댓글·썸네일, 인스타그램 채널 팔로워·소개글, 영상 검수용 영상 (무료 · 프로페셔널 계정만)'+mtNote,'Netlify 환경변수 <code>META_IG_TOKEN</code> · 아래 연결 방법')}
+   ${row('Meta 인스타그램 API',mtPill,'인스타그램 조회수·좋아요·댓글·썸네일, 인스타그램 채널 팔로워·소개글, 영상 검수용 영상 (무료 · 프로페셔널 계정만)'+mtNote,'Netlify 환경변수 <code>META_IG_TOKEN</code>')}
    ${row('Apify',apPill,'섭외 후보 탐색(인스타그램·틱톡 키워드 검색), Meta API로 못 가져온 인스타그램(개인 계정 등)·틱톡 수집 실패분 대체'+apUse,'Netlify 환경변수 <code>APIFY_TOKEN</code> (보안상 사이트에서 입력하지 않음)')}
    ${row('모두싸인','<span class="pill accent">링크 연결</span>','진행관리의 「계약하기」로 모두싸인을 열고, 계약 진행 상태·계약서 링크를 기록 (서명 완료 자동 반영은 API 연동 시)','모두싸인 팀 계정 · API는 미연결')}
    ${row('틱톡 공개 페이지','<span class="pill ok">키 불필요</span>','틱톡 조회수·좋아요·댓글·공유·저장 수를 직접 읽음','설정 없음')}
    ${row('Firebase',`<span class="pill ok">연결됨</span>`,'Google 로그인, 캠페인·진행관리·인플루언서 풀 데이터 저장, 권한 규칙','Firebase 콘솔 (ringcoms-campaign)')}
-   ${row('Netlify',`<span class="pill ok">연결됨</span>`,`사이트 호스팅(${esc(location.host)}), 성과 수집 서버 함수, GitHub 자동 배포`,'Netlify 사이트 설정')}
+   ${row('Netlify',ntPill,`사이트 호스팅(${esc(location.host)}), 성과 수집 서버 함수, GitHub 자동 배포`+ntUse,'Netlify 환경변수 <code>NETLIFY_TOKEN</code> (크레딧 조회용)')}
    </tbody></table></div>
    ${st&&st.error?`<p class="small" style="margin:8px 0 0;color:var(--crit,#d33)">${esc(st.error)}</p>`:''}${st&&st.at?`<p class="small muted" style="margin:8px 0 0">마지막 확인 ${fmtDT(st.at)}</p>`:''}
-   ${canEdit()?`<details style="margin-top:10px"><summary class="small bold" style="cursor:pointer">Meta 인스타그램 API 연결 방법 (무료, 약 15분)</summary><ol class="steps small" style="margin-top:8px">
-    <li>링컴즈 인스타그램 계정을 <b>프로페셔널 계정(비즈니스)</b>으로 두고, 인스타그램 설정 → 계정 센터에서 <b>링컴즈 페이스북 페이지</b>와 연결합니다.</li>
-    <li><a href="https://developers.facebook.com/apps/creation/" target="_blank" rel="noopener">Meta for Developers</a>에서 앱을 만들고(유형: 비즈니스), <b>Instagram</b> 제품(Facebook 로그인 방식)을 추가합니다. 개발 모드 그대로 두면 됩니다.</li>
-    <li><a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noopener">비즈니스 설정 → 시스템 사용자</a>에서 관리자 시스템 사용자를 만들고, 앱과 페이스북 페이지·인스타그램 계정을 자산으로 할당합니다.</li>
-    <li>「새 토큰 생성」에서 앱을 고르고 만료 <b>없음</b>, 권한 <code>instagram_basic</code>, <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>business_management</code>를 체크해 토큰을 만듭니다.</li>
-    <li>Netlify 사이트 설정 → 환경변수에 <code>META_IG_TOKEN</code>(토큰)을 넣고 다시 배포한 뒤 위 「상태 다시 확인」을 누릅니다. 인스타그램 계정 ID는 토큰으로 자동으로 찾습니다 (여러 계정 중 하나를 지정하려면 <code>META_IG_USER_ID</code> 추가).</li></ol></details>`:''}</section>`}
+</section>`}
 function trialSettings(c,fld){const tr=c.trial||{};const tc=trialCalc(c,summaryOf(c,curRows()).n);
   return `<section class="panel"><div class="panel-h"><div><h2>체험단 제품·모집 정보</h2><div class="sub">무상으로 제공하는 제품 정보와 모집 결과입니다. 광고주 리포트의 「체험단 모집 성과」와 체험단 목록의 카테고리별 신청 분석에 쓰입니다.</div></div></div>
    <div class="fgrid">${fld('trial.product','제공 제품명',tr.product)}${fld('trial.cat','제품 카테고리',tr.cat,null,'카테고리별 신청 경쟁률 분석 기준',TRIAL_CATS)}${fld('trial.price','제품 판매단가 (원)',tr.price,'num','소비자 판매가 기준')}${fld('trial.qty','1인당 제공 수량',has(tr.qty)?tr.qty:1,'num')}
@@ -2889,7 +2911,8 @@ document.addEventListener('change',e=>{const t=e.target;
   if(t.dataset.rename)return;
   if(t.dataset.row&&t.type==='checkbox'){patchRow(t.dataset.row,t.dataset.f,t.checked?'완료':null);return}
   if(t.dataset.row){const col=COLS.find(x=>x.k===t.dataset.f);let v=t.value;if(col&&col.t==='num'){v=parseNum(v);if(v===null&&t.value.trim()!==''){toast('숫자로 입력하세요.','crit');return}}else if(v==='')v=null;
-    patchRow(t.dataset.row,t.dataset.f,v);if(t.dataset.f==='chlink'&&v)onChLink(t.dataset.row,v);if(t.dataset.f==='clink'&&v)onCLink(t.dataset.row,v);return}
+    const prevCL=t.dataset.f==='clink'?((((A.rowsDoc||{}).rows||{})[t.dataset.row]||{}).clink||''):'';
+    patchRow(t.dataset.row,t.dataset.f,v);if(t.dataset.f==='clink'&&prevCL&&String(v||'').trim()!==prevCL.trim())clearContentData(t.dataset.row,!v);if(t.dataset.f==='chlink'&&v)onChLink(t.dataset.row,v);if(t.dataset.f==='clink'&&v)onCLink(t.dataset.row,v);return}
   if(t.dataset.cfacct){if(!isTeamEdit())return;const v=t.value||TEAM;cUpdate({acct:v,managed:v!==TEAM?TEAM:''}).then(()=>{toast(v===TEAM?'광고주 계정 공개를 껐습니다.':`「${acctName(v)}」 계정에 공개했습니다. 클라이언트가 진행 현황을 볼 수 있습니다.`);if(A.view==='campaign')openCampaign(A.cid,A.tab)}).catch(saveErr);scheduleSync(A.cid);return}
   if(t.dataset.cf==='kind'){const c=curC();if(!c)return;const k=t.value;const up={kind:k};const wasCom=isCom(c);
     if(k==='trial'){up.ctype='체험단';if(!c.trial)up.trial={product:'',cat:'',price:null,qty:1,platform:'',recruit:null,applicants:null,pageViews:null}}
@@ -3237,8 +3260,8 @@ service cloud.firestore {
   }
 }
 </script>
-<script src="/tools.js?v=0.18"></script>
-<script src="/proposal-deck.js?v=0.18"></script>
-<script src="/proposal.js?v=0.18"></script>
+<script src="/tools.js?v=0.20"></script>
+<script src="/proposal-deck.js?v=0.20"></script>
+<script src="/proposal.js?v=0.20"></script>
 </body>
 </html>

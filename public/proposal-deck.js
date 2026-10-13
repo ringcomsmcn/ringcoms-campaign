@@ -6,7 +6,52 @@
 (function(){
 'use strict';
 const W=13.333,H=7.5,MX=0.6;
-const F={xb:'Pretendard ExtraBold',b:'Pretendard SemiBold',r:'Pretendard',l:'Pretendard Light'};
+/* ============ 폰트 (무료 폰트 30종 · 폰트별 굵기 자동 구성) ============
+   w: 그 폰트에 있는 굵기 → 대제목(xb)·소제목/강조(b)·본문(r)·설명(l)을 자동으로 고름
+   PPT는 폰트 이름 + 굵게 여부로 저장(받는 PC에 폰트 설치 필요), 미리보기·PDF는 웹폰트 굵기 그대로 */
+const FA='https://cdn.jsdelivr.net/gh/fonts-archive/',GF='https://fonts.googleapis.com/css2?display=swap&family=';
+const FONTS=[
+ {id:'pretendard',name:'Pretendard',cat:'고딕',fam:'Pretendard',css:'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css',w:[100,200,300,400,500,600,700,800,900]},
+ {id:'noto-sans',name:'Noto Sans KR (본고딕)',cat:'고딕',fam:'Noto Sans KR',css:GF+'Noto+Sans+KR:wght@300;400;500;600;700;800;900',w:[300,400,500,600,700,800,900]},
+ {id:'nanum-gothic',name:'나눔고딕',cat:'고딕',fam:'Nanum Gothic',css:GF+'Nanum+Gothic:wght@400;700;800',w:[400,700,800]},
+ {id:'nanum-square-neo',name:'나눔스퀘어 네오',cat:'고딕',fam:'Nanum Square Neo',css:FA+'NanumSquareNeo/NanumSquareNeo.css',w:[300,400,700,800,900]},
+ {id:'nanum-square',name:'나눔스퀘어',cat:'고딕',fam:'Nanum Square',css:FA+'NanumSquare/NanumSquare.css',w:[300,400,700,800]},
+ {id:'nanum-barun',name:'나눔바른고딕',cat:'고딕',fam:'Nanum Barun Gothic',css:FA+'NanumBarunGothic/NanumBarunGothic.css',w:[100,300,400,700]},
+ {id:'gmarket',name:'G마켓 산스',cat:'고딕',fam:'Gmarket Sans',css:FA+'GmarketSans/GmarketSans.css',w:[300,500,700]},
+ {id:'suit',name:'SUIT',cat:'고딕',fam:'SUIT',css:'https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css',w:[100,200,300,400,500,600,700,800,900]},
+ {id:'spoqa',name:'스포카 한 산스 Neo',cat:'고딕',fam:'Spoqa Han Sans Neo',css:FA+'SpoqaHanSansNeo/SpoqaHanSansNeo.css',w:[100,300,400,500,700]},
+ {id:'paperlogy',name:'페이퍼로지',cat:'고딕',fam:'Paperlogy',css:FA+'Paperlogy/Paperlogy.css',w:[100,200,300,400,500,600,700,800,900]},
+ {id:'score',name:'에스코어 드림',cat:'고딕',fam:'S-Core Dream',css:FA+'S-CoreDream/S-CoreDream.css',w:[100,200,300,400,500,600,700,800,900]},
+ {id:'line-seed',name:'LINE Seed',cat:'고딕',fam:'LINE Seed KR',css:FA+'LINESeedKR/LINESeedKR.css',w:[100,400,700]},
+ {id:'wanted',name:'원티드 산스',cat:'고딕',fam:'Wanted Sans',css:'https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/static/split/WantedSans.min.css',w:[400,500,600,700,800,900]},
+ {id:'kopub-dotum',name:'KoPub 돋움',cat:'고딕',fam:'KoPub Dotum',css:FA+'KoPubDotum/KoPubDotum.css',w:[300,500,700]},
+ {id:'freesentation',name:'프리젠테이션',cat:'고딕',fam:'Freesentation',css:FA+'Freesentation/Freesentation.css',w:[100,200,300,400,500,600,700,800,900]},
+ {id:'ibm-plex',name:'IBM Plex Sans KR',cat:'고딕',fam:'IBM Plex Sans KR',css:GF+'IBM+Plex+Sans+KR:wght@300;400;500;600;700',w:[300,400,500,600,700]},
+ {id:'gothic-a1',name:'Gothic A1',cat:'고딕',fam:'Gothic A1',css:GF+'Gothic+A1:wght@300;400;500;600;700;800;900',w:[300,400,500,600,700,800,900]},
+ {id:'tmoney',name:'티머니 둥근바람',cat:'고딕',fam:'Tmoney Round Wind',css:FA+'TmoneyRoundWind/TmoneyRoundWind.css',w:[400,800]},
+ {id:'gowun-dodum',name:'고운돋움',cat:'고딕',fam:'Gowun Dodum',css:GF+'Gowun+Dodum',w:[400]},
+ {id:'noto-serif',name:'Noto Serif KR (본명조)',cat:'명조',fam:'Noto Serif KR',css:GF+'Noto+Serif+KR:wght@300;400;500;600;700;900',w:[300,400,500,600,700,900]},
+ {id:'nanum-myeongjo',name:'나눔명조',cat:'명조',fam:'Nanum Myeongjo',css:GF+'Nanum+Myeongjo:wght@400;700;800',w:[400,700,800]},
+ {id:'maruburi',name:'마루 부리',cat:'명조',fam:'Maru Buri',css:FA+'MaruBuri/MaruBuri.css',w:[200,300,400,600,700]},
+ {id:'kopub-batang',name:'KoPub 바탕',cat:'명조',fam:'KoPub Batang',css:FA+'KoPubBatang/KoPubBatang.css',w:[300,500,700]},
+ {id:'gowun-batang',name:'고운바탕',cat:'명조',fam:'Gowun Batang',css:GF+'Gowun+Batang:wght@400;700',w:[400,700]},
+ {id:'hahmlet',name:'함렛',cat:'명조',fam:'Hahmlet',css:GF+'Hahmlet:wght@300;400;500;600;700;800',w:[300,400,500,600,700,800]},
+ {id:'giants',name:'롯데자이언츠체',cat:'디스플레이',fam:'Giants',css:FA+'Giants/Giants.css',w:[400,700]},
+ {id:'cafe24-ssurround',name:'카페24 써라운드',cat:'디스플레이',fam:'Cafe24 Ssurround',css:FA+'Cafe24Ssurround/Cafe24Ssurround.css',w:[400]},
+ {id:'black-han-sans',name:'검은고딕',cat:'디스플레이',fam:'Black Han Sans',css:GF+'Black+Han+Sans',w:[400]},
+ {id:'do-hyeon',name:'배민 도현체',cat:'디스플레이',fam:'Do Hyeon',css:GF+'Do+Hyeon',w:[400]},
+ {id:'jua',name:'배민 주아체',cat:'디스플레이',fam:'Jua',css:GF+'Jua',w:[400]}];
+/* 굵기 자동 구성: 대제목은 가장 굵게(800 근처), 소제목은 600 근처, 본문 400, 설명은 300 근처(없으면 본문) */
+function near(ws,t,lo,hi){const c=ws.filter(w=>w>=lo&&w<=hi);if(!c.length)return null;return c.sort((a,b)=>Math.abs(a-t)-Math.abs(b-t)||b-a)[0]}
+function fontOf(id){return FONTS.find(f=>f.id===id)||FONTS[0]}
+function weightsOf(f){const ws=f.w;const r=near(ws,400,350,450)||near(ws,400,300,500)||ws[0];const xb=near(ws,800,700,900)||Math.max(...ws);const b=near(ws.filter(w=>w<xb&&w>r),600,500,700)||near(ws,600,500,700)||(xb>r?xb:r);const l=near(ws.filter(w=>w<r),300,200,350)||r;return {xb,b,r,l}}
+const PRET={xb:'Pretendard ExtraBold',b:'Pretendard SemiBold',r:'Pretendard',l:'Pretendard Light'};
+let F=PRET,FONT=FONTS[0];
+function useFont(id){FONT=fontOf(id);if(FONT.id==='pretendard'){F=PRET;return}const w=weightsOf(FONT);F={xb:FONT.fam+'#'+w.xb,b:FONT.fam+'#'+w.b,r:FONT.fam+'#'+w.r,l:FONT.fam+'#'+w.l}}
+const famCss=()=>`'${FONT.fam}','Pretendard','Malgun Gothic',sans-serif`;
+/* PPT 저장용: '폰트#굵기' → 폰트 이름 + 굵게 여부 */
+function pptFace(o){if(!o||!o.fontFace)return o;const m=/^(.*)#(\d+)$/.exec(o.fontFace);if(!m)return o;const w=+m[2];const reg=weightsOf(FONT).r;return {...o,fontFace:m[1],...(o.bold==null&&w>reg&&w>=600?{bold:true}:{})}}
+function loadFontCss(id){const f=fontOf(id);const el='rcfont-'+f.id;if(typeof document==='undefined'||document.getElementById(el))return;const l=document.createElement('link');l.id=el;l.rel='stylesheet';l.href=f.css;document.head.appendChild(l)}
 const won=n=>Math.round(+n||0).toLocaleString('ko-KR');
 const man=n=>{const v=Math.round((+n||0)/1000)/10;return v.toLocaleString('ko-KR')+'만'};
 const compactK=n=>n>=10000?(Math.round(n/1000)/10).toLocaleString('ko-KR')+'만':won(n);
@@ -70,17 +115,17 @@ function bgImage(T,kind,style){if(!style||style==='skill'||style==='none')return
   else if(style==='ring'){x.lineWidth=light?36:70;x.strokeStyle=rgba(ink,light?0.06:0.13);x.beginPath();x.arc(1360,light?110:420,light?260:360,0,7);x.stroke();x.strokeStyle=rgba(light?T.accent:'FFFFFF',light?0.05:0.09);x.beginPath();x.arc(1560,light?260:520,light?200:330,0,7);x.stroke()}
   const out=c.toDataURL('image/jpeg',0.86);GFX_CACHE.set(key,out);return out}
 /* 표지·간지·마지막 장 그래픽(무료): phone(소개서 이미지를 폰 화면에) · badge(브랜드명 원형 엠블럼) · cards(겹친 카드) */
-function gfxImage(T,style,brand,src){const key=['g',T.primary,T.accent,style,brand,src?String(src).length:0].join('|');if(GFX_CACHE.has(key))return Promise.resolve(GFX_CACHE.get(key));
+function gfxImage(T,style,brand,src){const key=['g',T.primary,T.accent,style,brand,src?String(src).length:0,FONT.id].join('|');if(GFX_CACHE.has(key))return Promise.resolve(GFX_CACHE.get(key));
   return (async()=>{let out=null;
     if(style==='phone'){const [c,x]=cv0(600,1200);const im=src?await loadImg(src):null;x.fillStyle='#111';rr(x,20,20,560,1160,80);x.fill();x.save();rr(x,48,48,504,1104,58);x.clip();
       if(im){const k=Math.max(504/im.naturalWidth,1104/im.naturalHeight);const w=im.naturalWidth*k,h=im.naturalHeight*k;x.fillStyle='#fff';x.fillRect(48,48,504,1104);x.drawImage(im,48+(504-w)/2,48+(1104-h)/2,w,h)}
-      else{const g=x.createLinearGradient(0,48,0,1152);g.addColorStop(0,css(mix(T.primary,0.2)));g.addColorStop(1,css(T.primary));x.fillStyle=g;x.fillRect(48,48,504,1104);x.fillStyle='#fff';x.font='800 64px Pretendard, sans-serif';x.textAlign='center';x.fillText(brand||'',300,620)}
+      else{const g=x.createLinearGradient(0,48,0,1152);g.addColorStop(0,css(mix(T.primary,0.2)));g.addColorStop(1,css(T.primary));x.fillStyle=g;x.fillRect(48,48,504,1104);x.fillStyle='#fff';x.font=`800 64px ${famCss()}`;x.textAlign='center';x.fillText(brand||'',300,620)}
       x.restore();x.fillStyle='#111';rr(x,230,62,140,30,15);x.fill();out=c.toDataURL('image/png')}
     else if(style==='badge'){const [c,x]=cv0(900,900);x.fillStyle=rgba('FFFFFF',0.95);x.beginPath();x.arc(450,450,400,0,7);x.fill();x.lineWidth=26;x.strokeStyle=css(T.accent);x.beginPath();x.arc(450,450,350,0,7);x.stroke();
-      x.fillStyle=css(T.primary);x.font=`800 ${Math.min(150,1100/Math.max(4,String(brand||'').length))}px Pretendard, sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(brand||'',450,440);x.fillStyle=css(T.muted||'767676');x.font='300 40px Pretendard, sans-serif';x.fillText('INFLUENCER CAMPAIGN',450,560);out=c.toDataURL('image/png')}
+      x.fillStyle=css(T.primary);x.font=`800 ${Math.min(150,1100/Math.max(4,String(brand||'').length))}px ${famCss()}`;x.textAlign='center';x.textBaseline='middle';x.fillText(brand||'',450,440);x.fillStyle=css(T.muted||'767676');x.font=`300 40px ${famCss()}`;x.fillText('INFLUENCER CAMPAIGN',450,560);out=c.toDataURL('image/png')}
     else if(style==='cards'){const [c,x]=cv0(800,1000);const im=src?await loadImg(src):null;[[130,140,-8,mix(T.primary,0.5)],[160,120,4,mix(T.accent,0.25)]].forEach(([a,b,rot,col])=>{x.save();x.translate(400,500);x.rotate(rot*Math.PI/180);x.translate(-400,-500);x.fillStyle=css(col);rr(x,a,b,520,720,48);x.fill();x.restore()});
       x.save();x.shadowColor='rgba(0,0,0,.25)';x.shadowBlur=40;x.fillStyle='#fff';rr(x,150,170,500,700,44);x.fill();x.restore();x.save();rr(x,170,190,460,660,32);x.clip();
-      if(im){const k=Math.max(460/im.naturalWidth,660/im.naturalHeight);x.drawImage(im,170+(460-im.naturalWidth*k)/2,190+(660-im.naturalHeight*k)/2,im.naturalWidth*k,im.naturalHeight*k)}else{x.fillStyle=css(T.tint);x.fillRect(170,190,460,660);x.fillStyle=css(T.primary);x.font='800 70px Pretendard, sans-serif';x.textAlign='center';x.fillText(brand||'',400,540)}
+      if(im){const k=Math.max(460/im.naturalWidth,660/im.naturalHeight);x.drawImage(im,170+(460-im.naturalWidth*k)/2,190+(660-im.naturalHeight*k)/2,im.naturalWidth*k,im.naturalHeight*k)}else{x.fillStyle=css(T.tint);x.fillRect(170,190,460,660);x.fillStyle=css(T.primary);x.font=`800 70px ${famCss()}`;x.textAlign='center';x.fillText(brand||'',400,540)}
       x.restore();out=c.toDataURL('image/png')}
     GFX_CACHE.set(key,out);return out})()}
 function rr(x,a,b,w,h,r){x.beginPath();if(x.roundRect)x.roundRect(a,b,w,h,r);else x.rect(a,b,w,h)}
@@ -93,7 +138,7 @@ class PvDeck{
   constructor(){this.slides=[];this.layout='';this.title='';this.shapes={RECTANGLE:'rect',ROUNDED_RECTANGLE:'roundRect',OVAL:'ellipse',LINE:'line'};this.charts={DOUGHNUT:'doughnut',BAR:'bar'};this.ShapeType={rect:'rect',roundRect:'roundRect',ellipse:'ellipse',line:'line'}}
   addSlide(){const s={background:null,els:[],notes:'',addText(t,o){this.els.push(['text',t,o||{}]);return this},addShape(k,o){this.els.push(['shape',k,o||{}]);return this},addImage(o){this.els.push(['img',o||{}]);return this},addChart(k,d,o){this.els.push(['chart',k,d,o||{}]);return this},addNotes(n){this.notes=n;return this}};this.slides.push(s);return s}
   html(){const IN=v=>(+v||0).toFixed(4)+'in';const col=(c,tr)=>{const h=hx(c)||'000000';const a=tr!=null?Math.max(0,1-tr/100):1;const [r,g,b]=rgb(h);return `rgba(${r},${g},${b},${a})`};
-    const fw=f=>/ExtraBold/.test(f||'')?800:/SemiBold/.test(f||'')?600:/Light/.test(f||'')?300:400;const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const fw=f=>/#\d+$/.test(f||'')?+/#(\d+)$/.exec(f)[1]:/ExtraBold/.test(f||'')?800:/SemiBold/.test(f||'')?600:/Light/.test(f||'')?300:400;const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const text=(t,o)=>{const runs=Array.isArray(t)?t:[{text:t,options:{}}];const paras=[{bul:false,parts:[]}];
       runs.forEach(r=>{const ro=r.options||{};if(ro.bullet&&!paras[paras.length-1].parts.length)paras[paras.length-1].bul=true;String(r.text??'').split('\n').forEach((part,i)=>{if(i)paras.push({bul:!!ro.bullet,parts:[]});let st='';if(ro.fontFace||ro.bold)st+=`font-weight:${ro.bold?700:fw(ro.fontFace)};`;if(ro.fontSize)st+=`font-size:${ro.fontSize}pt;`;if(ro.color)st+=`color:${col(ro.color)};`;paras[paras.length-1].parts.push(`<span style="${st}">${E(part)}</span>`)});if(ro.breakLine)paras.push({bul:false,parts:[]})});
       while(paras.length>1&&!paras[paras.length-1].parts.length)paras.pop();const va={middle:'center',bottom:'flex-end'}[o.valign]||'center';const psa=o.paraSpaceAfter?`margin-bottom:${o.paraSpaceAfter}pt;`:'';const lh=o.lineSpacingMultiple?`line-height:${1.2*o.lineSpacingMultiple};`:'';
@@ -106,14 +151,14 @@ class PvDeck{
           svg+=`<path d="M${x1},${y1}A${R},${R} 0 ${lg} 1 ${x2},${y2}L${x3},${y3}A${r},${r} 0 ${lg} 0 ${x4},${y4}Z" fill="#${C[i%C.length]}"/>`;const [tx,ty]=p((a0+a1)/2,(R+r)/2);if(v/tot>0.06)svg+=`<text x="${tx}" y="${ty}" font-size="11" font-weight="600" fill="#fff" text-anchor="middle" dominant-baseline="middle">${Math.round(v/tot*100)}%</text>`;a0=a1});
         svg+=`<g font-size="11" fill="#262626">${L.map((l,i)=>`<rect x="${w/2-L.length*38+i*76}" y="${h-18}" width="9" height="9" fill="#${C[i%C.length]}"/><text x="${w/2-L.length*38+i*76+13}" y="${h-10}">${E(l)}</text>`).join('')}</g>`}
       else{const mx=Math.max(...V,1);const bw=w/V.length;V.forEach((v,i)=>{const bh=(h-46)*v/mx;const x=i*bw+bw*0.2,y=h-24-bh;svg+=`<rect x="${x}" y="${y}" width="${bw*0.6}" height="${bh}" fill="#${C[i%C.length]}"/><text x="${x+bw*0.3}" y="${y-5}" font-size="10" font-weight="600" text-anchor="middle" fill="#262626">${won(v)}</text><text x="${x+bw*0.3}" y="${h-7}" font-size="11" font-weight="600" text-anchor="middle" fill="#262626">${E(L[i])}</text>`})}
-      return `<svg class="dk-s" style="left:${IN(o.x)};top:${IN(o.y)};width:${IN(o.w)};height:${IN(o.h)}" viewBox="0 0 ${w} ${h}" font-family="Pretendard,sans-serif">${svg}</svg>`};
-    return this.slides.map(sl=>`<section class="dk-page" style="background:${sl.background&&sl.background.color?col(sl.background.color):'#fff'}">${sl.els.map(e=>e[0]==='text'?text(e[1],e[2]):e[0]==='shape'?shape(e[1],e[2]):e[0]==='img'?img(e[1]):chart(e[1],e[2],e[3])).join('')}</section>`)}
+      return `<svg class="dk-s" style="left:${IN(o.x)};top:${IN(o.y)};width:${IN(o.w)};height:${IN(o.h)}" viewBox="0 0 ${w} ${h}" font-family="${famCss().replace(/"/g,"'")}">${svg}</svg>`};
+    const ff=famCss().replace(/"/g,"'");return this.slides.map(sl=>`<section class="dk-page" style="background:${sl.background&&sl.background.color?col(sl.background.color):'#fff'};font-family:${ff}">${sl.els.map(e=>e[0]==='text'?text(e[1],e[2]):e[0]==='shape'?shape(e[1],e[2]):e[0]==='img'?img(e[1]):chart(e[1],e[2],e[3])).join('')}</section>`)}
   async print(name){const H_=this.html().join('');const D_=new HtmlDeck();D_.html=()=>H_;return D_.print(name)}
 }
 
 /* ============ 장표 그리기 (스킬 build.js 이식) ============ */
 async function build(deck,D,seq,opts={}){
-  const T=D.theme,BR=D.meta.brand;const PDF=deck instanceof PvDeck;
+  useFont(D.font);loadFontCss(D.font);const T=D.theme,BR=D.meta.brand;const PDF=deck instanceof PvDeck;
   const SH=deck.shapes||{RECTANGLE:'rect',ROUNDED_RECTANGLE:'roundRect',OVAL:'ellipse',LINE:'line'};const CH=deck.charts||{DOUGHNUT:'doughnut',BAR:'bar'};
   /* 쓰일 이미지 크기 미리 읽기 (그리는 함수는 동기로) */
   const allImgs=[D.assets.heroPhone,D.assets.mascot,D.assets.mascotClosing,D.assets.logoDark,D.assets.logoWhite,...Object.values(D.assets.screens||{}),...Object.values(D.bg||{}),...Object.values(D.guides||{}).flatMap(g=>(g.cuts||[]).map(c=>c.img)),...((D.showcase||{}).people||[]).map(p=>p.img)].filter(Boolean);
@@ -125,7 +170,7 @@ async function build(deck,D,seq,opts={}){
     else String(text).split('\n').forEach(t=>paras.push({t,sz:o.fontSize||12}));
     const ls=o.lineSpacingMultiple||1;let h=0;paras.forEach((p,i)=>{p.t.split('\n').forEach(seg=>{const avail=Math.max(0.3,o.w-(p.bullet?0.3:0))*72;const wid=[...seg].reduce((a,c)=>a+chW(c)*p.sz*(1+(o.charSpacing||0)*0.05),0);const lines=Math.max(1,Math.ceil(wid/avail-0.02));h+=lines*p.sz*1.2*ls/72});if(i<paras.length-1)h+=(o.paraSpaceAfter||0)/72});return h}
   const txt=(slide,text,o)=>{if(text==null||text==='')return;const opt={isTextBox:true,margin:0,fontFace:F.r,color:T.dark,valign:'top',...o};
-    if(opt.valign!=='middle'&&opt.h&&opt.w){const e=estH(text,opt);if(e<opt.h){if(opt.valign==='bottom')opt.y=opt.y+opt.h-e;opt.h=e}}opt.valign='middle';if(PDF&&/ExtraBold|SemiBold/.test(opt.fontFace))opt.bold=false;return slide.addText(text,opt)};
+    if(opt.valign!=='middle'&&opt.h&&opt.w){const e=estH(text,opt);if(e<opt.h){if(opt.valign==='bottom')opt.y=opt.y+opt.h-e;opt.h=e}}opt.valign='middle';if(PDF&&/ExtraBold|SemiBold/.test(opt.fontFace))opt.bold=false;if(!PDF&&FONT.id!=='pretendard'){const o2=pptFace(opt);const t2=Array.isArray(text)?text.map(r=>({...r,options:pptFace({fontFace:opt.fontFace,...(r.options||{})})})):text;return slide.addText(t2,o2)}return slide.addText(text,opt)};
   function fitImg(slide,src,x,y,maxW,maxH,opt={}){if(!src)return null;const s=DIM.get(src);if(!s)return null;const r=Math.min(maxW/s[0],maxH/s[1]);const w=s[0]*r,h=s[1]*r;
     const ax=opt.align==='right'?x+maxW-w:opt.align==='center'?x+(maxW-w)/2:x;const ay=opt.valign==='bottom'?y+maxH-h:opt.valign==='middle'?y+(maxH-h)/2:y;
     slide.addImage({data:src,x:ax,y:ay,w,h,...(opt.rounding?{rounding:true}:{}),...(opt.shadow?{shadow:{type:'outer',color:'000000',opacity:0.18,blur:12,offset:4,angle:90}}:{})});return {x:ax,y:ay,w,h}}
@@ -272,5 +317,5 @@ async function build(deck,D,seq,opts={}){
   for(const id of seq){const [name,arg]=id.split(':');if(!S[name])continue;if(name==='showcase'&&!D.showcase.people.length)continue;const s=deck.addSlide();if(!['cover','toc','closing','eod'].includes(name))secNo++;S[name](s,arg);const n=(opts.notes||{})[id];if(n&&s.addNotes)s.addNotes(D.fillT(n));out.push(id)}
   return out}
 
-window.PPD={PvDeck,build,decideTheme,themeOf,bgOk,paletteOf,cropImg,bgImage,gfxImage,veilImage,mix,shade,contrast,hx,dimsOf,loadImg,man,won,compactK,pct};
+window.PPD={FONTS,fontOf,weightsOf,useFont,loadFontCss,PvDeck,build,decideTheme,themeOf,bgOk,paletteOf,cropImg,bgImage,gfxImage,veilImage,mix,shade,contrast,hx,dimsOf,loadImg,man,won,compactK,pct};
 })();

@@ -42,6 +42,8 @@
 | `GEMINI_API_KEY` | 가이드·검수에 필요 | Google AI Studio API 키 (프로젝트 「Gemini API」, 무료 등급) |
 | `GEMINI_MODEL` | 아니오 | 기본 `gemini-flash-latest` → 붐비거나 없으면 `gemini-2.5-flash` → `gemini-flash-lite-latest` |
 | `GITHUB_TOKEN` | 업데이트 제안에 필요 | fine-grained 토큰, 이 저장소만 · Contents 읽기·쓰기 |
+| `NETLIFY_TOKEN` | 크레딧 조회에 필요 | Netlify 개인 액세스 토큰(User settings → Applications → Personal access tokens) — 연동 관리에서 이번 달 크레딧 잔량·남은 배포 횟수 표시 |
+| `NETLIFY_TEAM` | 아니오 | 팀 슬러그 (비우면 토큰의 첫 번째 팀, 현재 `jcj602`) |
 
 ## 성과 불러오기 동작
 - 유튜브: 브라우저에서 YouTube Data API 직접 호출 (키는 팀원 관리 → 연동 설정)
