@@ -39,9 +39,10 @@ a.go{color:var(--c);font-weight:700}
 </head>
 <body>
 <main class="wrap" id="app"><div class="msg"><div class="spin"></div></div></main>
+<script src="/env.js"></script>
 <script>
 (function(){
-  var P='ringcoms-campaign',KEY='AIzaSyBNaWeb6ul2agnfe5ILD1ur5zu_FyVciuA';
+  var FC=window.FIREBASE_CONFIG||{},P=FC.projectId||'',KEY=FC.apiKey||'';
   var DOCS='https://firestore.googleapis.com/v1/projects/'+P+'/databases/(default)/documents';
   var qs=new URLSearchParams(location.search);
   var code=(qs.get('c')||location.pathname.split('/').filter(Boolean).pop()||'').replace(/\.html$/,'').replace(/[^A-Za-z0-9]/g,'');

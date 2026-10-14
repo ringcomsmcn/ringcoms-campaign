@@ -16,22 +16,8 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
-<script>
-/* ================================================================
-   ▼▼▼ 설치할 때 여기만 수정하세요 ▼▼▼
-   Firebase 콘솔 → 프로젝트 설정 → 내 앱 → SDK 설정 및 구성 → "구성"에 나오는
-   firebaseConfig 값을 그대로 붙여넣습니다. 비워두면 데모 모드로 열립니다.
-   ================================================================ */
-window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBNaWeb6ul2agnfe5ILD1ur5zu_FyVciuA",
-  authDomain: "ringcoms-campaign.firebaseapp.com",
-  projectId: "ringcoms-campaign",
-  storageBucket: "ringcoms-campaign.firebasestorage.app",
-  messagingSenderId: "662253106703",
-  appId: "1:662253106703:web:314e3d1d9fd18f5bcb957a"
-};
-/* ▲▲▲ 여기까지 ▲▲▲ */
-</script>
+<!-- Firebase 연결 설정(운영·테스트 환경)은 env.js 에서 수정합니다 -->
+<script src="env.js"></script>
 <style>
 :root{
   --bg:#F2F4F7;--surface:#FFFFFF;--surface2:#F7F8FA;--line:#E0E4EA;--line2:#C9CFD9;
@@ -1247,7 +1233,7 @@ function renderSetup(){
   <section class="panel"><h2>3. 이 파일에 Firebase 설정값 넣기</h2><ol class="steps" style="margin-top:10px">
    <li>Firebase <b>프로젝트 설정(톱니바퀴) → 일반 → 내 앱</b>에서 웹 앱 아이콘 <code>&lt;/&gt;</code> 클릭 → 앱 이름 입력 → 등록 (호스팅 체크는 안 해도 됩니다).</li>
    <li>화면에 나오는 <code>firebaseConfig = { apiKey: ... }</code> 값을 복사합니다.</li>
-   <li>이 <b>index.html</b> 파일을 메모장(맥은 텍스트편집기)으로 열고, 맨 위 <code>window.FIREBASE_CONFIG</code> 부분의 빈 값을 채워 저장합니다.</li>
+   <li><b>env.js</b> 파일을 메모장(맥은 텍스트편집기)으로 열고, <code>PROD</code>(운영) 또는 <code>STAGING</code>(테스트 환경) 부분에 붙여넣어 저장합니다.</li>
   </ol></section>
   <section class="panel"><h2>4. 웹에 올리기</h2><ol class="steps" style="margin-top:10px">
    <li><a href="https://app.netlify.com/drop" target="_blank" rel="noopener">app.netlify.com/drop</a>에 로그인 후, index.html이 들어 있는 <b>폴더를 통째로</b> 끌어다 놓습니다. 주소(예: <code>ringcoms-xxxx.netlify.app</code>)가 바로 생깁니다. 카페24 등 기존 호스팅에 올려도 됩니다.</li>
@@ -2117,7 +2103,7 @@ const TRK_PRESETS=['브랜드 홈페이지 확인하기','이벤트 참여하기
 const TRK_PARAM0='utm_source=ringcoms&utm_medium=influencer&utm_campaign={campaign}&utm_content={code}';
 const LSTAT={},LDAY={};const TRKS={};
 ['trkMode','trkAddBtn','trkDelBtn','trkUpBtn','trkParam','trkSave','trkGen','trkReport','trkToClicks'].forEach(k=>WRITE_ACTS.add(k));
-function trkBase(){return DB&&DB.mode==='demo'?location.origin+location.pathname.replace(/[^/]*$/,'')+'l.html?demo=1&c=':'https://ad.ringcoms.com/l/'}
+function trkBase(){return DB&&DB.mode==='demo'?location.origin+location.pathname.replace(/[^/]*$/,'')+'l.html?demo=1&c=':window.APP_ENV==='staging'?location.origin+'/l/':'https://ad.ringcoms.com/l/'}
 function trkUrl(code){return trkBase()+code}
 function trkPrev(code){const u=trkUrl(code);return u+(u.includes('?')?'&':'?')+'preview=1'}
 function trkId(){return 'b'+token().slice(0,5)}

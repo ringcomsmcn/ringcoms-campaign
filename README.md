@@ -6,6 +6,7 @@
 | 경로 | 내용 |
 |---|---|
 | `public/index.html` | 사이트 전체 (화면·로직). Firebase(로그인·데이터)와 연결 |
+| `public/env.js` | Firebase 연결 설정 (운영·테스트 환경 공용, index.html·l.html이 읽음). 주소가 `staging--`로 시작하면 테스트용 설정을 씀 |
 | `public/l.html` | 인플루언서 전용 단축 링크(`/l/{코드}`)가 여는 브릿지 페이지 (로그인 없음, 방문·버튼 클릭 집계) |
 | `netlify/functions/social-stats.mjs` | 인스타그램·틱톡 성과·게시일·썸네일 수집 서버 함수 (`/api/social-stats`) |
 | `netlify/functions/ops.mjs` | 업데이트 제안 읽기·승인 서버 함수 (`/api/ops`, GitHub `ops` 브랜치의 `ops/suggestions.json`) |
@@ -28,6 +29,20 @@
 
 ## 배포
 `main` 브랜치에 올리면 Netlify가 자동으로 배포합니다. 빌드 과정은 없습니다.
+
+## 테스트 환경 (staging)
+- `staging` 브랜치에 올리면 https://staging--cheery-conkies-713ddb.netlify.app 에 배포 (운영 `main`과 분리). 유료 고객이 생긴 뒤에는 일요일 배포 전에 여기서 먼저 확인
+- 화면은 `public/env.js`의 `STAGING` 설정(테스트용 Firebase 프로젝트)을 씀. 비어 있으면 데모 모드로만 열림 — 운영 데이터에는 절대 연결하지 않음. 화면 아래 「테스트 환경」 띠 표시
+- 인플루언서 전용 링크도 테스트 주소(`/l/{코드}`)로 만들어짐
+- 처음 한 번 설정 (사용자):
+  1. Netlify → Site configuration → Build & deploy → Branches and deploy contexts → Branch deploys에 `staging` 추가
+  2. Firebase 콘솔에서 테스트용 프로젝트(예: `ringcoms-campaign-staging`) 생성 → Google 로그인·Firestore(서울) 켜기 → `firestore.rules` 게시 → 웹 앱 등록 후 firebaseConfig를 `env.js`의 `STAGING`에 붙여넣기 → Authentication 승인된 도메인에 `staging--cheery-conkies-713ddb.netlify.app` 추가
+  3. Netlify 환경변수 `FIREBASE_PROJECT_ID`를 배포 컨텍스트 「Branch deploys」 값만 테스트 프로젝트 id로 지정 (Production 값은 그대로). Gemini·Apify 키도 테스트용을 따로 쓰려면 같은 방법으로 지정
+- 배포마다 Netlify 크레딧을 쓰므로 staging도 모아서 올림
+
+## 유료 판매 전 전환할 것 (2026-10 점검)
+- Gemini API: 무료 등급 → 유료 등급(결제 연결). 무료 등급은 입력 데이터가 Google 서비스 개선에 쓰일 수 있어 고객 데이터에 부적합
+- Firebase: Spark(무료) → Blaze(종량제). Spark는 하루 읽기 5만 건을 넘으면 모든 사용자가 함께 멈춤. Blaze 전환 후 예산 알림 설정 권장
 
 ## 환경변수 (Netlify → Site configuration → Environment variables)
 | 이름 | 필수 | 설명 |
