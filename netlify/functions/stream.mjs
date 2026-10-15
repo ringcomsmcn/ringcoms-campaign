@@ -76,8 +76,8 @@ async function soopChannel(id) {
   const j = await getJson(`https://chapi.sooplive.co.kr/api/${encodeURIComponent(id)}/station`, { referer: `https://www.sooplive.co.kr/station/${id}` });
   const st = j.station || {}, upd = st.upd || {}, b = j.broad || null;
   let img = j.profile_image || ''; if (img.startsWith('//')) img = 'https:' + img;
-  return { channel: { id, name: st.user_nick || st.station_name || id, img, fol: num(upd.fan_cnt), subs: num((j.subscription || {}).total), views: num(upd.total_view_cnt), since: st.broad_start || '', totalBroadMin: st.total_broad_time ? num(+st.total_broad_time / 60) : null },
-    live: b && b.broad_no ? { id: String(b.broad_no), title: String(b.broad_title || ''), viewers: num(b.current_sum_viewer), start: kstIso(b.broad_start || '') || '' } : null };
+  return { channel: { id, name: st.user_nick || st.station_name || id, img, fol: num(upd.fan_cnt), subs: num((j.subscription || {}).total), views: num(upd.total_view_cnt), totalBroadMin: st.total_broad_time ? num(+st.total_broad_time / 60) : null },
+    live: b && b.broad_no ? { id: String(b.broad_no), title: String(b.broad_title || ''), viewers: num(b.current_sum_viewer), start: kstIso(b.broad_start || st.broad_start || '') || '' } : null };
 }
 async function chzzkChannel(id) {
   const j = await getJson(`https://api.chzzk.naver.com/service/v1/channels/${id}`, { referer: `https://chzzk.naver.com/${id}` });
