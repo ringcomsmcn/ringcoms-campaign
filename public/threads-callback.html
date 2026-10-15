@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>스레드 연결</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#F2F4F7;color:#131822}.b{background:#fff;border:1px solid #E0E4EA;border-radius:14px;padding:28px 26px;max-width:340px;text-align:center;line-height:1.6}b{display:block;font-size:17px;margin-bottom:6px}</style>
+</head>
+<body>
+<div class="b" id="m"><b>스레드 연결 중…</b>잠시만 기다려 주세요.</div>
+<script>
+/* 스레드 연결 창이 돌아오는 페이지: 받은 code를 원래 화면(같은 사이트)에 넘기고 창을 닫음 */
+(function(){
+  var q=new URLSearchParams(location.search),code=(q.get('code')||'').replace(/#_$/,''),state=q.get('state')||'',err=q.get('error_description')||q.get('error')||'';
+  var msg={type:'rc-threads',code:code,state:state,error:err};
+  try{localStorage.setItem('rc_threads_cb',JSON.stringify(Object.assign({t:Date.now()},msg)))}catch(e){}
+  try{if(window.opener&&window.opener.location.origin===location.origin)window.opener.postMessage(msg,location.origin)}catch(e){}
+  var m=document.getElementById('m');
+  m.innerHTML=err?'<b>연결하지 못했습니다</b>'+String(err).replace(/[<>&]/g,'')+'<br>창을 닫고 다시 시도해 주세요.':'<b>연결 정보를 받았습니다</b>이 창은 자동으로 닫힙니다.<br>닫히지 않으면 직접 닫아 주세요.';
+  setTimeout(function(){try{window.close()}catch(e){}},900);
+})();
+</script>
+</body>
+</html>

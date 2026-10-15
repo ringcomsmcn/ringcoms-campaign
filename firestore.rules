@@ -97,6 +97,16 @@ service cloud.firestore {
       allow read: if isTeam();
       allow write: if canEdit();
     }
+    // 인플루언서 모집 (스레드 글·구글폼·신청자): 링컴즈 팀원 읽기, 마스터·매니저 수정
+    match /recruits/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
+    // 스레드 연결(팀원별 토큰): 로그인한 본인 문서만 읽고 씀 (다른 팀원·광고주는 볼 수 없음)
+    match /threads/{email} {
+      allow read: if isTeam() && email == request.auth.token.email.lower();
+      allow write: if canEdit() && email == request.auth.token.email.lower();
+    }
     match /reviews/{id} {
       allow read: if isTeam();
       allow write: if canEdit();

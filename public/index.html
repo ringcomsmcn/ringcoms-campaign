@@ -1216,11 +1216,11 @@ document.addEventListener('pointerdown',()=>pointerDown=true,true);
 document.addEventListener('pointerup',()=>{pointerDown=false;if(pending){pending=false;setTimeout(render,0)}},true);
 /* ============ 주소(뒤로 가기) ============ */
 /* 화면 이동을 브라우저 기록에 남겨, 뒤로 가기를 누르면 사이트를 나가지 않고 직전 화면으로 돌아감 */
-function routeOf(){const v=A.view;if(v==='campaign')return {v,c:A.cid,t:A.tab||'overview'};if(v==='create')return {v,k:kindOf(A.draft)};if(v==='team')return {v,tt:A.teamTab==='int'?'int':A.teamTab==='accts'?'accts':'members'};if(v==='cvc')return {v,c:A.cvId};if(v==='guides'&&A.gid)return {v,g:A.gid};if(v==='proposals'&&A.pid)return {v,g:A.pid};
+function routeOf(){const v=A.view;if(v==='campaign')return {v,c:A.cid,t:A.tab||'overview'};if(v==='create')return {v,k:kindOf(A.draft)};if(v==='team')return {v,tt:A.teamTab==='int'?'int':A.teamTab==='accts'?'accts':'members'};if(v==='cvc')return {v,c:A.cvId};if(v==='guides'&&A.gid)return {v,g:A.gid};if(v==='proposals'&&A.pid)return {v,g:A.pid};if(v==='recruit'&&A.rcid)return {v,g:A.rcid};
   if(VIEW_KIND[v])return {v,lt:A.ltab==='groups'?'groups':'camps'};return {v}}
-function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.v==='guides'&&r.g)return '#/guides/'+encodeURIComponent(r.g);if(r.v==='proposals'&&r.g)return '#/proposals/'+encodeURIComponent(r.g);if(r.lt==='groups')return `#/${r.v}/groups`;return '#/'+r.v}
+function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.v==='guides'&&r.g)return '#/guides/'+encodeURIComponent(r.g);if(r.v==='proposals'&&r.g)return '#/proposals/'+encodeURIComponent(r.g);if(r.v==='recruit'&&r.g)return '#/recruit/'+encodeURIComponent(r.g);if(r.lt==='groups')return `#/${r.v}/groups`;return '#/'+r.v}
 function parseHash(h){const p=String(h||'').replace(/^#\/?/,'').split('/').filter(Boolean).map(x=>{try{return decodeURIComponent(x)}catch(e){return x}});if(!p.length)return null;
-  if(p[0]==='c'&&p[1])return {v:'campaign',c:p[1],t:p[2]||'overview'};if(p[0]==='new')return {v:'create',k:p[1]||'seed'};if(p[0]==='team')return {v:'team',tt:p[1]||'members'};if(p[0]==='cv'&&p[1])return {v:'cvc',c:p[1]};if(p[0]==='guides')return {v:'guides',g:p[1]||''};if(p[0]==='proposals')return {v:'proposals',g:p[1]||''};
+  if(p[0]==='c'&&p[1])return {v:'campaign',c:p[1],t:p[2]||'overview'};if(p[0]==='new')return {v:'create',k:p[1]||'seed'};if(p[0]==='team')return {v:'team',tt:p[1]||'members'};if(p[0]==='cv'&&p[1])return {v:'cvc',c:p[1]};if(p[0]==='guides')return {v:'guides',g:p[1]||''};if(p[0]==='proposals')return {v:'proposals',g:p[1]||''};if(p[0]==='recruit')return {v:'recruit',g:p[1]||''};
   if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':'camps'};if(['pool','updates','history','cv','acct','review','aivideo'].includes(p[0]))return {v:p[0]};return null}
 let ROUTE_LOCK=false;
 function routeSync(){if(A.view==='share'||!A.user||!A.admin||ROUTE_LOCK)return;if(A.skipPop){clearTimeout(routeSync.t);routeSync.t=setTimeout(()=>{A.skipPop=0;routeSync()},400);return}const r=routeOf();const h=routeHash(r);const d=!!(A.drawer||A.modal||A.bellOpen||A.more);const st=history.state;
@@ -1233,7 +1233,7 @@ function allowedView(v){if(A.role==='client')return ['cv','cvc','acct'].includes
 function applyRoute(r){if(!r)return;if(!allowedView(r.v))r={v:homeView()};ROUTE_LOCK=true;try{A.drawer=null;A.modal=null;A.bellOpen=false;A.more=false;A.confirm=null;A.editName=null;
   if(r.v==='campaign'){if(A.cid!==r.c||A.view!=='campaign')openCampaign(r.c,r.t);else{A.tab=r.t;render()}}
   else if(r.v==='create'){if(A.draft&&A.view==='create')render();else{A.view=homeView(r.k);render()}}
-  else{if(A.unsubRows){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(VIEW_KIND[r.v]&&r.v!==A.view){A.csel.clear();A.statusF=''}A.view=r.v;if(r.lt)A.ltab=r.lt;if(r.tt)A.teamTab=r.tt;if(r.v==='cvc')A.cvId=r.c;if(r.v==='guides')A.gid=r.g||'';if(r.v==='proposals')A.pid=r.g||'';render()}
+  else{if(A.unsubRows){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(VIEW_KIND[r.v]&&r.v!==A.view){A.csel.clear();A.statusF=''}A.view=r.v;if(r.lt)A.ltab=r.lt;if(r.tt)A.teamTab=r.tt;if(r.v==='cvc')A.cvId=r.c;if(r.v==='guides')A.gid=r.g||'';if(r.v==='proposals')A.pid=r.g||'';if(r.v==='recruit')A.rcid=r.g||'';render()}
   window.scrollTo(0,0)}finally{ROUTE_LOCK=false}}
 window.addEventListener('popstate',e=>{if(A.view==='share'||!A.user)return;if(A.skipPop){A.skipPop=0;clearTimeout(routeSync.t);setTimeout(routeSync,0);return}const st=e.state;
   if((A.drawer||A.modal||A.bellOpen||A.more)&&!(st&&st.d)&&st&&st.h===routeHash(routeOf())){A.drawer=null;A.modal=null;A.bellOpen=false;A.more=false;A.confirm=null;ROUTE_LOCK=true;try{render()}finally{ROUTE_LOCK=false}return}
@@ -1328,10 +1328,10 @@ function navItems(){
   const ads={t:'광고 관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'}]};
   const tools={t:'콘텐츠 도구',items:[{v:'guides',l:'콘텐츠 가이드 생성',ms:'가이드',ic:'guide',m:1},{v:'review',l:'영상 검수',ms:'검수',ic:'review',m:1},{v:'aivideo',l:'AI 영상 제작',ic:'aivideo'}]};
   const prop={t:'제안 도구',items:[{v:'proposals',l:'광고 제안서 생성',ms:'제안서',ic:'proposal'}]};
-  const infl={t:'인플루언서 관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'}]};
+  const infl={t:'인플루언서 관리',items:[{v:'recruit',l:'인플루언서 모집',ms:'모집',ic:'recruit'},{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'}]};
   const comp={t:'구성요소 관리',items:[{v:'team',tt:'members',l:'팀원·권한',ic:'team'},{v:'team',tt:'accts',l:'광고주 계정',ic:'acct'},{v:'team',tt:'int',l:'연동 관리',ic:'int'},{v:'updates',l:'업데이트 제안',badge:updBadge()},{v:'history',l:'업데이트 이력'}]};
   return [ads,infl,tools,prop,comp]}
-function viewBody(){const v=A.view;return v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
+function viewBody(){const v=A.view;return v==='recruit'?viewRecruit():v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
 function homeView(k){return isClientView()?'cv':kindView(k||'seed')}
 
 /* ---- 계정·클라이언트·업데이트 기능 (아래에서 다시 정의) ---- */
@@ -1439,7 +1439,7 @@ function updGoModal(){const m=A.modal;const items=((A.ops&&A.ops.items)||[]).fil
 /* 업데이트 이력: 배포한 버전별 변경 사항 (public/changelog.json) */
 async function loadHist(){if(A.histBusy)return;A.histBusy=true;try{const r=await fetch('/changelog.json?nc='+Date.now(),{cache:'no-store'});A.hist=r.ok?await r.json():{versions:[]};if(!r.ok)A.histErr='이력 파일을 불러오지 못했습니다.'}catch(e){A.hist={versions:[]};A.histErr='이력 파일을 불러오지 못했습니다.'}finally{A.histBusy=false;scheduleRender()}}
 /* 데이터 백업: 팀원이 읽을 수 있는 모든 컬렉션을 JSON 파일 하나로 내려받기 (배포 전 롤백 대비) */
-const BK_COLS=['admins','accounts','campaigns','rows','thumbs','pool','guides','guideimg','reviews','cview','cconfirm','settings','links','linkstat','linkday'];
+const BK_COLS=['admins','accounts','campaigns','rows','thumbs','pool','recruits','guides','guideimg','reviews','cview','cconfirm','settings','links','linkstat','linkday'];
 const BK_IMG=['thumbs','guideimg'];
 function bkLast(){try{return JSON.parse(localStorage.getItem('ring_backup_last')||'null')}catch(e){return null}}
 function bkVal(v){if(v&&typeof v==='object'){if(typeof v.toDate==='function'&&'seconds' in v)return {__ts:v.toDate().toISOString()};if(Array.isArray(v))return v.map(bkVal);const o={};for(const k in v)o[k]=bkVal(v[k]);return o}return v}
@@ -2779,7 +2779,7 @@ const ACT={
   signIn(){DB.signIn().catch(e=>toast(e&&e.code==='auth/unauthorized-domain'?'이 주소가 Firebase 승인된 도메인에 없습니다. 설치 안내 4단계를 확인하세요.':'로그인하지 못했습니다.','crit'))},
   signOut(){DB.signOut()},
   demoReset(){if(A.confirm!=='reset'){A.confirm='reset';toast('한 번 더 누르면 데모 데이터를 처음 상태로 되돌립니다.');return}A.confirm=null;DB.reset();toast('데모 데이터를 초기화했습니다.');A.view='list';render()},
-  nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(a.dataset.tt)A.teamTab=a.dataset.tt;if(v==='guides')A.gid='';if(v==='proposals')A.pid='';if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
+  nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(a.dataset.tt)A.teamTab=a.dataset.tt;if(v==='guides')A.gid='';if(v==='proposals')A.pid='';if(v==='recruit')A.rcid='';if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
   back(a){ACT.nav(a)},
   lnbFold(el){const g=el.dataset.g;if(!g)return;A.lnbFold.has(g)?A.lnbFold.delete(g):A.lnbFold.add(g);try{localStorage.setItem('lnb_fold',JSON.stringify([...A.lnbFold]))}catch(e){}render()},
   lnbMini(){A.lnbMini=!A.lnbMini;try{localStorage.setItem('lnb_mini',A.lnbMini?'1':'')}catch(e){}render()},
@@ -3284,6 +3284,16 @@ service cloud.firestore {
       allow read: if isTeam();
       allow write: if canEdit();
     }
+    // 인플루언서 모집 (스레드 글·구글폼·신청자): 링컴즈 팀원 읽기, 마스터·매니저 수정
+    match /recruits/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
+    // 스레드 연결(팀원별 토큰): 로그인한 본인 문서만 읽고 씀 (다른 팀원·광고주는 볼 수 없음)
+    match /threads/{email} {
+      allow read: if isTeam() && email == request.auth.token.email.lower();
+      allow write: if canEdit() && email == request.auth.token.email.lower();
+    }
     match /reviews/{id} {
       allow read: if isTeam();
       allow write: if canEdit();
@@ -3331,5 +3341,6 @@ service cloud.firestore {
 <script src="/tools.js?v=0.20"></script>
 <script src="/proposal-deck.js?v=0.20"></script>
 <script src="/proposal.js?v=0.20"></script>
+<script src="/recruit.js?v=0.22"></script>
 </body>
 </html>
