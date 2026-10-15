@@ -14,6 +14,10 @@
 | `public/img/ringcoms-wide.png` | 가로형 RINGCOMS 로고 (흰색, 가이드 PPT·PDF 우상단 · 광고주 색으로 자동 변환) |
 | `netlify/functions/ai.mjs` | AI 연결 상태 확인·인사이트 코멘트 초안 (`/api/ai`, action `status`·`insight`) |
 | `public/proposal-deck.js` | 제안서 장표 빌더 (ringcoms-influencer-proposal 스킬 build.js 브라우저 이식 · 컬러 결정 · 이미지 자르기 · 배경/그래픽 생성 · HTML 미리보기) |
+| `public/recruit.js` | 인플루언서 모집: 스레드 글·구글폼·신청자 (`recruits/{id}`), 스레드 연결 `threads/{이메일}`(본인만) |
+| `public/threads-callback.html` | 스레드 계정 연결 창이 돌아오는 페이지 |
+| `netlify/functions/recruit.mjs` | 모집 글·폼 문항 AI 백그라운드 함수 (`/api/recruit`), 프롬프트는 `netlify/lib/recruit.mjs` |
+| `netlify/functions/threads.mjs` | 스레드 연결·게시 (`/api/threads`: config·exchange·status·post) |
 | `public/proposal.js` | 제안 도구: 광고 제안서 생성 (소개서 읽기 pdf.js · 티어 자동 구성 · 예상 성과 · PPT/PDF) — 데이터는 `guides/{id}` (`kind: proposal`), 이미지는 `guideimg/{id}` (`__cut` 컷 · `__av` 프로필 · `__src` 소개서에서 자른 이미지 · `__pg` 소개서 페이지 썸네일) |
 | `netlify/functions/proposal.mjs` | 광고 제안서 AI 백그라운드 함수 (`/api/proposal`): 구글 검색 시장 조사 + 소개서 페이지 이미지 분석(자를 영역) → Gemini 제안서 문구 → `guides/{id}.aiResult` → 화면이 자동 적용 |
 | `netlify/functions/discover.mjs` | 제안서 섭외 후보 탐색 백그라운드 함수 (`/api/discover`): 틱톡 키워드 영상 검색·인스타그램 사용자 검색(Apify) → `guides/{id}.discResult`. 유튜브는 브라우저에서 YouTube API 키로 검색. 프로필 사진은 `guideimg/{id}__av`, 컷 이미지는 `guideimg/{id}__cut` |
@@ -58,6 +62,8 @@
 | `GEMINI_MODEL` | 아니오 | 기본 `gemini-flash-latest` → 붐비거나 없으면 `gemini-2.5-flash` → `gemini-flash-lite-latest` |
 | `GITHUB_TOKEN` | 업데이트 제안에 필요 | fine-grained 토큰, 이 저장소만 · Contents 읽기·쓰기 |
 | `NETLIFY_TOKEN` | 크레딧 조회에 필요 | Netlify 개인 액세스 토큰(User settings → Applications → Personal access tokens) — 연동 관리에서 이번 달 크레딧 잔량·남은 배포 횟수 표시 |
+| `THREADS_APP_ID` | 스레드 게시에 필요 | Meta 개발자 앱(사용 사례 「Threads API 액세스」)의 Threads 앱 ID |
+| `THREADS_APP_SECRET` | 스레드 게시에 필요 | Threads 앱 시크릿 |
 | `NETLIFY_TEAM` | 아니오 | 팀 슬러그 (비우면 토큰의 첫 번째 팀, 현재 `jcj602`) |
 
 ## 성과 불러오기 동작
@@ -151,3 +157,12 @@
 ## 제안서 폰트
 - `public/proposal-deck.js`의 `FONTS`(무료 30종, 웹폰트)와 `DL`(설치용 TTF·OTF 주소 + 폰트 파일 속 글꼴 이름)
 - PPT는 `DL`의 글꼴 이름으로 저장 → 「글꼴 받기」로 받은 파일을 설치하면 그대로 보임
+
+## 인플루언서 모집 (인플루언서 관리 → 인플루언서 모집)
+- 흐름: 정보·연결(캠페인·가이드·링크·소개서·조건) → 스레드 글(AI 초안·편집·복사·게시) → 구글폼·링크 → 신청자(불러오기·캠페인 추가)
+- 스레드 글은 1개 500자 제한 → 본문 + 이어 쓰기(답글)로 나눠 게시. 글 속 `{링크}`가 축약 링크로 바뀜
+- 스레드 연결: 팀원 로그인 계정마다 `threads/{이메일}`에 60일 토큰 저장(보안 규칙상 본인만 읽기·쓰기). 준비: Meta 앱 → 권한 `threads_basic`·`threads_content_publish` → 리디렉션 URL `https://ad.ringcoms.com/threads-callback.html` → Threads 테스터에 팀원 계정 추가·수락 → Netlify 환경변수 2개
+- 구글폼: 브라우저에서 로그인한 Google 계정의 `drive.file` 권한(이 사이트가 만든 파일만)으로 Forms API·Sheets API 호출 → 폼·「신청자」 시트·`links/{코드}`(kind `recruit`, `cid` 비움 → 캠페인 링크 집계와 분리, 연결 캠페인은 `camp`) 생성. Google Cloud에서 Forms API·Sheets API·Drive API(공유용) 사용 설정, OAuth 동의 화면에 `drive.file` 범위 추가 필요
+- 신청자 불러오기는 폼을 만든 계정으로 로그인했을 때만 가능(문항 제목으로 활동명·채널·연락처 등 자동 매칭). 직접 만든 폼도 링크만 연결 가능(응답 읽기 불가 → 엑셀 업로드)
+- 신청자 → 캠페인 `rows`(컨택 단계, 체험단은 `apply: 완료`, `recruit: 모집id`) → 동기화 때 인플루언서 풀 자동 누적
+- 보안 규칙(`recruits`, `threads`)이 추가되어 Firebase 콘솔에 게시해야 동작
