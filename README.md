@@ -14,6 +14,10 @@
 | `netlify/functions/ai.mjs` | AI 연결 상태 확인·인사이트 코멘트 초안 (`/api/ai`, action `status`·`insight`) |
 | `public/proposal-deck.js` | 제안서 장표 빌더 (ringcoms-influencer-proposal 스킬 build.js 브라우저 이식 · 컬러 결정 · 이미지 자르기 · 배경/그래픽 생성 · HTML 미리보기) |
 | `public/recruit.js` | 스레드 모집: 스레드 글·구글폼·신청자 (`recruits/{id}`), 스레드 연결 `threads/{이메일}`(본인만) |
+| `public/msign.js` | 모두싸인 API 연동 화면 (연동 관리 · 계약 관리 API 서명 요청 · 상태 반영) |
+| `netlify/functions/modusign.mjs` | 모두싸인 API 서버 함수 (`/api/modusign`: status·save·clear·templates·send·sync·remind, 키는 `secrets/modusign`) |
+| `public/tree.js` | 계층 트리: 캠페인 화면 왼쪽 트리 · 목록 「계층 보기」 · 광고 그룹 끌어서 순서 변경 |
+| `public/mobile.js` | 모바일(720px 이하) 앱형 화면: 하단 탭 · 홈 · 섹션 칩 · PC 전용 안내 |
 | `public/stream.js` | 광고 관리 > 스트리머 광고: PPL·프로모션, SOOP·치지직·유튜브 방송 불러오기·매칭·집계 (`streams/{id}`) |
 | `netlify/functions/stream.mjs` | SOOP·치지직 방송(다시보기) 목록 서버 함수 (`/api/stream`: vods·status, 키 불필요) |
 | `netlify/functions/meta.mjs` | 연동 관리의 Meta 인스타그램 토큰 저장·확인 (`/api/meta`: status·save·clear, 저장 위치 `secrets/meta`) |
