@@ -631,6 +631,11 @@ const NOSEL='미선정';function isOut(s){return s===DROP||s===NOSEL}function ou
 const GB_STAGES=['컨택','조건협의','확정','샘플발송','콘텐츠준비','오픈대기','판매중','판매종료','정산완료'];
 const LIVE_STAGES=['컨택','일정협의','확정','큐시트작성','큐시트컨펌','리허설','방송대기','방송완료','정산완료'];
 const SETTLED='정산완료';const DONE_SET=new Set([DONE,SETTLED]);function isDone(s){return DONE_SET.has(s)}
+/* 스트리머 광고 (캠페인 유형 stream) */
+const STR_STAGES=['컨택','일정협의','확정','방송대기','방송완료','정산완료'];
+const STR_PLATS=['SOOP','치지직','유튜브'];
+const STR_PARTNERS=['링컴즈 소속','파트너','외부'];
+const STR_TYPES=['PPL','프로모션'];
 const LIVE_PLATS=['네이버 쇼핑라이브','카카오 쇼핑라이브','쿠팡라이브','그립','11번가 LIVE11','CJ온스타일 라이브','유튜브 쇼핑 라이브','틱톡 라이브','인스타그램 라이브','자사몰 라이브','기타'];
 const GB_CHANNELS=['스마트스토어','자사몰','카카오톡 선물하기·톡딜','쿠팡','공구 전용몰','인스타그램 DM·링크','기타'];
 const SETTLE_TYPES=['판매수수료','고정비','고정비 + 판매수수료'];
@@ -638,8 +643,9 @@ const SETTLE_TYPES=['판매수수료','고정비','고정비 + 판매수수료']
 const KINDS={seed:{view:'list',label:'시딩 캠페인',eb:'Seeding Campaigns',nw:'새 캠페인',newEb:'New Seeding Campaign',newH:'새 시딩 캠페인 만들기',rep:'INFLUENCER CAMPAIGN REPORT'},
   trial:{view:'trial',label:'체험단 캠페인',eb:'Product Trial Campaigns',nw:'새 체험단 캠페인',newEb:'New Product Trial',newH:'새 체험단 캠페인 만들기',rep:'PRODUCT TRIAL CAMPAIGN REPORT',pill:'체험단 · 무상협찬'},
   gb:{view:'gb',label:'공동구매 캠페인',eb:'Group-Buy Campaigns',nw:'새 공동구매',newEb:'New Group-Buy Campaign',newH:'새 공동구매 캠페인 만들기',rep:'GROUP-BUY CAMPAIGN REPORT',pill:'공동구매',desc:'인플루언서가 공구 링크로 직접 판매하는 캠페인입니다. 공구 기간·판매 링크·수수료와 판매 데이터를 한 표에서 관리하고, 판매수수료·정산 금액·ROAS를 자동으로 계산합니다.'},
+  stream:{view:'stream',label:'스트리머 광고',eb:'Streamer Ad Campaigns',nw:'새 스트리머 광고',newEb:'New Streamer Campaign',newH:'새 스트리머 광고 만들기',rep:'STREAMER AD CAMPAIGN REPORT',pill:'스트리머 광고',desc:'SOOP·치지직·유튜브 스트리머의 PPL·프로모션 광고입니다. 캠페인 › 광고 그룹(월별 등) › 스트리머로 관리하고, 방송을 불러와 방송 제목 키워드·소프트콘으로 광고 방송을 골라 누적 시청·최고·평균 시청자·소프트콘·CPV를 집계합니다.'},
   live:{view:'live',label:'라이브커머스 캠페인',eb:'Live Commerce Campaigns',nw:'새 라이브커머스',newEb:'New Live Commerce Campaign',newH:'새 라이브커머스 캠페인 만들기',rep:'LIVE COMMERCE CAMPAIGN REPORT',pill:'라이브커머스',desc:'인플루언서가 출연하는 라이브 방송 캠페인입니다. 방송 일정·플랫폼과 시청자·주문·매출을 한 표에서 관리하고, 분당 매출·구매 전환율·정산 금액을 자동으로 계산합니다.'}};
-const VIEW_KIND={list:'seed',trial:'trial',gb:'gb',live:'live'};
+const VIEW_KIND={list:'seed',trial:'trial',gb:'gb',live:'live',stream:'stream'};
 const CHANNELS=['인스타그램','유튜브','틱톡','네이버 블로그','엑스'];
 const PARTNERS=['링컴즈 전속','링컴스 파트너','외부 크리에이터','타 MCN 소속'];
 /* 소속 구분 글자 → 표준 값 (엑셀 업로드) */
@@ -742,7 +748,8 @@ function isTrial(c){return !!c&&c.kind==='trial'}
 function isGB(c){return !!c&&c.kind==='gb'}
 function isLive(c){return !!c&&c.kind==='live'}
 function isCom(c){return isGB(c)||isLive(c)}
-function kindOf(c){const k=c&&c.kind;return k==='trial'||k==='gb'||k==='live'?k:'seed'}
+function kindOf(c){const k=c&&c.kind;return k==='trial'||k==='gb'||k==='live'||k==='stream'?k:'seed'}
+function isStream(c){return !!c&&c.kind==='stream'}
 function listKind(){return VIEW_KIND[A.view]||'seed'}
 function kindView(k){return (KINDS[k]||KINDS.seed).view}
 /* 체험단 지표: 선정 인원은 인플루언서 관리에 입력된 인플루언서(드롭 제외) 수 */
@@ -813,9 +820,13 @@ const COLS=[
  {k:'saves',l:'저장',g:'perf',w:76,t:'num'},
  {k:'reach',l:'도달',g:'perf',w:90,t:'num'},
  {k:'upd',l:'데이터 수집일',g:'perf',w:128,t:'date'},
+ {k:'airN',l:'광고 방송 수',g:'conv',w:96,t:'num',kinds:['stream']},
+ {k:'stMins',l:'방송 시간 (분)',g:'conv',w:104,t:'num',kinds:['stream']},
  {k:'viewers',l:'누적 시청자',g:'conv',w:96,t:'num',kinds:['live']},
- {k:'peak',l:'최고 동시접속',g:'conv',w:100,t:'num',kinds:['live']},
- {k:'chats',l:'채팅 수',g:'conv',w:80,t:'num',kinds:['live']},
+ {k:'peak',l:'최고 동시접속',g:'conv',w:100,t:'num',kinds:['live','stream'],lk:{stream:'최고 시청자'}},
+ {k:'avgV',l:'평균 시청자',g:'conv',w:96,t:'num',kinds:['stream']},
+ {k:'soft',l:'소프트콘',g:'conv',w:88,t:'num',kinds:['stream']},
+ {k:'chats',l:'채팅 수',g:'conv',w:80,t:'num',kinds:['live','stream']},
  {k:'clicks',l:'링크 클릭',g:'conv',w:90,t:'num',need:'clicks',lk:{gb:'판매 링크 클릭'}},
  {k:'conv',l:'전환 수',g:'conv',w:84,t:'num',need:'conv',lk:{gb:'주문 수',live:'주문 수'}},
  {k:'qty',l:'판매 수량',g:'conv',w:90,t:'num',kinds:['gb','live']},
@@ -834,9 +845,11 @@ const COLS=[
  {k:'alert',l:'확인 필요',g:'calc',w:160,t:'calc',f:'txt'},
 ];
 const GROUPS={info:'인플루언서 정보',comm:'커뮤니케이션',sales:'일정·링크',content:'콘텐츠',cost:'비용 (원)',perf:'성과 데이터',conv:'유입·전환',calc:'자동 계산'};
-function groupLabel(c,g){if(g==='sales')return isLive(c)?'방송 정보':'공구 일정·링크';if(g==='conv'&&isCom(c))return isLive(c)?'방송·판매 성과':'판매 성과';if(g==='content'&&isCom(c))return '홍보 콘텐츠';if(g==='perf'&&isCom(c))return '콘텐츠 성과';return GROUPS[g]}
-function colLabel(c,col){return (col.lk&&col.lk[kindOf(c)])||col.l}
-function colOpts(c,col){return col.k==='stage'?[...stagesOf(c),...outStages(c)]:col.o}
+function groupLabel(c,g){if(isStream(c)){if(g==='conv')return '방송 성과';if(g==='content')return '방송 일정·링크';if(g==='perf')return '시청 데이터'}if(g==='sales')return isLive(c)?'방송 정보':'공구 일정·링크';if(g==='conv'&&isCom(c))return isLive(c)?'방송·판매 성과':'판매 성과';if(g==='content'&&isCom(c))return '홍보 콘텐츠';if(g==='perf'&&isCom(c))return '콘텐츠 성과';return GROUPS[g]}
+const STR_LK={name:'스트리머명',acct:'채널 ID',ch:'플랫폼',chlink:'채널 URL',fol:'팔로워',fee:'출연료',ops:'운영비',due:'방송 예정일',up:'최근 광고 방송일',clink:'대표 방송 링크',views:'누적 시청·조회',upd:'데이터 수집일',partner:'소속 구분'};
+const STR_HIDE=new Set(['addr','zip','ctype','thumb','likes','cmts','shares','saves','reach','eng','er','cpe','use','lic','ship','apply','cat']);
+function colLabel(c,col){if(isStream(c)&&STR_LK[col.k])return STR_LK[col.k];return (col.lk&&col.lk[kindOf(c)])||col.l}
+function colOpts(c,col){if(isStream(c)&&col.k==='ch')return STR_PLATS;if(isStream(c)&&col.k==='partner')return STR_PARTNERS;return col.k==='stage'?[...stagesOf(c),...outStages(c)]:col.o}
 
 /* ============ 유틸 ============ */
 const $=s=>document.querySelector(s);
@@ -866,10 +879,10 @@ function normDT(v){if(!v)return '';if(v instanceof Date){const t=new Date(v.getT
 function normDate(v){if(!v)return '';const s=String(v).trim();let m=s.match(/(\d{4})[-./]\s?(\d{1,2})[-./]\s?(\d{1,2})/);if(m)return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');m=s.match(/^(\d{2})[.](\d{1,2})[.](\d{1,2})$/);if(m)return '20'+m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');return ''}
 function toast(msg,lv){const el=$('#toast');el.innerHTML=`<div class="${lv||''}">${esc(msg)}</div>`;clearTimeout(toast.t);toast.t=setTimeout(()=>el.innerHTML='',lv==='crit'?5500:2800)}
 async function copyText(t){try{await navigator.clipboard.writeText(t);toast('복사했습니다.')}catch(e){prompt('아래 내용을 복사하세요',t)}}
-function stagesOf(c){const k=kindOf(c);return k==='gb'?GB_STAGES:k==='live'?LIVE_STAGES:STAGES}
-function stageIdx(s,c){s=normStage(s);if(c)return stagesOf(c).indexOf(s);let i=STAGES.indexOf(s);if(i<0)i=GB_STAGES.indexOf(s);if(i<0)i=LIVE_STAGES.indexOf(s);return i}
+function stagesOf(c){const k=kindOf(c);return k==='gb'?GB_STAGES:k==='live'?LIVE_STAGES:k==='stream'?STR_STAGES:STAGES}
+function stageIdx(s,c){s=normStage(s);if(c)return stagesOf(c).indexOf(s);let i=STAGES.indexOf(s);if(i<0)i=GB_STAGES.indexOf(s);if(i<0)i=LIVE_STAGES.indexOf(s);if(i<0)i=STR_STAGES.indexOf(s);return i}
 /* 단계별 인원 객체의 키로 어느 종류의 단계 목록인지 판별 */
-function stageListFor(sc){const ks=Object.keys(sc||{});if(ks.some(k=>GB_STAGES.includes(k)&&!STAGES.includes(k)&&!LIVE_STAGES.includes(k)))return GB_STAGES;if(ks.some(k=>LIVE_STAGES.includes(k)&&!STAGES.includes(k)))return LIVE_STAGES;return STAGES}
+function stageListFor(sc){const ks=Object.keys(sc||{});if(ks.some(k=>k==='일정협의'||k==='방송대기')&&!ks.some(k=>['큐시트작성','큐시트컨펌','리허설'].includes(k)))return STR_STAGES;if(ks.some(k=>GB_STAGES.includes(k)&&!STAGES.includes(k)&&!LIVE_STAGES.includes(k)))return GB_STAGES;if(ks.some(k=>LIVE_STAGES.includes(k)&&!STAGES.includes(k)))return LIVE_STAGES;return STAGES}
 function groupsOf(c){return Object.entries((c&&c.groups)||{}).map(([id,g])=>({id,...g})).sort((a,b)=>(a.order||0)-(b.order||0))}
 function groupName(c,gid){return gid&&c.groups&&c.groups[gid]?c.groups[gid].name:''}
 function autoStatus(rows,c){const live=rows.filter(r=>r.name&&!isOut(r.stage));if(!live.length)return '시작 전';if(live.every(r=>isDone(r.stage)))return '완료';if(live.every(r=>stageIdx(r.stage,c)<=0))return '시작 전';return '진행 중'}
@@ -1031,6 +1044,7 @@ function alertOf(r,c){
   if(!r.name)return '';if(isOut(r.stage))return '';if(!r.stage)return '진행 상황 미입력';
   {const cf=confOf(r,c);if(cf&&cf.st==='제외 요청')return '광고주 제외 요청';if(cf&&!cf.st&&isTrial(c)&&stageIdx(r.stage,c)>=1)return '광고주 컨펌 대기'}
   if(isCom(c))return comAlert(r,c);
+  if(isStream(c)){const si=stageIdx(r.stage,c);if(si>=2&&r.contract!=='완료')return '계약 미완료';if(r.stage==='방송완료'&&!n(r.airN))return '방송 데이터 미입력';if(r.stage==='방송완료'&&r.disc!=='완료')return '광고 표기 확인 필요';if(r.due&&r.due<today()&&si<4)return '방송 예정일 지남';return ''}
   const M=settings(c).M;
   if(r.stage===DONE){if(!r.clink)return '콘텐츠 링크 누락';if(!n(r.views))return '성과 데이터 미입력';if(r.disc!=='완료')return '광고 표기 확인 필요';
     if(M.conv&&!has(r.conv))return '전환 데이터 미입력';if(M.clicks&&!has(r.clicks))return '클릭 데이터 미입력';if(M.revenue&&!has(r.rev))return '매출 데이터 미입력'}
@@ -1062,7 +1076,7 @@ function summaryOf(c,rows){
   const views=S(r=>r.views),eng=S(r=>k.get(r).eng),costV=live.filter(r=>n(r.views)>0).reduce((t,r)=>t+n(k.get(r).cost),0),cost=S(r=>k.get(r).cost),rev=S(r=>r.rev),costR=live.filter(r=>has(r.rev)).reduce((t,r)=>t+n(k.get(r).cost),0);
   const com=isCom(c);const named=rows.filter(r=>r.name);const rsx=rsCalc(c,rev);const fx=campFixed(c,rev);
   const trialN=isTrial(c)?{selected:live.filter(r=>r.stage!=='컨택').length,contacts:named.length,nosel:named.filter(r=>r.stage===NOSEL).length,dropped:named.filter(r=>r.stage===DROP).length,appliedAuto:named.filter(r=>r.apply==='완료'||(r.stage&&r.stage!==NOSEL&&r.stage!=='컨택')).length}:{};
-  return {...trialN,n:live.length,stages:sc,uploaded:com?live.filter(r=>r.clink).length:sc[DONE],alerts:rows.filter(r=>alertOf(r,c)&&!ackd(r,c)).length,views,contract:live.filter(r=>isTrial(c)?r.ship==='완료':r.contract==='완료').length,
+  return {...trialN,n:live.length,stages:sc,uploaded:com?live.filter(r=>r.clink).length:isStream(c)?live.filter(r=>n(r.airN)>0||['방송완료','정산완료'].includes(r.stage)).length:sc[DONE],...(isStream(c)?{airN:S(r=>r.airN),soft:S(r=>r.soft),peak:Math.max(0,...live.map(r=>n(r.peak)))||null,stMins:S(r=>r.stMins)}:{}),alerts:rows.filter(r=>alertOf(r,c)&&!ackd(r,c)).length,views,contract:live.filter(r=>isTrial(c)?r.ship==='완료':r.contract==='완료').length,
     ...(com?{qty:S(r=>r.qty),viewers:S(r=>r.viewers),settled:sc[SETTLED]||0,sellers:live.filter(r=>has(r.rev)).length,payout:S(r=>k.get(r).payout),comm:S(r=>k.get(r).comm),aov:S(r=>r.conv)?S(r=>r.rev)/S(r=>r.conv):null}:{}),
     ctApi:named.filter(r=>r.ctApi&&r.ctApi.docId).length,status:autoStatus(rows,c),cost:cost+fx,fixed:fx,fixedAd:fixedAd(c),...(rsx?{rs:rsx}:{}),cost0:S(r=>k.get(r).cost0),agf:S(r=>k.get(r).agf),feeMode:feeMode(c),feeRate:feeRate(c),fee:S(r=>r.fee),offer:S(r=>r.offer),eng,er:views?eng/views:null,cpv:views&&(costV+fx)?(costV+fx)/views:null,conv:S(r=>r.conv),clicks:S(r=>r.clicks),rev,roas:(costR+fx)&&rev?rev/(costR+fx):null,groups:groupsOf(c).length};
 }
@@ -1073,7 +1087,7 @@ function buildReport(c,rows,admin,groupLabel,mode){
   const {E,M}=settings(c);const convLabel=CONV_LABEL[c.convType]||'전환';
   const live=rows.filter(r=>r.name&&!isOut(r.stage));
   const calc=new Map(live.map(r=>[r,rowCalc(r,c,mode)]));
-  const posted=live.filter(r=>r.clink);
+  const posted=isStream(c)?live.filter(r=>n(r.airN)>0||n(r.views)>0):live.filter(r=>r.clink);
   const S=(arr,f)=>arr.reduce((t,r)=>t+n(f(r)),0);
   const T={contents:posted.length,planned:live.length,influencers:new Set(posted.map(r=>(r.acct||r.name).toLowerCase())).size,
     views:S(posted,r=>r.views),likes:S(posted,r=>r.likes),cmts:S(posted,r=>r.cmts),shares:S(posted,r=>r.shares),saves:S(posted,r=>r.saves),reach:S(posted,r=>r.reach),
@@ -1120,9 +1134,10 @@ function buildReport(c,rows,admin,groupLabel,mode){
     if(!GB&&costLevel==='none')srow.forEach(o=>{delete o.cost;delete o.roas});
     SALES={T:sT,rows:srow,byPlat:GB?[]:agg(r=>r.livePlat),byGroup:groupsOf(c).length?agg(r=>groupName(c,r.group)||'그룹 미지정'):[],
       info:{product:(c.com||{}).product||'',cat:(c.com||{}).cat||'',price:has((c.com||{}).price)?n(c.com.price):null,salePrice:has((c.com||{}).salePrice)?n(c.com.salePrice):null,channel:(c.com||{}).channel||'',plat:(c.com||{}).plat||'',benefit:(c.com||{}).benefit||'',...(admin?{rate:comRate(c),settle:(c.com||{}).settle||''}:{})}}}
+  let STRM=null;if(isStream(c)&&typeof streamReport==='function')STRM=streamReport(c,live,calc,costLevel,showNames,showLinks,S);
   const REP={v:2,updatedAt:new Date().toISOString(),meta:{theme:themeOf(c),advLogo:c.advLogo||'',name:c.name||'',advertiser:c.advertiser||'',brand:c.brand||'',ctype:c.ctype||'',status:c.status||'',objective:c.objective||'조회수',convType:c.convType||'',convLabel,start:c.start||'',end:c.end||'',asof:c.asof||'',usageMonths:c.usageMonths||'',
       kind:kindOf(c),trial:TR,targets:(admin||sh.showTargets!==false)?tg:{},metrics:M,eng:E,costLevel,showLinks,showProgress:admin||sh.progOn===true,reachOn:!shHidden(sh,'reach'),insight:c.insight||'',groupLabel:groupLabel||'',fee:{mode,rate:CO&&(admin||sh.feeToggle!==false)?feeRate(c):null,toggle:CO&&!trial&&!admin&&sh.feeToggle!==false}},
-    T,sales:SALES,byGroup:groupsOf(c).length?grp(r=>groupName(c,r.group)||'그룹 미지정',groupsOf(c).map(g=>g.name)):[],byCh:grp(r=>r.ch,CHANNELS),byTier:grp(r=>tierGroup(c,calc.get(r).tier),c.tierSplit?TIERS:TIERS_M),byType:grp(r=>r.ctype,CTYPES),stages,drop:rows.filter(r=>r.name&&isOut(r.stage)).length,progress,rows:out};
+    T,sales:SALES,stream:STRM,byGroup:groupsOf(c).length?grp(r=>groupName(c,r.group)||'그룹 미지정',groupsOf(c).map(g=>g.name)):[],byCh:grp(r=>r.ch,CHANNELS),byTier:grp(r=>tierGroup(c,calc.get(r).tier),c.tierSplit?TIERS:TIERS_M),byType:grp(r=>r.ctype,CTYPES),stages,drop:rows.filter(r=>r.name&&isOut(r.stage)).length,progress,rows:out};
   {const TK=(admin||trkShareOn(c))?trkAgg(c,rows,showNames,admin,{conv:admin||!(shHidden(sh,'conv')&&shHidden(sh,'rev'))}):null;if(TK){if(!admin){if(TK.cv&&shHidden(sh,'conv')){TK.cv.conv=false;delete TK.T.conv;delete TK.T.cvr;TK.rows.forEach(r=>{delete r.conv;delete r.cvr})}if(TK.cv&&shHidden(sh,'rev')){TK.cv.rev=false;delete TK.T.rev;TK.rows.forEach(r=>delete r.rev)}if(TK.cv&&!TK.cv.conv&&!TK.cv.rev)TK.cv=null}REP.track=TK}}
   if(!admin){applyHide(REP,new Set(shareMetricsFor(c).map(x=>x[0]).filter(k=>shHidden(sh,k))))}
   return REP;
@@ -1161,7 +1176,7 @@ function patchC(path,val){const c=curC();if(!c)return;cUpdate({[path]:val}).catc
 function patchRow(rid,field,val){DB.update('rows/'+A.cid,{[`rows.${rid}.${field}`]:val===null?DB.DEL:val}).catch(saveErr);scheduleSync(A.cid)}
 function saveErr(e){console.error(e);toast(e&&e.code==='permission-denied'?'저장 권한이 없습니다. 팀원 등록 여부를 확인하세요.':'저장하지 못했습니다. 인터넷 연결을 확인하세요.','crit')}
 function comDefaults(kind){return {product:'',cat:'',price:null,salePrice:null,rate:null,settle:'판매수수료',channel:'',plat:'',stock:null,benefit:''}}
-function newCampaignData(kind){if(!KINDS[kind])kind='seed';const tr=kind==='trial',com=kind==='gb'||kind==='live';return {kind,name:tr?'새 체험단 캠페인':kind==='gb'?'새 공동구매 캠페인':kind==='live'?'새 라이브커머스 캠페인':'새 캠페인',advertiser:'',brand:'',ctype:tr?'체험단':kind==='gb'?'공동구매':kind==='live'?'라이브커머스':'유가 광고',status:'',groups:{},objective:tr?'브랜드 인지도':com?'판매':'조회수',...(tr?{trial:{product:'',cat:'',price:null,qty:1,platform:'',recruit:null,applicants:null,pageViews:null}}:{}),...(com?{com:comDefaults(kind)}:{}),convType:'제품 판매',start:'',end:'',owner:'',usageMonths:'',asof:'',
+function newCampaignData(kind){if(!KINDS[kind])kind='seed';const tr=kind==='trial',com=kind==='gb'||kind==='live',st=kind==='stream';return {kind,name:tr?'새 체험단 캠페인':kind==='gb'?'새 공동구매 캠페인':kind==='live'?'새 라이브커머스 캠페인':st?'새 스트리머 광고':'새 캠페인',advertiser:'',brand:'',ctype:tr?'체험단':kind==='gb'?'공동구매':kind==='live'?'라이브커머스':st?'스트리머 광고':'유가 광고',status:'',groups:{},objective:tr?'브랜드 인지도':com?'판매':st?'PPL':'조회수',...(st?{st:{type:'PPL',keywords:[],product:''}}:{}),...(tr?{trial:{product:'',cat:'',price:null,qty:1,platform:'',recruit:null,applicants:null,pageViews:null}}:{}),...(com?{com:comDefaults(kind)}:{}),convType:'제품 판매',start:'',end:'',owner:'',usageMonths:'',asof:'',
   targets:{},eng:{likes:true,cmts:true,shares:true,saves:true},costInc:{fee:true,use:true,ops:true,ad:false,comm:true},metrics:com?{clicks:kind==='gb',conv:true,revenue:true}:{clicks:false,conv:false,revenue:false},
   share:{enabled:false,token:'',showNames:true,showLinks:true,showProgress:true,showTargets:true,costLevel:tr?'none':'row'},insight:'',createdAt:today(),summary:{}}}
 
@@ -1225,11 +1240,11 @@ document.addEventListener('pointerup',()=>{pointerDown=false;if(pending){pending
 /* ============ 주소(뒤로 가기) ============ */
 /* 화면 이동을 브라우저 기록에 남겨, 뒤로 가기를 누르면 사이트를 나가지 않고 직전 화면으로 돌아감 */
 function routeOf(){const v=A.view;if(v==='campaign')return {v,c:A.cid,t:A.tab||'overview'};if(v==='create')return {v,k:kindOf(A.draft)};if(v==='team')return {v,tt:A.teamTab==='int'?'int':A.teamTab==='accts'?'accts':'members'};if(v==='cvc')return {v,c:A.cvId};if(v==='guides'&&A.gid)return {v,g:A.gid};if(v==='proposals'&&A.pid)return {v,g:A.pid};if(v==='recruit'&&A.rcid)return {v,g:A.rcid};
-  if(VIEW_KIND[v])return {v,lt:A.ltab==='groups'?'groups':A.ltab==='tree'?'tree':'camps'};return {v}}
-function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.v==='guides'&&r.g)return '#/guides/'+encodeURIComponent(r.g);if(r.v==='proposals'&&r.g)return '#/proposals/'+encodeURIComponent(r.g);if(r.v==='recruit'&&r.g)return '#/recruit/'+encodeURIComponent(r.g);if(r.lt==='groups'||r.lt==='tree')return `#/${r.v}/${r.lt}`;return '#/'+r.v}
+  if(VIEW_KIND[v])return {v,lt:A.ltab==='groups'?'groups':A.ltab==='ads'?'ads':'camps'};return {v}}
+function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.v==='guides'&&r.g)return '#/guides/'+encodeURIComponent(r.g);if(r.v==='proposals'&&r.g)return '#/proposals/'+encodeURIComponent(r.g);if(r.v==='recruit'&&r.g)return '#/recruit/'+encodeURIComponent(r.g);if(r.lt==='groups'||r.lt==='ads')return `#/${r.v}/${r.lt}`;return '#/'+r.v}
 function parseHash(h){const p=String(h||'').replace(/^#\/?/,'').split('/').filter(Boolean).map(x=>{try{return decodeURIComponent(x)}catch(e){return x}});if(!p.length)return null;
   if(p[0]==='c'&&p[1])return {v:'campaign',c:p[1],t:p[2]||'overview'};if(p[0]==='new')return {v:'create',k:p[1]||'seed'};if(p[0]==='team')return {v:'team',tt:p[1]||'members'};if(p[0]==='cv'&&p[1])return {v:'cvc',c:p[1]};if(p[0]==='guides')return {v:'guides',g:p[1]||''};if(p[0]==='proposals')return {v:'proposals',g:p[1]||''};if(p[0]==='recruit')return {v:'recruit',g:p[1]||''};
-  if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':p[1]==='tree'?'tree':'camps'};if(['pool','updates','history','cv','acct','review','aivideo','stream','mhome'].includes(p[0]))return {v:p[0]};return null}
+  if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':p[1]==='ads'?'ads':'camps'};if(['pool','updates','history','cv','acct','review','aivideo','stream','mhome','spool','sdata'].includes(p[0]))return {v:p[0]};return null}
 let ROUTE_LOCK=false;
 function routeSync(){if(A.view==='share'||!A.user||!A.admin||ROUTE_LOCK)return;if(A.skipPop){clearTimeout(routeSync.t);routeSync.t=setTimeout(()=>{A.skipPop=0;routeSync()},400);return}const r=routeOf();const h=routeHash(r);const d=!!(A.drawer||A.modal||A.bellOpen||A.more);const st=history.state;
   try{if(!st||!st.h){history.replaceState({h,r,d:false},'',h);if(d)history.pushState({h,r,d:true},'',h);return}
@@ -1333,13 +1348,13 @@ function shell(){
 /* 메뉴 구성 (권한별) */
 function navItems(){
   if(isClientView())return clientNav();
-  const ads={t:'광고 관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'},{v:'stream',l:'스트리머 광고',ms:'스트리머',ic:'stream'}]};
+  const ads={t:'광고 관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'},{v:'stream',l:'스트리머 광고',ms:'스트리머',ic:'stream',kind:'stream'}]};
   const tools={t:'콘텐츠 도구',items:[{v:'guides',l:'콘텐츠 가이드 생성',ms:'가이드',ic:'guide',m:1},{v:'review',l:'영상 검수',ms:'검수',ic:'review',m:1},{v:'aivideo',l:'AI 영상 제작',ic:'aivideo'}]};
   const prop={t:'제안 도구',items:[{v:'proposals',l:'광고 제안서 생성',ms:'제안서',ic:'proposal'}]};
-  const infl={t:'인플루언서 관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'},{v:'recruit',l:'스레드 모집',ms:'모집',ic:'recruit'}]};
+  const infl={t:'인플루언서 관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'},{v:'recruit',l:'스레드 모집',ms:'모집',ic:'recruit'},{v:'spool',l:'스트리머 풀',ms:'스트리머',ic:'spool'},{v:'sdata',l:'스트리머 데이터',ms:'방송 데이터',ic:'sdata'}]};
   const comp={t:'구성요소 관리',items:[{v:'team',tt:'members',l:'팀원·권한',ic:'team'},{v:'team',tt:'accts',l:'광고주 계정',ic:'acct'},{v:'team',tt:'int',l:'연동 관리',ic:'int'},{v:'updates',l:'업데이트 제안',badge:updBadge()},{v:'history',l:'업데이트 이력'}]};
   return [ads,infl,tools,prop,comp]}
-function viewBody(){const v=A.view;return v==='mhome'&&typeof viewMHome==='function'?viewMHome():v==='stream'&&typeof viewStream==='function'?viewStream():v==='recruit'?viewRecruit():v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?(typeof withTree==='function'?withTree(viewCampaign()):viewCampaign()):v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
+function viewBody(){const v=A.view;return v==='mhome'&&typeof viewMHome==='function'?viewMHome():v==='recruit'?viewRecruit():v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='spool'&&typeof viewSpool==='function'?viewSpool():v==='sdata'&&typeof viewSdata==='function'?viewSdata():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
 function homeView(k){return isClientView()?'cv':(!k&&typeof isMob==='function'&&isMob()&&isTeam()?'mhome':kindView(k||'seed'))}
 
 /* ---- 계정·클라이언트·업데이트 기능 (아래에서 다시 정의) ---- */
@@ -1476,15 +1491,16 @@ function viewList(){
   const kind=listKind(),TRL=kind==='trial';
   const all=Object.entries(A.campaigns).filter(([,c])=>kindOf(c)===kind&&inAcctScope(c)).sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
   [...A.csel].forEach(id=>{if(!A.campaigns[id]||kindOf(A.campaigns[id])!==kind)A.csel.delete(id)});
-  const tabs=`<div class="ltabs" role="tablist"><button role="tab" class="${A.ltab!=='groups'?'on':''}" data-act="ltab" data-k="camps">캠페인<em>${all.length}</em></button><button role="tab" class="${A.ltab==='groups'?'on':''}" data-act="ltab" data-k="groups">광고 그룹<em>${A.csel.size?'선택 '+A.csel.size+'개 캠페인':'전체 캠페인'}</em></button>${typeof viewTreeList==='function'?`<button role="tab" class="${A.ltab==='tree'?'on':''} hide-m" data-act="ltab" data-k="tree" title="광고주 계정 › 캠페인 › 광고 그룹을 한 화면에서 펼쳐 보고, 그룹 순서를 끌어서 바꿉니다">계층 보기</button>`:''}</div>`;
+  const tabs=typeof hierTabs==='function'?hierTabs(all,kind):`<div class="ltabs" role="tablist"><button role="tab" class="${A.ltab!=='groups'?'on':''}" data-act="ltab" data-k="camps">캠페인<em>${all.length}</em></button><button role="tab" class="${A.ltab==='groups'?'on':''}" data-act="ltab" data-k="groups">광고 그룹</button></div>`;
   const KM=KINDS[kind];const COM=kind==='gb'||kind==='live';
   const head=`<div class="page-h"><div><div class="eyebrow">${KM.eb}</div><h1>${KM.label}</h1>${TRL?'<div class="sub">무상협찬(제품 제공)으로만 진행하는 인플루언서 캠페인입니다. 대행수수료·단가 없이 제품 판매단가와 신청 데이터를 관리합니다.</div>':KM.desc?`<div class="sub">${KM.desc}</div>`:''}</div>${canCreate()?`<button class="btn primary" data-act="newCampaign">+ ${KM.nw}</button>`:''}</div>${acctFilter()}${tabs}`;
-  if(A.ltab==='tree'&&typeof viewTreeList==='function')return head+viewTreeList(all,kind);
-  if(A.ltab==='groups')return head+viewGroupList(all,TRL);
+  if(A.ltab==='ads'&&typeof viewHierAds==='function')return head+viewHierAds(all,kind);
+  if(A.ltab==='groups')return head+(typeof viewHierGroups==='function'?viewHierGroups(all,kind):viewGroupList(all,TRL));
   const cnt={};STATUS_LIST.forEach(s=>cnt[s]=all.filter(([,c])=>campStatus(c)===s).length);
   const list=all.filter(([,c])=>(!A.statusF||campStatus(c)===A.statusF)&&(!q||[c.name,c.advertiser,c.brand,c.owner,c.trial&&c.trial.product,c.trial&&c.trial.cat,c.com&&c.com.product,c.com&&c.com.cat].join(' ').toLowerCase().includes(q)));
   const tot=list.reduce((t,[,c])=>{const s=c.summary||{};t.cost+=n(s.cost);t.views+=n(s.views);if(TRL)t.val+=n(trialCalc(c).totalValue);return t},{cost:0,views:0,val:0});
   const allOn=list.length&&list.every(([id])=>A.csel.has(id));
+  if(kind==='stream'&&typeof viewStreamCampList==='function')return head+viewStreamCampList(all,list,cnt,q,allOn);
   if(TRL)return head+trialInsight(all)+viewTrialList(all,list,tot,cnt,q,allOn);
   if(COM)return head+viewComList(all,list,cnt,q,allOn,kind);
   return head+`
@@ -1581,8 +1597,8 @@ function langChips(cur,act){return `<div class="chips langsw" role="group" aria-
 function viewCampaign(){
   const c=curC();if(!c)return A.campsLoaded?`<div class="panel empty">캠페인을 찾을 수 없습니다. 삭제되었거나 볼 수 있는 권한이 없습니다. <button class="btn sm" data-act="nav" data-v="${homeView()}">목록으로</button></div>`:'<div class="panel empty">불러오는 중…</div>';const TRL=isTrial(c);const KD=kindOf(c),KM=KINDS[KD];
   const rows=curRows();const al=rows.filter(r=>alertOf(r,c)).length;
-  const tabs=[['settings','캠페인 설정'],['overview','개요'],['grid','인플루언서 관리'],['status','진행 현황',al],['report','성과 리포트'],['track','링크 트래킹'],['share','광고주 공유']];
-  const body={overview:tabOverview,grid:tabGrid,status:tabStatus,report:tabReport,track:tabTrack,settings:tabSettings,share:tabShare}[A.tab]||tabOverview;
+  const STK=isStream(c);const tabs=[['settings','캠페인 설정'],['overview','개요'],['grid',STK?'스트리머 관리':'인플루언서 관리'],['status','진행 현황',al],['report','성과 리포트'],['track',STK?'앱 다운로드 트래킹':'링크 트래킹'],['share','광고주 공유']];
+  const body={overview:tabOverview,grid:tabGrid,status:tabStatus,report:tabReport,track:STK&&typeof tabAppTrack==='function'?tabAppTrack:tabTrack,settings:tabSettings,share:tabShare}[A.tab]||tabOverview;
   return `<div class="page-h"><div><div class="row small"><button class="btn sm ghost" data-act="back" data-v="${KM.view}">← ${KM.label} 목록</button>${KM.pill?`<span class="pill ok">${KM.pill}</span>`:''}${TRL&&c.trial&&c.trial.cat?`<span class="pill">${esc(c.trial.cat)}</span>`:''}${isCom(c)&&c.com&&c.com.cat?`<span class="pill">${esc(c.com.cat)}</span>`:''}${isCom(c)?'':`<span class="pill accent">${esc(c.objective||'')}${c.objective==='전환'&&c.convType?' · '+esc(c.convType):''}</span>`}<span class="pill ${STATUS_CLS[campStatus(c)]||''}">${esc(campStatus(c))}</span>${groupsOf(c).length?`<span class="pill">그룹 ${groupsOf(c).length}개</span>`:''}${c.share&&c.share.enabled?'<span class="pill ok">광고주 공유 중</span>':''}</div>
   <h1 style="margin-top:6px">${nameEdit('c',A.cid,'',c.name||'',esc(c.name||'이름 없음'))}</h1><div class="sub">${esc(c.advertiser||'광고주 미입력')}${c.start?' · '+md(c.start)+' ~ '+md(c.end):''}</div></div>
   <div class="row"><button class="btn" data-act="xlsx" data-mode="admin">엑셀 다운로드</button></div></div>
@@ -1590,13 +1606,14 @@ function viewCampaign(){
   ${A.rowsDoc?body(c,rows):'<div class="empty">불러오는 중…</div>'}`;
 }
 const TRIAL_HIDE=new Set(['cpv','cpe','cpa','roas']);
-function colOk(c,col){const k=kindOf(c);if(col.kinds&&!col.kinds.includes(k))return false;if(col.k==='cf')return acctOf(c)!==TEAM&&c.confirmOn!==false;if(col.k==='lic')return isTrial(c);if(isTrial(c))return col.k!=='contract'&&col.k!=='offer';
+function colOk(c,col){const k=kindOf(c);if(col.kinds&&!col.kinds.includes(k))return false;if(k==='stream'&&STR_HIDE.has(col.k))return false;if(col.k==='cf')return acctOf(c)!==TEAM&&c.confirmOn!==false;if(col.k==='lic')return isTrial(c);if(isTrial(c))return col.k!=='contract'&&col.k!=='offer';
   if(isCom(c))return !['use','cpv','cpe','cpa','reach'].includes(col.k)&&!(isLive(c)&&col.k==='ctr');return col.k!=='ship'}
 function visibleCols(c){const M=settings(c).M;const hasG=groupsOf(c).length>0;return COLS.filter(col=>colOk(c,col)&&!A.hide.has(col.g)&&(!col.need||M[col.need])&&(!col.need2||M[col.need2])&&(col.k!=='group'||hasG))}
 function inGroup(r){return !A.gf||(A.gf==='__none'?!(r.group&&curC().groups&&curC().groups[r.group]):r.group===A.gf)}
 function groupChips(c,rows){const gs=groupsOf(c);if(!gs.length)return '';const none=rows.filter(r=>!(r.group&&c.groups[r.group])).length;
   return `<div class="row"><span class="small muted bold">광고 그룹</span><div class="chips"><span class="chip ${!A.gf?'on':''}" data-act="gfSet" data-g="">전체 <em>${rows.length}</em></span>${gs.map(g=>`<span class="chip ${A.gf===g.id?'on':''}" data-act="gfSet" data-g="${g.id}">${esc(g.name)} <em>${rows.filter(r=>r.group===g.id).length}</em></span>`).join('')}${none?`<span class="chip ${A.gf==='__none'?'on':''}" data-act="gfSet" data-g="__none">그룹 미지정 <em>${none}</em></span>`:''}</div></div>`}
-function tabGrid(c,rows){
+function tabGrid(c,rows){const h=tabGrid0(c,rows);return isStream(c)?h.replace(/인플루언서/g,'스트리머').replace(/한 스트리머가 콘텐츠 2개를 올리면 2줄로 입력하세요\./,'방송별 상세는 행 번호를 눌러 「방송 데이터」에서 봅니다.').replace('구글 시트 템플릿의 스트리머 관리 탭을 제목 줄째 복사해 붙여넣을 수 있습니다.','스트리머명과 채널 URL만 붙여넣어도 플랫폼을 자동으로 맞춥니다.'):h}
+function tabGrid0(c,rows){
   const M=settings(c).M;const q=A.rq.trim().toLowerCase();const allRows=rows;rows=rows.filter(inGroup);
   const SL=stagesOf(c);const sc={};[...SL,NOSEL,DROP].forEach(s=>sc[s]=rows.filter(r=>r.stage===s).length);
   const list=rows.filter(r=>(!A.stageF||r.stage===A.stageF||(A.stageF==='__alert'&&alertOf(r,c)))&&(!q||[r.name,r.acct,r.ch,r.owner,r.memo].join(' ').toLowerCase().includes(q)));
@@ -1680,12 +1697,12 @@ function tabStatus(c,rows){
   const live=rows.filter(r=>r.name&&!isOut(r.stage));const s=summaryOf(c,rows);const alAll=rows.filter(r=>alertOf(r,c));const al=alAll.filter(r=>!ackd(r,c));const nAck=alAll.length-al.length;
   if(A.alFold===undefined){try{A.alFold=localStorage.getItem('rc_alFold')==='1'}catch(e){A.alFold=false}}const fold=!!A.alFold;const ED=canEdit();
   const COMK=isCom(c),TR=isTrial(c);const ctL=TR?'제품 발송 완료':'계약 완료';
-  const ctOk=r=>TR?r.ship==='완료':r.contract==='완료',upOk=r=>COMK?!!r.clink:normStage(r.stage)===DONE;
-  const PB=[['all','운영 인원',live],['ct',ctL,live.filter(ctOk)]].concat(COMK?[]:[['up','업로드 완료',live.filter(upOk)],['noup','업로드 미완료',live.filter(r=>!upOk(r))]]);
+  const STK=isStream(c);const ctOk=r=>TR?r.ship==='완료':r.contract==='완료',upOk=r=>COMK?!!r.clink:STK?(n(r.airN)>0||['방송완료','정산완료'].includes(r.stage)):normStage(r.stage)===DONE;
+  const PB=[['all','운영 인원',live],['ct',ctL,live.filter(ctOk)]].concat(COMK?[]:[['up',STK?'방송 완료':'업로드 완료',live.filter(upOk)],['noup',STK?'방송 전':'업로드 미완료',live.filter(r=>!upOk(r))]]);
   const pbK=PB.some(x=>x[0]===A.pbF)?A.pbF:'all';const pbSel=PB.find(x=>x[0]===pbK);
   const tC=(k,html)=>html.replace('<div class="tile ',`<div data-act="pbF" data-k="${k}" title="누가 포함됐는지 아래 「인플루언서 현황」에서 보기" class="tile click ${pbK===k?'on ':''}`);
   return `<div class="stack">${gc}<div class="tiles">
-   ${tC('all',tile('운영 인원',fmt(s.n),'드롭 제외 · 콘텐츠 기준'))}${tC('ct',tile(ctL,fmt(s.contract),s.n?pct(s.contract/s.n,0):''))}${COMK?tile('판매 데이터 입력',fmt(s.sellers),s.n?pct(s.sellers/s.n,0):'')+tile('정산 완료',fmt(s.settled),s.n?pct(s.settled/s.n,0):''):tC('up',tile('업로드 완료',fmt(s.uploaded),s.n?pct(s.uploaded/s.n,0)+' · 목표 '+(c.targets&&c.targets.contents?fmt(c.targets.contents)+'개':'-'):''))}${tile('확인 필요',fmt(al.length),'아래 목록 참고',null,al.length?'crit':'')}${tile('드롭',fmt(rows.filter(r=>isOut(r.stage)).length),'')}
+   ${tC('all',tile('운영 인원',fmt(s.n),'드롭 제외 · 콘텐츠 기준'))}${tC('ct',tile(ctL,fmt(s.contract),s.n?pct(s.contract/s.n,0):''))}${COMK?tile('판매 데이터 입력',fmt(s.sellers),s.n?pct(s.sellers/s.n,0):'')+tile('정산 완료',fmt(s.settled),s.n?pct(s.settled/s.n,0):''):tC('up',tile(STK?'광고 방송 완료':'업로드 완료',fmt(s.uploaded),s.n?pct(s.uploaded/s.n,0)+' · 목표 '+(c.targets&&c.targets.contents?fmt(c.targets.contents)+'개':'-'):''))}${tile('확인 필요',fmt(al.length),'아래 목록 참고',null,al.length?'crit':'')}${tile('드롭',fmt(rows.filter(r=>isOut(r.stage)).length),'')}
   </div>
   ${statusBoard(c,PB,pbK,pbSel,ctOk,upOk)}
   <div class="grid2">${COMK?statusBarsCom(c,live,s):statusFunnel(c,live)}
@@ -1740,7 +1757,7 @@ function themePanel(c){const th=themeOf(c);const open=A.themeOpen;
 function renderReport(R,o){
   const en=o.lang==='en';const t=(k,e)=>en?e:k;const V=v=>en?trV(v):v;
   const m=R.meta,T=R.T,tt=m.targets||{},M=m.metrics||{},cl=V(m.convLabel);const fee=m.fee||{mode:'excl',rate:null};
-  const hasCost=m.costLevel!=='none';const cp=en?compactEn:compact;const TRL=m.kind==='trial',TR=m.trial;const HID=new Set(m.hidden||[]),sv=k=>!HID.has(k);const COM=m.kind==='gb'||m.kind==='live',LV=m.kind==='live',SL=R.sales;const noContent=COM&&!T.contents;
+  const hasCost=m.costLevel!=='none';const cp=en?compactEn:compact;const TRL=m.kind==='trial',TR=m.trial;const HID=new Set(m.hidden||[]),sv=k=>!HID.has(k);const COM=m.kind==='gb'||m.kind==='live',LV=m.kind==='live',SL=R.sales;const STR=m.kind==='stream'?R.stream:null;const noContent=(COM&&!T.contents)||m.kind==='stream';
   const won=v=>v==null||!isFinite(v)?'–':(en?'₩'+fmt(v):fmt(v)+'원'),won1=v=>v==null||!isFinite(v)?'–':(en?'₩'+fmt1(v):fmt1(v)+'원');
   const feeNote=hasCost?(fee.mode==='incl'?t(`대행수수료${fee.rate!=null?' '+fee.rate+'%':''} 포함`,`Incl. ${fee.rate!=null?fee.rate+'% ':''}agency fee`):t('대행수수료 미포함','Excl. agency fee'))+(m.vat==='incl'?t(' · VAT 포함',' · VAT incl.'):t(' · VAT 별도',' · VAT excl.')):'';
   const lk=(u,txt,title)=>u?`<a class="rlink" href="${esc(u)}" target="_blank" rel="noopener"${title?` title="${esc(title)}"`:''}>${txt}</a>`:txt;
@@ -1825,16 +1842,17 @@ function renderReport(R,o){
   return `<div class="rp" lang="${en?'en':'ko'}" style="${themeStyle(m.theme)}">${pcover}
   <div class="rp-cover"><div class="rc-top"><div class="rc-brand">${o.editLogo?`<label class="rc-advslot ${m.advLogo?'edit':'empty'} noprint-empty" title="클릭해서 광고주 로고 ${m.advLogo?'변경':'올리기'}">${m.advLogo?`<img class="rc-adv" src="${esc(m.advLogo)}" alt="${esc(m.advertiser)}">`:'+ 광고주 로고'}<input type="file" accept="image/*" data-advlogo hidden></label>`:(m.advLogo?`<img class="rc-adv" src="${esc(m.advLogo)}" alt="${esc(m.advertiser)}">`:'')}</div><span class="rc-eb">${RL}</span></div>
    <div class="rc-title">${esc(m.name)}</div><div class="rc-meta"><span>${esc(m.advertiser)}${m.brand&&m.brand!==m.advertiser?' · '+esc(m.brand):''}</span><span>${t('목적','Objective')} <b>${esc(V(m.objective))}${m.objective==='전환'&&m.convType?' ('+esc(V(m.convType))+')':''}</b></span>${m.start?`<span>${t('기간','Period')} ${md(m.start)} ~ ${md(m.end)}</span>`:''}<span>${t('데이터 기준일','Data as of')} ${m.asof?md(m.asof):md(R.updatedAt.slice(0,10))}</span>${hasCost?`<span class="pill">${feeNote}</span>`:''}${m.groupLabel?`<span class="pill">${t('그룹','Group')}: ${esc(V(m.groupLabel))}</span>`:''}</div>
-   <div class="rc-kpis">${(SL?[sv('s_rev')&&[t('총 매출','Total Revenue'),en?'₩'+cp(SL.T.rev):cp(SL.T.rev)+'원'],sv('s_orders')&&[t('주문 수','Orders'),fmt(SL.T.orders)],hasCost&&sv('s_roas')&&SL.T.roas!=null?['ROAS',pct(SL.T.roas,0)]:sv('s_aov')&&[t('객단가','AOV'),won(SL.T.aov)],LV&&sv('s_viewers')?[t('누적 시청자','Viewers'),cp(SL.T.viewers)]:[t(LV?'방송 인플루언서':'공구 인플루언서','Influencers'),fmt(SL.T.n)]]:[[t('게시 콘텐츠','Posted Content'),fmt(T.contents)+(T.planned?`<em style="font-style:normal;font-size:12px;opacity:.6;font-weight:500"> / ${fmt(T.planned)}</em>`:'')],sv('views')&&[t('총 조회 수','Total Views'),cp(T.views)],sv('er')&&[t('평균 ER','Avg. ER'),pct(T.er)],hasCost&&sv('cpv')?['CPV',won1(T.cpv)]:TR&&TR.compete!=null?[t('신청 경쟁률','Applicants per Slot'),fmtX(TR.compete)]:sv('reach')&&m.reachOn&&[t('총 도달 수','Total Reach'),cp(T.reach)]]).filter(Boolean).map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join('')}</div></div>
+   <div class="rc-kpis">${(STR&&typeof streamKpis==='function'?streamKpis(STR,t,cp,won1,hasCost,sv):SL?[sv('s_rev')&&[t('총 매출','Total Revenue'),en?'₩'+cp(SL.T.rev):cp(SL.T.rev)+'원'],sv('s_orders')&&[t('주문 수','Orders'),fmt(SL.T.orders)],hasCost&&sv('s_roas')&&SL.T.roas!=null?['ROAS',pct(SL.T.roas,0)]:sv('s_aov')&&[t('객단가','AOV'),won(SL.T.aov)],LV&&sv('s_viewers')?[t('누적 시청자','Viewers'),cp(SL.T.viewers)]:[t(LV?'방송 인플루언서':'공구 인플루언서','Influencers'),fmt(SL.T.n)]]:[[t('게시 콘텐츠','Posted Content'),fmt(T.contents)+(T.planned?`<em style="font-style:normal;font-size:12px;opacity:.6;font-weight:500"> / ${fmt(T.planned)}</em>`:'')],sv('views')&&[t('총 조회 수','Total Views'),cp(T.views)],sv('er')&&[t('평균 ER','Avg. ER'),pct(T.er)],hasCost&&sv('cpv')?['CPV',won1(T.cpv)]:TR&&TR.compete!=null?[t('신청 경쟁률','Applicants per Slot'),fmtX(TR.compete)]:sv('reach')&&m.reachOn&&[t('총 도달 수','Total Reach'),cp(T.reach)]]).filter(Boolean).map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join('')}</div></div>
   ${salesHtml}
+  ${STR&&typeof streamSection==='function'?streamSection(STR,{t,cp,won,won1,lk,V,en,hasCost}):''}
   ${ttl.length?`<section><h3 class="rp-h2">${t('체험단 모집 성과','Product Trial Recruitment')}</h3><p class="rp-desc">${t('무상으로 제공한 제품과 체험단 모집·신청 결과입니다.','Gifted product and recruitment results for this product trial.')}</p><div class="tiles">${ttl.map(([l,v,s])=>tile(l,v,s)).join('')}</div></section>`:''}
   ${objTiles?`<section><h3 class="rp-h2">${t('캠페인 목적 성과','Objective KPIs')} · ${esc(V(m.objective))}</h3><p class="rp-desc">${t('목표를 설정한 지표는 달성률을 함께 표시합니다.','Achievement rates are shown for metrics with a target.')}</p><div class="tiles">${objTiles}</div>${m.objective==='전환'&&!M.conv&&!M.revenue?`<p class="small muted">${t('전환 데이터 입력이 꺼져 있습니다. 캠페인 설정에서 켤 수 있습니다.','Conversion data is not being tracked for this campaign.')}</p>`:''}</section>`:''}
   ${noContent?'':`<section><h3 class="rp-h2">${COM?t('홍보 콘텐츠 성과','Promotional Content'):t('전체 성과 요약','Performance Summary')}</h3><p class="rp-desc">${COM?t('공구·방송을 알린 인플루언서 콘텐츠의 성과입니다. 콘텐츠 링크가 등록된 콘텐츠만 집계합니다.','Performance of promotional posts. Only content with a registered link is counted.'):t('캠페인에 참여한 인플루언서 및 콘텐츠의 성과 요약입니다. 콘텐츠 링크가 등록된 콘텐츠만 집계합니다.','Summary of participating influencers and their content. Only content with a registered link is counted.')}</p><div class="tiles">${sum.map(([l,v,s])=>tile(l,v,s)).join('')}</div></section>`}
   ${conv.length&&!COM?`<section><h3 class="rp-h2">${t('유입·전환 성과','Traffic & Conversions')}</h3><p class="rp-desc">${t('트래킹 링크·프로모코드·광고주 데이터 기준으로 입력된 값입니다.','Based on tracking links, promo codes and advertiser data.')}</p><div class="tiles">${conv.map(([l,v,s])=>tile(l,v,s)).join('')}</div></section>`:''}
   ${R.track?trkSection(R.track,t):''}
-  ${m.showProgress?`<section class="rp-prog"><h3 class="rp-h2">${t('진행 현황','Progress')}</h3><p class="rp-desc">${t('인플루언서별 현재 진행 단계입니다.','Current stage for each influencer.')}</p><div class="panel">${stageBar(R.stages,totalSC,true,en)}
+  ${m.showProgress?`<section class="rp-prog"><h3 class="rp-h2">${t('진행 현황','Progress')}</h3><p class="rp-desc">${STR?t('스트리머별 현재 진행 단계입니다.','Current stage for each streamer.'):t('인플루언서별 현재 진행 단계입니다.','Current stage for each influencer.')}</p><div class="panel">${stageBar(R.stages,totalSC,true,en)}
    ${R.progress.length?`<div class="mcards show-m" style="margin-top:12px">${R.progress.map(p=>`<div class="mcard"><div class="mh"><div class="grow"><div class="mt">${lk(p.chlink,esc(V(p.name)),t('채널로 이동','Open channel'))}</div><div class="ms">${esc([V(p.group),V(p.ch),V(p.ctype)].filter(Boolean).join(' · '))}</div></div><span class="pill ${isDone(p.stage)?'ok':'accent'}">${esc(V(p.stage)||'-')}</span></div>
-     <div class="row small"><span class="muted">${t('예정','Planned')} ${md(p.due)} · ${t('업로드','Posted')} ${md(p.up)}</span><span class="grow"></span>${m.showLinks!==false?upl(p.clink,26,p.rid):''}</div></div>`).join('')}</div><div class="tblwrap hide-m" style="margin-top:14px;max-height:420px"><table class="tbl"><thead><tr>${pg?`<th>${t('그룹','Group')}</th>`:''}<th>${t('인플루언서','Influencer')}</th><th>${t('채널','Channel')}</th><th>${t('콘텐츠 유형','Content Type')}</th><th>${t('진행 상황','Status')}</th><th>${t('업로드 예정일','Planned Date')}</th><th>${t('업로드일','Posted Date')}</th>${m.showLinks!==false?`<th>${t('업로드 콘텐츠','Posted Content')}</th>`:''}</tr></thead><tbody>${R.progress.map(p=>`<tr>${pg?`<td class="small">${esc(V(p.group)||'–')}</td>`:''}<td class="bold">${lk(p.chlink,esc(V(p.name)),t('채널로 이동','Open channel'))}</td><td>${lk(p.chlink,esc(V(p.ch)),t('채널로 이동','Open channel'))}</td><td>${esc(V(p.ctype))}</td><td><span class="pill ${isDone(p.stage)?'ok':'accent'}">${esc(V(p.stage)||'-')}</span></td><td>${md(p.due)}</td><td>${md(p.up)}</td>${m.showLinks!==false?`<td>${upl(p.clink,28,p.rid)}</td>`:''}</tr>`).join('')}</tbody></table></div>`:''}</div></section>`:''}
+     <div class="row small"><span class="muted">${t('예정','Planned')} ${md(p.due)} · ${t('업로드','Posted')} ${md(p.up)}</span><span class="grow"></span>${m.showLinks!==false?upl(p.clink,26,p.rid):''}</div></div>`).join('')}</div><div class="tblwrap hide-m" style="margin-top:14px;max-height:420px"><table class="tbl"><thead><tr>${pg?`<th>${t('그룹','Group')}</th>`:''}<th>${STR?t('스트리머','Streamer'):t('인플루언서','Influencer')}</th><th>${STR?t('플랫폼','Platform'):t('채널','Channel')}</th>${STR?'':`<th>${t('콘텐츠 유형','Content Type')}</th>`}<th>${t('진행 상황','Status')}</th><th>${STR?t('방송 예정일','Planned Date'):t('업로드 예정일','Planned Date')}</th><th>${STR?t('최근 광고 방송일','Last Stream'):t('업로드일','Posted Date')}</th>${m.showLinks!==false&&!STR?`<th>${t('업로드 콘텐츠','Posted Content')}</th>`:''}</tr></thead><tbody>${R.progress.map(p=>`<tr>${pg?`<td class="small">${esc(V(p.group)||'–')}</td>`:''}<td class="bold">${lk(p.chlink,esc(V(p.name)),t('채널로 이동','Open channel'))}</td><td>${lk(p.chlink,esc(V(p.ch)),t('채널로 이동','Open channel'))}</td>${STR?'':`<td>${esc(V(p.ctype))}</td>`}<td><span class="pill ${isDone(p.stage)?'ok':'accent'}">${esc(V(p.stage)||'-')}</span></td><td>${md(p.due)}</td><td>${md(p.up)}</td>${m.showLinks!==false&&!STR?`<td>${upl(p.clink,28,p.rid)}</td>`:''}</tr>`).join('')}</tbody></table></div>`:''}</div></section>`:''}
   ${noContent?'':`<section class="rp-long"><h3 class="rp-h2">${t('캠페인 구성','Campaign Breakdown')}</h3><p class="rp-desc">${R.byGroup&&R.byGroup.length?t('광고 그룹·','Performance by ad group, '):t('','Performance by ')}${t('채널·티어·콘텐츠 유형별 성과입니다.','channel, tier and content type.')}</p><div class="stack">${charts}${R.byGroup&&R.byGroup.length?gtable(t('광고 그룹별','By Ad Group'),R.byGroup):''}${gtable(t('채널별','By Channel'),R.byCh)}${gtable(t('티어별','By Tier'),R.byTier)}${gtable(t('콘텐츠 유형별','By Content Type'),R.byType)}</div></section>`}
   ${noContent?'':`<section><div class="row" style="justify-content:space-between"><div><h3 class="rp-h2">${t('지표별 상위 콘텐츠','Top Content by Metric')}</h3><p class="rp-desc">${t('선택한 지표 기준 상위 콘텐츠입니다. 썸네일을 누르면 원본 콘텐츠가 열립니다.','Top content for the selected metric. Tap a thumbnail to open the original post.')}</p></div><div class="chips noprint">${metricsSel.map(([k,l])=>`<span class="chip ${tm===k?'on':''}" data-act="topMetric" data-k="${k}">${l}</span>`).join('')}</div></div>
    ${top.length?`<div class="gal">${top.map((r,i)=>{const g=galSrc(r.clink,thm(r.rid));const pl=platOf(r.clink);const PL={YT:['YouTube','#FF0033'],IG:['Instagram','#D62976'],TT:['TikTok','#111'],N:['Blog','#03C75A'],X:['X','#111']}[pl]||[V(r.ch)||'Link','#394253'];const lab=(V(r.ctype)||PL[0]).replace(/^(유튜브|인스타그램|틱톡) /,'');
@@ -1866,7 +1884,7 @@ function tabSettings(c){
    <label class="f">상태<select id="s_status" data-cf="status"><option value="" ${c.status!=='보류'&&c.status!=='종료'?'selected':''}>자동 판정 (현재: ${esc(c.summary&&c.summary.status||'시작 전')})</option><option ${c.status==='보류'?'selected':''}>보류</option><option ${c.status==='종료'?'selected':''}>종료</option></select><span class="hint">진행 상황에 따라 시작 전·진행 중·완료가 자동으로 바뀝니다</span></label>${fld('start','시작일',c.start,'date')}${fld('end','종료일',c.end,'date')}${fld('owner','담당자',c.owner)}
    ${(TRL&&c.objective!=='2차 라이선스 활용')||COM?'':fld('usageMonths','2차 활용 기간 (개월)',c.usageMonths,'num')}${fld('asof','데이터 기준일',c.asof,'date','리포트에 표시되는 성과 수집 기준일 (예: 업로드 후 D+7)')}</div></section>
   ${acctSettings(c)}${TRL?trialSettings(c,fld):''}${COM?comSettings(c,fld):''}${costTermsPanel(c,fld,tg)}${A.view==='create'?'':groupSettings(c)}
-  ${COM?`<section class="panel"><div class="panel-h"><h2>캠페인 목적</h2><span class="sub">${isLive(c)?'라이브커머스':'공동구매'}는 판매(매출) 목적으로 고정됩니다 · 리포트 상단에 「판매 성과」가 나옵니다</span></div>
+  ${isStream(c)&&typeof stSettingsPanel==='function'?stSettingsPanel(c,fld,tg):COM?`<section class="panel"><div class="panel-h"><h2>캠페인 목적</h2><span class="sub">${isLive(c)?'라이브커머스':'공동구매'}는 판매(매출) 목적으로 고정됩니다 · 리포트 상단에 「판매 성과」가 나옵니다</span></div>
    ${tg('metrics.clicks','판매 링크 클릭 (유입) 입력',M.clicks,isGB(c)?'공구 링크 클릭 수를 넣으면 구매 전환율(주문 ÷ 클릭)을 계산합니다':'상품 클릭 수를 따로 받는 경우에만 켜세요 · 구매 전환율은 누적 시청자 기준으로 계산')}</section>`:`<section class="panel"><div class="panel-h"><h2>캠페인 목적</h2><span class="sub">목적에 따라 리포트 상단의 핵심 지표가 바뀝니다</span></div>
    <div class="objs">${(TRL?OBJ_TRIAL:OBJECTIVES).map(o=>`<button class="obj ${c.objective===o.k?'on':''}" data-act="objective" data-k="${o.k}"><b>${o.k}</b><span>${o.d}</span></button>`).join('')}</div>
    ${c.objective==='전환'?`<div class="fgrid" style="margin-top:14px">${fld('convType','전환 유형',c.convType,null,'리포트에서 전환 명칭으로 쓰입니다 (구매 / 앱 설치 / 가입)',CONV_TYPES)}</div>`:''}
@@ -1882,7 +1900,7 @@ function tabSettings(c){
   <div class="${TRL?'':'grid2'}"><section class="panel"><div class="panel-h"><h2>인게이지먼트 집계 항목</h2></div><p class="small muted" style="margin-top:0">선택한 항목의 합이 인게이지먼트가 되고 ER·CPE 계산에 쓰입니다.</p>
    ${tg('eng.likes','좋아요 수',E.likes)}${tg('eng.cmts','댓글 수',E.cmts)}${tg('eng.shares','공유 수',E.shares)}${tg('eng.saves','저장 수',E.saves)}</section>
   ${`<section class="panel"><div class="panel-h"><h2>집행 비용 집계 항목</h2></div><p class="small muted" style="margin-top:0">선택한 항목의 합이 집행 비용이 되고 CPV·CPE·CPA·ROAS 계산에 쓰입니다.</p>
-   ${COM?tg('costInc.fee',isLive(c)?'출연료':'고정비',K.fee)+tg('costInc.comm','판매수수료',K.comm,'매출 × 판매수수료율 · ROAS 계산에 포함')+tg('costInc.ops',isLive(c)?'방송 제작비':'샘플·배송비',K.ops):tg('costInc.fee','원고료',K.fee)+tg('costInc.use','2차 활용비',K.use)+tg('costInc.ops','운영비',K.ops,'제품비·배송비 등')}${tg('costInc.ad','광고 집행비',K.ad,'부스팅 등 매체비. 콘텐츠 자체 효율만 볼 때는 끄세요')}
+   ${COM?tg('costInc.fee',isLive(c)?'출연료':'고정비',K.fee)+tg('costInc.comm','판매수수료',K.comm,'매출 × 판매수수료율 · ROAS 계산에 포함')+tg('costInc.ops',isLive(c)?'방송 제작비':'샘플·배송비',K.ops):tg('costInc.fee',isStream(c)?'출연료':'원고료',K.fee)+tg('costInc.use','2차 활용비',K.use)+tg('costInc.ops','운영비',K.ops,'제품비·배송비 등')}${tg('costInc.ad','광고 집행비',K.ad,'부스팅 등 매체비. 콘텐츠 자체 효율만 볼 때는 끄세요')}
    ${COM?`<p class="small muted" style="margin:8px 0 0">판매수수료가 켜져 있으면 집행 비용 = ${isLive(c)?'출연료':'고정비'} + 판매수수료 + ${isLive(c)?'방송 제작비':'샘플·배송비'}${K.ad?' + 광고 집행비':''} 입니다. ROAS = 매출 ÷ 광고비.</p>`:''}
    <div class="hr" style="margin:14px 0 10px"></div><div class="fgrid">${TRL?`<label class="f">대행수수료율 (%)<input id="s_agencyRate" type="text" value="0" disabled><span class="hint">체험단 캠페인은 대행수수료 0% 고정</span></label>`:`<label class="f">대행수수료율 (%)<input id="s_agencyRate" type="text" inputmode="decimal" data-cf="agencyRate" data-t="num" value="${feeRate(c)}"><span class="hint">기본 20%. 수수료가 없으면 0 입력</span></label>`}
    <div class="f">어드민 화면 광고비 기준${feeSwitch(c)}<span class="hint">광고비 = 집행 비용 + 대행수수료(${feeRate(c)}%) · CPV·CPE·CPA·ROAS도 이 기준으로 계산</span></div></div></section>`}</div>
@@ -1898,6 +1916,8 @@ function parseChLink(u){let s=String(u||'').trim();if(!s)return null;if(!/^https
   if(host==='tiktok.com'){const a=seg.find(x=>/^@./.test(x));return a?{ch:'틱톡',acct:a,kind:'tt'}:null}
   if(host==='youtube.com'){const a=seg[0]||'';if(a.startsWith('@')&&a.length>1)return {ch:'유튜브',acct:a,kind:'yt',yt:{handle:a.slice(1)}};
     if(a==='channel'&&seg[1])return {ch:'유튜브',acct:null,kind:'yt',yt:{id:seg[1]}};if(a==='user'&&seg[1])return {ch:'유튜브',acct:null,kind:'yt',yt:{user:seg[1]}};if(a==='c'&&seg[1])return {ch:'유튜브',acct:null,kind:'yt',yt:{custom:seg[1]}};return null}
+  if(host==='sooplive.co.kr'||host==='ch.sooplive.co.kr'||host==='play.sooplive.co.kr'||host==='bj.afreecatv.com'||host==='afreecatv.com'){const a=seg[0]==='station'?seg[1]:seg[0];return a&&/^[A-Za-z0-9_]{3,30}$/.test(a)?{ch:'SOOP',acct:a.toLowerCase(),kind:'soop'}:null}
+  if(host==='chzzk.naver.com'){const a=seg.find(x=>/^[0-9a-f]{32}$/i.test(x));return a?{ch:'치지직',acct:a.toLowerCase(),kind:'chzzk'}:null}
   if(host==='blog.naver.com'){const id=url.searchParams.get('blogId')||(seg[0]&&!/\.naver$/i.test(seg[0])?seg[0]:'');return id?{ch:'네이버 블로그',acct:id,kind:null}:null}
   if(host==='x.com'||host==='twitter.com'){const a=seg[0];return a&&!['home','i','search','explore','intent'].includes(a)?{ch:'엑스',acct:'@'+a,kind:null}:null}
   return null}
@@ -1917,7 +1937,7 @@ function guessCat(d){const sc={};const add=(txt,w)=>{if(!txt)return;CAT_RULES.fo
   add(d.category,3);(d.topics||[]).forEach(t=>add(t.replace(/_/g,' '),2));add([d.name,d.bio].filter(Boolean).join(' '),1);
   const best=Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];return best&&best[1]>=1?best[0]:''}
 function chOk(r){const p=parseChLink(r.chlink);return !!(p&&p.kind)}
-function chBtn(rows){const k=rows.filter(r=>!isOut(r.stage)&&chOk(r)).length;if(!k||!canEdit())return '';return `<button class="btn" data-act="chFetch" title="채널 링크로 계정 ID·팔로워·카테고리를 불러옵니다. 행을 선택하면 선택한 행만 불러옵니다 (인스타그램은 30초~1분)">${A.chBusy?esc(A.chBusy):'채널 정보 불러오기'}</button>`}
+function chBtn(rows){if(isStream(curC()))return '';const k=rows.filter(r=>!isOut(r.stage)&&chOk(r)).length;if(!k||!canEdit())return '';return `<button class="btn" data-act="chFetch" title="채널 링크로 계정 ID·팔로워·카테고리를 불러옵니다. 행을 선택하면 선택한 행만 불러옵니다 (인스타그램은 30초~1분)">${A.chBusy?esc(A.chBusy):'채널 정보 불러오기'}</button>`}
 async function ytProfiles(items){let key=((A.settings||{}).ytKey||'').trim();if(!key)key=(((await loadSettings())||{}).ytKey||'').trim();
   if(!key)return {err:'YouTube API 키가 연결되지 않아 유튜브 채널은 건너뛰었습니다.',res:{}};const res={};const K=encodeURIComponent(key);const G='https://www.googleapis.com/youtube/v3/';
   await Promise.all(items.map(async it=>{const y=it.p.yt||{};let q=y.id?'id='+encodeURIComponent(y.id):y.handle?'forHandle='+encodeURIComponent('@'+y.handle):y.user?'forUsername='+encodeURIComponent(y.user):'';
@@ -1981,7 +2001,7 @@ async function perfAuto(cid,ids){const run=async()=>{const d=await DB.get('rows/
 function ytRows(rows){return rows.filter(r=>r.name&&!isOut(r.stage)&&ytId(r.clink))}
 function socialRows(rows){return rows.filter(r=>r.name&&!isOut(r.stage)&&/instagram\.com|tiktok\.com/.test(r.clink||''))}
 function socialInfo(rows){const s=socialRows(rows);if(!s.length)return '';const last=s.map(r=>r.socialAt||'').sort().pop();return `인스타그램·틱톡 ${s.length}개${last?` · 최근 업데이트 ${fmtDT(last).replace(/<[^>]+>/g,'')}`:' · 아직 불러오기 전'}`}
-function ytBtn(rows,cls){const k=ytRows(rows).length+socialRows(rows).length;if(!k||!canEdit())return '';return `<button class="btn ${cls||''}" data-act="ytFetch" title="유튜브·인스타그램·틱톡 성과를 지금 불러옵니다 (인스타그램은 30초~1분)">${A.ytBusy?esc(typeof A.ytBusy==='string'?A.ytBusy:'불러오는 중…'):'성과 불러오기'}</button>`}
+function ytBtn(rows,cls){if(isStream(curC()))return typeof stFetchBtn==='function'?stFetchBtn(rows,cls):'';const k=ytRows(rows).length+socialRows(rows).length;if(!k||!canEdit())return '';return `<button class="btn ${cls||''}" data-act="ytFetch" title="유튜브·인스타그램·틱톡 성과를 지금 불러옵니다 (인스타그램은 30초~1분)">${A.ytBusy?esc(typeof A.ytBusy==='string'?A.ytBusy:'불러오는 중…'):'성과 불러오기'}</button>`}
 /* 유튜브: YouTube Data API로 바로 */
 async function ytUpdate(cid,rows){let key=((A.settings||{}).ytKey||'').trim();if(!key)key=(((await loadSettings())||{}).ytKey||'').trim();
   if(!key)throw new Error('YouTube API 키가 연결되지 않았습니다. 권한 관리 → 연동 관리에서 마스터가 키를 넣어 주세요.');
@@ -2152,6 +2172,7 @@ function sumBlock(c,s,compact_){const {M}=settings(c);const cl=CONV_LABEL[c.conv
   if(isCom(c)){const tg=c.targets||{};const items=[['매출',s.rev?compact(s.rev)+'원':'–',tg.revenue?`목표 ${compact(tg.revenue)}원 · 달성 ${pct(n(s.rev)/tg.revenue,0)}`:`주문 ${fmt(s.conv)}건 · 판매 ${fmt(s.qty)}개`],['진행',`${s.settled||0}/${s.n}명`,`정산 완료 / 전체 · 판매 데이터 ${s.sellers||0}명`],
     ['ROAS',s.roas!=null?pct(s.roas,0):'–',`광고비 ${compact(s.cost)}원 (판매수수료 포함)`],['객단가',s.aov!=null?fmt(s.aov)+'원':'–',isLive(c)?`누적 시청 ${compact(s.viewers)}명`:`판매수수료 ${compact(s.comm)}원`]];
     if(!compact_)items.push(['정산 예정액',fmt(s.payout)+'원',`${isLive(c)?'출연료':'고정비'} + 판매수수료 · VAT 별도`]);return items}
+  if(isStream(c)&&typeof stSumBlock==='function')return stSumBlock(c,s,compact_);
   if(isTrial(c)){const tc=trialCalc(c,s.n);const items=[['제품 제공가치',tc.totalValue!=null?fmt(tc.totalValue)+'원':'–',tc.price!=null?`판매단가 ${fmt(tc.price)}원${tc.qty>1?' × '+tc.qty+'개':''} × 선정 ${tc.selected}명`:'판매단가 미입력 (캠페인 설정)'],['진행',`${s.uploaded}/${s.n}명`,`업로드 완료 / 전체 · 발송 ${s.contract}명`],
     ['조회수',started?compact(s.views):'–',started?`ER ${pct(s.er)}`:'진행 전']];if(!compact_)items.splice(1,0,['신청 경쟁률',fmtX(tc.compete),tc.recruit!=null?`모집 ${fmt(tc.recruit)} · 신청 ${tc.apps!=null?fmt(tc.apps):'–'}${tc.appsAuto?'(자동)':''} · 선정 ${fmt(tc.selected)}명`:'모집 정보 미입력 (캠페인 설정)']);return items}
   const fm=feeMode(c);const items=[['광고비 (VAT 별도)',fmt(s.cost)+'원',`${fm==='incl'?`대행수수료 ${feeRate(c)}% 포함 (수수료 ${fmt(s.agf)})`:`대행수수료 미포함 (별도 ${fmt(s.agf)})`} · 원고료 ${fmt(s.fee)}${n(s.fixedAd)?` · 고정 광고비 ${fmt(s.fixedAd)}`:''}${s.rs?` · RS ${s.rs.rate}% 정산 ${fmt(s.rs.total)}`:''}${compact_?'':` · 제안 단가 ${fmt(s.offer)}`}${!compact_&&b?` · 예산 대비 ${pct(s.cost/b,0)}`:''}`],['진행',`${s.uploaded}/${s.n}명`,`업로드 완료 / 전체 · 계약 ${s.contract}명`],
@@ -2165,7 +2186,7 @@ function tabOverview(c,rows){
   const card=({g,rows:rs})=>{const gsu=summaryOf(c,rs);const real=g.id!=='__none';return `<section class="panel gcard"><div class="row"><h3 class="grow">${real?nameEdit('g',A.cid,g.id,g.name,`<a class="glink" href="#" data-act="goGroup" data-g="${g.id}" data-t="grid" title="이 그룹 인플루언서 관리로 이동">${esc(g.name)}</a>`):`<a class="glink" href="#" data-act="goGroup" data-g="${g.id}" data-t="grid">${esc(g.name)}</a>`}</h3><span class="pill ${STATUS_CLS[gsu.status]||''}">${gsu.status}</span></div>
     <div class="small muted">${g.start?md(g.start)+' ~ '+md(g.end):'기간 미입력'}${g.memo?' · '+esc(g.memo):''}</div>${stageBar(gsu.stages,gsu.n,false)}
     <dl class="kv">${sumBlock(c,gsu,true).map(([l,v,x])=>`<dt>${l}</dt><dd>${v} <span class="small muted" style="font-weight:400">${x}</span></dd>`).join('')}</dl>
-    <div class="gfoot"><div class="row"><button class="btn sm" data-act="goGroup" data-g="${g.id}" data-t="grid">인플루언서 관리</button><button class="btn sm" data-act="goGroup" data-g="${g.id}" data-t="report">성과 리포트</button>${real?`<span class="grow"></span><button class="btn sm danger" data-act="delGroup" data-g="${g.id}" title="그룹만 삭제되고 인플루언서는 「그룹 미지정」으로 옮겨집니다">${A.confirm==='dg'+g.id?'한 번 더 누르면 삭제':'그룹 삭제'}</button>`:''}</div>
+    <div class="gfoot"><div class="row"><button class="btn sm" data-act="goGroup" data-g="${g.id}" data-t="grid">${isStream(c)?"스트리머":"인플루언서"} 관리</button><button class="btn sm" data-act="goGroup" data-g="${g.id}" data-t="report">성과 리포트</button>${real?`<span class="grow"></span><button class="btn sm danger" data-act="delGroup" data-g="${g.id}" title="그룹만 삭제되고 인플루언서는 「그룹 미지정」으로 옮겨집니다">${A.confirm==='dg'+g.id?'한 번 더 누르면 삭제':'그룹 삭제'}</button>`:''}</div>
     <div class="galert">${gsu.alerts?`<a href="#" class="crit" data-act="goGroup" data-g="${g.id}" data-t="grid" data-alert="1" title="이 그룹의 확인 필요 항목만 보기">확인 필요 ${gsu.alerts}건 →</a>`:'<span class="muted">확인 필요 없음</span>'}</div>
     ${real&&A.confirm==='dg'+g.id?`<div class="small muted">그룹만 삭제되고 소속 인플루언서 ${rs.length}명은 「그룹 미지정」으로 옮겨집니다. 데이터는 지워지지 않습니다.</div>`:''}</div></section>`};
   return `<div class="stack">
@@ -2495,7 +2516,7 @@ function drawer(){
   const d=A.drawer;if(!d)return '';let h='',b='',f='';
   if(d.type==='row'){const c=curC();const r=((A.rowsDoc||{}).rows||{})[d.rid];if(!c||!r)return '';const k=rowCalc(r,c);
     h=`<h2 style="font-size:16px">${esc(r.name||'이름 없음')}</h2>`;
-    b=`${k.alert?`<div class="banner" style="margin:0">확인 필요: ${esc(k.alert)}</div>`:''}${!isTrial(c)?`<div class="row" style="gap:8px"><b style="font-size:13px">계약</b>${ctPill(ctOf(r))}${r.ctLink?`<a class="small" href="${esc(r.ctLink)}" target="_blank" rel="noopener">계약서 열기 ↗</a>`:''}<span class="grow"></span><button class="btn sm" data-act="ctOpen" data-r="${d.rid}">계약 진행 관리</button></div>`:''}<div class="fgrid">${visibleCols(c).concat(COLS.filter(x=>colOk(c,x)&&A.hide.has(x.g)&&(!x.need||settings(c).M[x.need])&&(x.k!=='group'||groupsOf(c).length))).filter(x=>x.t!=='calc'&&x.t!=='thumb'&&x.t!=='cf').map(col=>{const id=`d_${d.rid}_${col.k}`;const v=r[col.k];
+    b=`${k.alert?`<div class="banner" style="margin:0">확인 필요: ${esc(k.alert)}</div>`:''}${isStream(c)&&typeof stRowAirs==='function'?stRowAirs(c,r,d.rid):''}${!isTrial(c)?`<div class="row" style="gap:8px"><b style="font-size:13px">계약</b>${ctPill(ctOf(r))}${r.ctLink?`<a class="small" href="${esc(r.ctLink)}" target="_blank" rel="noopener">계약서 열기 ↗</a>`:''}<span class="grow"></span><button class="btn sm" data-act="ctOpen" data-r="${d.rid}">계약 진행 관리</button></div>`:''}<div class="fgrid">${visibleCols(c).concat(COLS.filter(x=>colOk(c,x)&&A.hide.has(x.g)&&(!x.need||settings(c).M[x.need])&&(x.k!=='group'||groupsOf(c).length))).filter(x=>x.t!=='calc'&&x.t!=='thumb'&&x.t!=='cf').map(col=>{const id=`d_${d.rid}_${col.k}`;const v=r[col.k];
       if(col.t==='chk')return `<label class="f">${colLabel(c,col)}<span class="row" style="min-height:34px"><input type="checkbox" id="${id}" data-row="${d.rid}" data-f="${col.k}" ${v==='완료'?'checked':''}> <span class="small">${v==='완료'?'완료':'미완료'}</span></span></label>`;
       if(col.t==='grp')return `<label class="f">그룹<select id="${id}" data-row="${d.rid}" data-f="group"><option value="">미지정</option>${groupsOf(c).map(g=>`<option value="${g.id}" ${g.id===v?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label>`;
       const ctl=col.t==='sel'?`<select id="${id}" data-row="${d.rid}" data-f="${col.k}"><option value=""></option>${colOpts(c,col).map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`:`<input id="${id}" type="${col.t==='date'?'date':col.t==='dt'?'datetime-local':col.t==='url'?'url':'text'}" ${col.t==='num'?'inputmode="decimal"':''} data-row="${d.rid}" data-f="${col.k}" data-t="${col.t}" value="${esc(col.t==='num'&&has(v)?Number(v).toLocaleString('ko-KR'):v??'')}">`;
@@ -3072,6 +3093,7 @@ function poolKey(r){const b=String(r.acct||r.name||'').trim().toLowerCase().repl
 const SI=s=>s===DROP?-1:stageIdx(s);
 function stable(o){if(Array.isArray(o))return '['+o.map(stable).join(',')+']';if(isObj(o))return '{'+Object.keys(o).sort().map(k=>JSON.stringify(k)+':'+stable(o[k])).join(',')+'}';return JSON.stringify(o===undefined?null:o)}
 async function syncPool(cid,c,rows){
+  if(isStream(c)){if(typeof spSyncCampaign==='function')await spSyncCampaign(cid,c,rows);return}
   if(!A.poolLoaded)return;
   const desired={};const own=ek=>ek===cid||ek.startsWith(cid+'__');
   rows.filter(r=>r.name).forEach(r=>{const k=poolKey(r);if(!k)return;const rc=rowCalc(r,c);const gid=r.group&&c.groups&&c.groups[r.group]?r.group:'';const ek=gid?cid+'__'+gid:cid;
@@ -3410,13 +3432,14 @@ service cloud.firestore {
   }
 }
 </script>
-<script src="/tools.js?v=0.24"></script>
-<script src="/proposal-deck.js?v=0.24"></script>
-<script src="/proposal.js?v=0.24"></script>
-<script src="/recruit.js?v=0.24"></script>
-<script src="/stream.js?v=0.24"></script>
-<script src="/msign.js?v=0.24"></script>
-<script src="/tree.js?v=0.24"></script>
-<script src="/mobile.js?v=0.24"></script>
+<script src="/tools.js?v=0.25"></script>
+<script src="/proposal-deck.js?v=0.25"></script>
+<script src="/proposal.js?v=0.25"></script>
+<script src="/recruit.js?v=0.25"></script>
+<script src="/stream.js?v=0.25"></script>
+<script src="/msign.js?v=0.25"></script>
+<script src="/hier.js?v=0.25"></script>
+<script src="/tree.js?v=0.25"></script>
+<script src="/mobile.js?v=0.25"></script>
 </body>
 </html>

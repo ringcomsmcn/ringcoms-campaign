@@ -16,9 +16,10 @@
 | `public/recruit.js` | 스레드 모집: 스레드 글·구글폼·신청자 (`recruits/{id}`), 스레드 연결 `threads/{이메일}`(본인만) |
 | `public/msign.js` | 모두싸인 API 연동 화면 (연동 관리 · 계약 관리 API 서명 요청 · 상태 반영) |
 | `netlify/functions/modusign.mjs` | 모두싸인 API 서버 함수 (`/api/modusign`: status·save·clear·templates·send·sync·remind, 키는 `secrets/modusign`) |
-| `public/tree.js` | 계층 트리: 캠페인 화면 왼쪽 트리 · 목록 「계층 보기」 · 광고 그룹 끌어서 순서 변경 |
+| `public/tree.js` | 광고 그룹 설정 표의 끌어서 순서 변경 (왼쪽 트리 · 계층 보기는 v0.25에서 상단 탭으로 대체) |
 | `public/mobile.js` | 모바일(720px 이하) 앱형 화면: 하단 탭 · 홈 · 섹션 칩 · PC 전용 안내 |
-| `public/stream.js` | 광고 관리 > 스트리머 광고: PPL·프로모션, SOOP·치지직·유튜브 방송 불러오기·매칭·집계 (`streams/{id}`) |
+| `public/stream.js` | 스트리머 광고(캠페인 유형 `stream`) 방송 불러오기·매칭·리포트, 인플루언서 관리 > 스트리머 풀(`streams/sp_*`) · 스트리머 데이터(`streams/sd_*`), 방송 상세(`streams/air_{캠페인}_{행}`) |
+| `public/hier.js` | 캠페인 목록 상단 「캠페인 · 광고 그룹 · 인플루언서(스트리머)」 탭과 체크 선택 (Meta 광고 관리자 방식) |
 | `netlify/functions/stream.mjs` | SOOP·치지직 방송(다시보기) 목록 서버 함수 (`/api/stream`: vods·status, 키 불필요) |
 | `netlify/functions/meta.mjs` | 연동 관리의 Meta 인스타그램 토큰 저장·확인 (`/api/meta`: status·save·clear, 저장 위치 `secrets/meta`) |
 | `public/threads-callback.html` | 스레드 계정 연결 창이 돌아오는 페이지 |
@@ -159,3 +160,10 @@
 - 신청자 불러오기는 폼을 만든 계정으로 로그인했을 때만 가능(문항 제목으로 활동명·채널·연락처 등 자동 매칭). 직접 만든 폼도 링크만 연결 가능(응답 읽기 불가 → 엑셀 업로드)
 - 신청자 → 캠페인 `rows`(컨택 단계, 체험단은 `apply: 완료`, `recruit: 모집id`) → 동기화 때 인플루언서 풀 자동 누적
 - 보안 규칙(`recruits`, `threads`)이 추가되어 Firebase 콘솔에 게시해야 동작
+
+## 스트리머 광고 · 스트리머 풀 · 스트리머 데이터 (v0.25)
+- 스트리머 광고는 시딩처럼 `campaigns`(kind `stream`) + `rows/{id}` 에 저장합니다. 스트리머 1명 = 1행, 월별 구성은 광고 그룹으로 나눕니다.
+- 「방송 불러오기」는 캠페인(그룹) 기간의 방송을 가져와 제목·태그의 키워드(캠페인 설정)나 소프트콘 기록으로 광고 방송을 고르고 행에 합계를 넣습니다. 방송별 목록은 `streams/air_{캠페인}_{행}`.
+- 스트리머 풀·데이터는 `streams` 컬렉션에 `type` 으로 구분해 저장합니다 (기존 규칙: 팀원 읽기 · 마스터/매니저 쓰기, 규칙 추가 없음).
+- 최고·평균 시청자와 채팅 수는 플랫폼 다시보기 데이터에 없습니다. 스트리머 데이터의 「실시간 기록」(화면을 열어 둔 동안 6분 간격)으로 쌓거나 직접 입력합니다.
+- SOOP·치지직은 공개 채널 데이터(`/api/stream` channel·vods), 유튜브는 YouTube Data API 키(브라우저)로 읽습니다.

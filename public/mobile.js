@@ -10,7 +10,7 @@ A.mLast=A.mLast||{camp:'list',infl:'pool',tool:'guides'};
 
 const M_SEC={
   camp:{l:'캠페인',items:[['list','시딩'],['trial','체험단'],['gb','공동구매'],['live','라이브커머스'],['stream','스트리머']]},
-  infl:{l:'인플루언서',items:[['pool','인플루언서 풀'],['recruit','스레드 모집']]},
+  infl:{l:'인플루언서',items:[['pool','인플루언서 풀'],['recruit','스레드 모집'],['spool','스트리머 풀'],['sdata','스트리머 데이터']]},
   tool:{l:'도구',items:[['guides','콘텐츠 가이드'],['review','영상 검수'],['proposals','광고 제안서'],['aivideo','AI 영상']]}};
 const M_IC={
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></svg>',
@@ -19,8 +19,8 @@ const M_IC={
   tool:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
   more:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>'};
 /* 지금 화면이 어느 탭인지 */
-function mSecOf(){const v=A.view;if(v==='mhome')return 'home';if(['list','trial','gb','live','stream','campaign','create'].includes(v))return 'camp';if(['pool','recruit'].includes(v))return 'infl';if(['guides','review','proposals','aivideo'].includes(v))return 'tool';return 'more'}
-function mCnt(v){if(v==='stream')return Object.keys(A.streams||{}).length||'';const k=VIEW_KIND[v];return k?Object.values(A.campaigns||{}).filter(c=>kindOf(c)===k&&inAcctScope(c)).length:''}
+function mSecOf(){const v=A.view;if(v==='mhome')return 'home';if(['list','trial','gb','live','stream','campaign','create'].includes(v))return 'camp';if(['pool','recruit','spool','sdata'].includes(v))return 'infl';if(['guides','review','proposals','aivideo'].includes(v))return 'tool';return 'more'}
+function mCnt(v){const k=VIEW_KIND[v];return k?Object.values(A.campaigns||{}).filter(c=>kindOf(c)===k&&inAcctScope(c)).length:''}
 
 /* ---- 하단 탭 ---- */
 function mNav(){if(typeof isClientView==='function'&&isClientView())return null;const sec=mSecOf();
@@ -35,7 +35,7 @@ function mMore(){const it=(v,l,tt,extra)=>`<button data-act="nav" data-v="${v}"$
    <p class="small muted" style="margin:6px 12px 2px">표 편집 · 제안서 · 디자인 작업은 PC 화면이 더 편해요.</p>`}
 
 /* ---- 섹션 안 상단 칩 ---- */
-function mSub(){if(!isMob())return '';const sec=mSecOf();const S=M_SEC[sec];if(!S)return '';if(A.view==='campaign'||A.view==='create'||(A.view==='guides'&&A.gid)||(A.view==='proposals'&&A.pid)||(A.view==='recruit'&&A.rcid)||(A.view==='stream'&&A.sid))return '';
+function mSub(){if(!isMob())return '';const sec=mSecOf();const S=M_SEC[sec];if(!S)return '';if(A.view==='campaign'||A.view==='create'||(A.view==='guides'&&A.gid)||(A.view==='proposals'&&A.pid)||(A.view==='recruit'&&A.rcid))return '';
   return `<div class="msub noprint">${S.items.map(([v,l])=>{const k=mCnt(v);const pc=v==='aivideo';return `<button class="${A.view===v?'on':''}" data-act="nav" data-v="${v}">${l}${k!==''&&k!=null&&sec==='camp'?` <em>${k}</em>`:''}${pc?' <i>PC</i>':''}</button>`}).join('')}</div>`}
 
 /* ---- 홈 ---- */

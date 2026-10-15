@@ -1,6 +1,7 @@
 // RINGCOMS 캠페인 관리 · 스트리머 광고 — SOOP · 치지직 방송(다시보기) 목록 불러오기
 // POST /api/stream { action, ... }  (로그인 토큰 필요, 마스터·매니저만)
 //   vods   → { plat: 'soop'|'chzzk', ch, from?, to? } → { items: [{ id, title, at, views, vodViews, durMin, url, thumb }] }
+//   channel → { plat, ch } → { channel: { id, name, img, fol, subs, views }, live: { id, title, viewers, start } | null }
 //   status → SOOP · 치지직 공개 데이터에 지금 연결되는지 확인 (연동 관리 화면용)
 // 두 플랫폼 모두 채널 페이지가 쓰는 공개 데이터를 읽습니다 (API 키 불필요 · 무료).
 // 공식 Open API(SOOP Developers · CHZZK Developers) 키를 받으면 환경변수 SOOP_CLIENT_ID · CHZZK_CLIENT_ID 로
@@ -69,6 +70,23 @@ async function chzzkVods(id, from, to) {
   return out;
 }
 
+
+/* 채널 요약 + 지금 방송 중이면 라이브 정보 */
+async function soopChannel(id) {
+  const j = await getJson(`https://chapi.sooplive.co.kr/api/${encodeURIComponent(id)}/station`, { referer: `https://www.sooplive.co.kr/station/${id}` });
+  const st = j.station || {}, upd = st.upd || {}, b = j.broad || null;
+  let img = j.profile_image || ''; if (img.startsWith('//')) img = 'https:' + img;
+  return { channel: { id, name: st.user_nick || st.station_name || id, img, fol: num(upd.fan_cnt), subs: num((j.subscription || {}).total), views: num(upd.total_view_cnt), since: st.broad_start || '', totalBroadMin: st.total_broad_time ? num(+st.total_broad_time / 60) : null },
+    live: b && b.broad_no ? { id: String(b.broad_no), title: String(b.broad_title || ''), viewers: num(b.current_sum_viewer), start: kstIso(b.broad_start || '') || '' } : null };
+}
+async function chzzkChannel(id) {
+  const j = await getJson(`https://api.chzzk.naver.com/service/v1/channels/${id}`, { referer: `https://chzzk.naver.com/${id}` });
+  const c = j.content || {};
+  let live = null;
+  if (c.openLive) { try { const l = (await getJson(`https://api.chzzk.naver.com/service/v2/channels/${id}/live-detail`, { referer: `https://chzzk.naver.com/live/${id}` })).content || {}; if (l.status === 'OPEN' || l.liveTitle) live = { id: String(l.liveId || ''), title: String(l.liveTitle || ''), viewers: num(l.concurrentUserCount), start: kstIso(l.openDate || '') }; } catch (e) {} }
+  return { channel: { id, name: c.channelName || id, img: c.channelImageUrl || '', fol: num(c.followerCount), subs: null, views: null }, live };
+}
+
 async function probe(plat) {
   try {
     if (plat === 'soop') { const j = await getJson('https://chapi.sooplive.co.kr/api/phonics1/vods/review?page=1&per_page=1'); return { ok: Array.isArray(j.data) }; }
@@ -88,6 +106,12 @@ export default async (req) => {
     if (b.action === 'status') {
       const [soop, chzzk] = await Promise.all([probe('soop'), probe('chzzk')]);
       return json({ soop: { ...soop, official: !!process.env.SOOP_CLIENT_ID }, chzzk: { ...chzzk, official: !!process.env.CHZZK_CLIENT_ID } });
+    }
+    if (b.action === 'channel') {
+      const plat = String(b.plat || '');
+      if (plat === 'soop') { const id = soopId(b.ch); if (!id) return json({ error: 'SOOP 방송국 주소나 아이디를 확인해 주세요.' }, 400); return json(await soopChannel(id)); }
+      if (plat === 'chzzk') { const id = chzzkId(b.ch); if (!id) return json({ error: '치지직 채널 주소를 확인해 주세요.' }, 400); return json(await chzzkChannel(id)); }
+      return json({ error: '지원하지 않는 플랫폼입니다.' }, 400);
     }
     if (b.action === 'vods') {
       const plat = String(b.plat || '');
