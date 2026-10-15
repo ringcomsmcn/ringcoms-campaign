@@ -48,10 +48,13 @@ let cachedId = null;
 async function igId() {
   if (IGID()) return { id: IGID(), username: '' };
   if (cachedId) return cachedId;
-  let d;
+  let d, first = null;
   try { d = await graph('me/accounts', { fields: 'name,instagram_business_account{id,username}', limit: '100' }); }
-  catch (e) { throw new MetaError('TOKEN', '토큰으로 페이지 목록을 읽지 못했습니다: ' + e.message); }
-  const hit = (d.data || []).map(p => p.instagram_business_account).find(x => x && x.id);
+  catch (e) { first = e; }
+  let hit = d ? (d.data || []).map(p => p.instagram_business_account).find(x => x && x.id) : null;
+  /* 페이지 토큰이면 me 자체가 페이지 → 연결된 인스타그램 계정을 바로 읽음 */
+  if (!hit) { try { const me = await graph('me', { fields: 'instagram_business_account{id,username}' }); if (me.instagram_business_account && me.instagram_business_account.id) hit = me.instagram_business_account; } catch (e) { /* 무시 */ } }
+  if (!hit && first) throw new MetaError('TOKEN', '토큰으로 페이지 목록을 읽지 못했습니다 (' + first.message + '). 해결: ① Netlify 환경변수 META_IG_USER_ID에 링컴즈 인스타그램 비즈니스 계정 ID(17841로 시작하는 숫자)를 넣으면 이 단계를 건너뜁니다. ② 또는 비즈니스 설정 → 시스템 사용자에 페이스북 페이지·인스타그램 계정을 자산으로 할당하고 pages_show_list·instagram_basic·business_management 권한으로 토큰을 다시 발급하세요. (인스타그램 로그인 토큰 IGAA…는 이 방식에 쓸 수 없습니다)');
   if (!hit) throw new MetaError('TOKEN', '토큰에 연결된 인스타그램 비즈니스 계정을 찾지 못했습니다. 시스템 사용자에 페이스북 페이지·인스타그램 계정이 할당되어 있는지, 토큰 권한에 pages_show_list가 있는지 확인해 주세요.');
   cachedId = { id: hit.id, username: hit.username || '' };
   return cachedId;
