@@ -710,6 +710,14 @@ function compactEn(v){if(v==null||!isFinite(v))return '–';const a=Math.abs(v);
 function feeRate(c){if(isTrial(c))return 0;const x=c&&c.agencyRate;return has(x)?n(x):20}
 /* 캠페인 단위 고정 광고비 (VAT 별도 · 대행수수료 미적용) */
 function fixedAd(c){const x=c&&c.fixedAd;return has(x)&&n(x)>0?n(x):0}
+/* RS(수익 쉐어) 조건: 광고주가 링컴즈에 미니멈 개런티(MG)와 매출 × RS% 를 정산 (VAT 별도 · 대행수수료 미적용)
+   mode 'sum' = MG + RS 합산 / 'max' = MG와 RS 중 큰 금액 (MG가 최소 보장) · 기준 매출 = 인플루언서 관리 「매출」 합계 */
+const RS_MODES=[['sum','MG + RS 합산'],['max','MG와 RS 중 큰 금액 (최소 보장)']];
+function rsOn(c){return !!(c&&c.rs&&c.rs.on)}
+function rsCalc(c,rev){if(!rsOn(c))return null;const o=c.rs||{};const rate=has(o.rate)?n(o.rate):0,mg=has(o.mg)?n(o.mg):0,mode=o.mode==='max'?'max':'sum';const base=n(rev);const amt=Math.round(base*rate/100);
+  const total=mode==='max'?Math.max(mg,amt):mg+amt;return {rate,mg,mode,base,amt,total,extra:mode==='max'?Math.max(0,amt-mg):amt}}
+/* 캠페인 단위 비용 = 고정 광고비 + RS 정산액 */
+function campFixed(c,rev){const r=rsCalc(c,rev);return fixedAd(c)+(r?r.total:0)}
 function feeMode(c){return (c&&c.feeView)==='excl'?'excl':'incl'}
 const CTYPES=['인스타그램 피드','인스타그램 릴스','유튜브 영상(롱폼)','유튜브 쇼츠','틱톡 콘텐츠','네이버 블로그','엑스 콘텐츠'];
 const TIERS=['MEGA','MACRO','MICRO','NANO'];const TIERS_M=['MEGA','MACRO','MICRO/NANO'];
@@ -1000,7 +1008,7 @@ function settings(c){const com=isCom(c);return {E:{likes:true,cmts:true,shares:t
 function comRate(c){const x=c&&c.com&&c.com.rate;return has(x)?n(x):0}
 /* 체험단 비용: 고정단가(행에 없으면 캠페인 기본값) + 2차 라이선스 체크 시 라이선스 단가 자동 합산 */
 function trialFee(c,r){const t=(c&&c.trial)||{};return {fee:has(r.fee)?r.fee:(has(t.fixedFee)&&n(t.fixedFee)>0?n(t.fixedFee):null),use:has(r.use)?r.use:(r.lic==='완료'&&has(t.licFee)&&n(t.licFee)>0?n(t.licFee):null)}}
-function trialCostOn(c,rows){if(!isTrial(c))return true;if(fixedAd(c))return true;const t=c.trial||{};if(n(t.fixedFee)>0||n(t.licFee)>0)return true;if(rows)return rows.some(r=>['fee','use','ops','ad'].some(k=>has(r[k])));return n(c.summary&&c.summary.cost)>0}
+function trialCostOn(c,rows){if(!isTrial(c))return true;if(fixedAd(c)||rsOn(c))return true;const t=c.trial||{};if(n(t.fixedFee)>0||n(t.licFee)>0)return true;if(rows)return rows.some(r=>['fee','use','ops','ad'].some(k=>has(r[k])));return n(c.summary&&c.summary.cost)>0}
 function rowCalc(r,c,mode){
   const {E,K,M}=settings(c);const v=n(r.views);mode=mode||feeMode(c);
   const com=isCom(c);const crate=com?(has(r.rate)?n(r.rate):comRate(c)):0;const comm=com&&has(r.rev)&&crate?Math.round(n(r.rev)*crate/100):null;
@@ -1052,11 +1060,11 @@ function summaryOf(c,rows){
   const live=rows.filter(r=>r.name&&!isOut(r.stage));const sc={};stagesOf(c).forEach(s=>sc[s]=0);live.forEach(r=>{if(sc[r.stage]!=null)sc[r.stage]++});
   const k=new Map(live.map(r=>[r,rowCalc(r,c)]));const S=f=>live.reduce((t,r)=>t+n(f(r)),0);
   const views=S(r=>r.views),eng=S(r=>k.get(r).eng),costV=live.filter(r=>n(r.views)>0).reduce((t,r)=>t+n(k.get(r).cost),0),cost=S(r=>k.get(r).cost),rev=S(r=>r.rev),costR=live.filter(r=>has(r.rev)).reduce((t,r)=>t+n(k.get(r).cost),0);
-  const com=isCom(c);const named=rows.filter(r=>r.name);const fx=fixedAd(c);
+  const com=isCom(c);const named=rows.filter(r=>r.name);const rsx=rsCalc(c,rev);const fx=campFixed(c,rev);
   const trialN=isTrial(c)?{selected:live.filter(r=>r.stage!=='컨택').length,contacts:named.length,nosel:named.filter(r=>r.stage===NOSEL).length,dropped:named.filter(r=>r.stage===DROP).length,appliedAuto:named.filter(r=>r.apply==='완료'||(r.stage&&r.stage!==NOSEL&&r.stage!=='컨택')).length}:{};
   return {...trialN,n:live.length,stages:sc,uploaded:com?live.filter(r=>r.clink).length:sc[DONE],alerts:rows.filter(r=>alertOf(r,c)&&!ackd(r,c)).length,views,contract:live.filter(r=>isTrial(c)?r.ship==='완료':r.contract==='완료').length,
     ...(com?{qty:S(r=>r.qty),viewers:S(r=>r.viewers),settled:sc[SETTLED]||0,sellers:live.filter(r=>has(r.rev)).length,payout:S(r=>k.get(r).payout),comm:S(r=>k.get(r).comm),aov:S(r=>r.conv)?S(r=>r.rev)/S(r=>r.conv):null}:{}),
-    status:autoStatus(rows,c),cost:cost+fx,fixed:fx,cost0:S(r=>k.get(r).cost0),agf:S(r=>k.get(r).agf),feeMode:feeMode(c),feeRate:feeRate(c),fee:S(r=>r.fee),offer:S(r=>r.offer),eng,er:views?eng/views:null,cpv:views&&(costV+fx)?(costV+fx)/views:null,conv:S(r=>r.conv),clicks:S(r=>r.clicks),rev,roas:(costR+fx)&&rev?rev/(costR+fx):null,groups:groupsOf(c).length};
+    status:autoStatus(rows,c),cost:cost+fx,fixed:fx,fixedAd:fixedAd(c),...(rsx?{rs:rsx}:{}),cost0:S(r=>k.get(r).cost0),agf:S(r=>k.get(r).agf),feeMode:feeMode(c),feeRate:feeRate(c),fee:S(r=>r.fee),offer:S(r=>r.offer),eng,er:views?eng/views:null,cpv:views&&(costV+fx)?(costV+fx)/views:null,conv:S(r=>r.conv),clicks:S(r=>r.clicks),rev,roas:(costR+fx)&&rev?rev/(costR+fx):null,groups:groupsOf(c).length};
 }
 /* 리포트 객체: 어드민 화면·광고주 공유·엑셀이 모두 이 결과를 사용 */
 function buildReport(c,rows,admin,groupLabel,mode){
@@ -1072,7 +1080,7 @@ function buildReport(c,rows,admin,groupLabel,mode){
     clicks:S(posted,r=>r.clicks),conv:S(posted,r=>r.conv),rev:S(posted,r=>r.rev),eng:S(posted,r=>calc.get(r).eng),part:S(posted,r=>calc.get(r).part),
     measured:posted.filter(r=>n(r.views)>0).length};
   const cost=r=>n(calc.get(r).cost);
-  const FX=costLevel!=='none'?fixedAd(c):0;
+  const RSX=rsCalc(c,S(live,r=>r.rev));const FX=costLevel!=='none'?campFixed(c,S(live,r=>r.rev)):0;
   let cV=S(posted.filter(r=>n(r.views)>0),cost),cE=S(posted.filter(r=>n(calc.get(r).eng)>0),cost),cC=S(posted.filter(r=>n(r.clicks)>0),cost),cCv=S(posted.filter(r=>has(r.conv)),cost),cR=S(posted.filter(r=>has(r.rev)),cost),cReach=S(posted.filter(r=>n(r.reach)>0),cost);
   if(FX){cV+=FX;cE+=FX;cC+=FX;cCv+=FX;cR+=FX;cReach+=FX}
   const folV=S(posted.filter(r=>n(r.views)>0),r=>r.fol),folR=S(posted.filter(r=>n(r.reach)>0),r=>r.fol);
@@ -1080,10 +1088,10 @@ function buildReport(c,rows,admin,groupLabel,mode){
   T.er=T.views?T.eng/T.views:null;T.avgViews=T.measured?T.views/T.measured:null;T.viewRate=folV?S(posted.filter(r=>n(r.views)>0),r=>r.views)/folV:null;T.reachRate=folR?S(posted.filter(r=>n(r.reach)>0),r=>r.reach)/folR:null;
   T.ctr=M.clicks&&T.views?T.clicks/T.views:null;T.cvr=M.conv&&M.clicks&&T.clicks?T.conv/T.clicks:null;
   if(costLevel!=='none'){
-    T.costPosted=S(posted,cost)+FX;T.fixed=FX||null;T.cpv=T.views&&cV?cV/T.views:null;T.cpe=T.eng&&cE?cE/T.eng:null;T.cpm=T.views&&cV?cV/T.views*1000:null;T.cpmReach=T.reach&&cReach?cReach/T.reach*1000:null;
+    T.costPosted=S(posted,cost)+FX;T.fixed=FX||null;if(RSX){T.rs=admin?RSX:{rate:RSX.rate,total:RSX.total,base:RSX.base,mode:RSX.mode}}T.cpv=T.views&&cV?cV/T.views:null;T.cpe=T.eng&&cE?cE/T.eng:null;T.cpm=T.views&&cV?cV/T.views*1000:null;T.cpmReach=T.reach&&cReach?cReach/T.reach*1000:null;
     T.cpc=M.clicks&&T.clicks&&cC?cC/T.clicks:null;T.cpa=M.conv&&T.conv&&cCv?cCv/T.conv:null;T.roas=M.revenue&&cR?T.rev/cR:null;
   }
-  if(admin){T.offer=S(live,r=>r.offer);T.fixedAll=fixedAd(c);T.costAll=S(live,cost)+T.fixedAll;T.cost0All=S(live,r=>calc.get(r).cost0);T.agfAll=S(live,r=>calc.get(r).agf);T.budget=n(c.targets&&c.targets.budget)||null}
+  if(admin){T.offer=S(live,r=>r.offer);T.fixedAll=fixedAd(c);T.rsAll=RSX?RSX.total:0;T.costAll=S(live,cost)+T.fixedAll+T.rsAll;T.cost0All=S(live,r=>calc.get(r).cost0);T.agfAll=S(live,r=>calc.get(r).agf);T.budget=n(c.targets&&c.targets.budget)||null}
   const grp=(keyf,order)=>{const g={};posted.forEach(r=>{const k=keyf(r)||'미지정';const o=g[k]||(g[k]={name:k,n:0,views:0,eng:0,reach:0,clicks:0,conv:0,rev:0,cost:0});o.n++;o.views+=n(r.views);o.eng+=n(calc.get(r).eng);o.reach+=n(r.reach);o.clicks+=n(r.clicks);o.conv+=n(r.conv);o.rev+=n(r.rev);if(n(r.views)>0)o.cost+=cost(r)});
     return Object.values(g).map(o=>{o.er=o.views?o.eng/o.views:null;if(costLevel!=='none'){o.cpv=o.views&&o.cost?o.cost/o.views:null}delete o.cost;return o}).sort((a,b)=>{const ia=order.indexOf(a.name),ib=order.indexOf(b.name);return (ia<0?99:ia)-(ib<0?99:ib)||b.views-a.views})};
   const stages={};stagesOf(c).forEach(s=>stages[s]=live.filter(r=>r.stage===s).length);
@@ -1325,13 +1333,13 @@ function shell(){
 /* 메뉴 구성 (권한별) */
 function navItems(){
   if(isClientView())return clientNav();
-  const ads={t:'광고 관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'}]};
+  const ads={t:'광고 관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'},{v:'stream',l:'스트리머 광고',ms:'스트리머',ic:'stream'}]};
   const tools={t:'콘텐츠 도구',items:[{v:'guides',l:'콘텐츠 가이드 생성',ms:'가이드',ic:'guide',m:1},{v:'review',l:'영상 검수',ms:'검수',ic:'review',m:1},{v:'aivideo',l:'AI 영상 제작',ic:'aivideo'}]};
   const prop={t:'제안 도구',items:[{v:'proposals',l:'광고 제안서 생성',ms:'제안서',ic:'proposal'}]};
-  const infl={t:'인플루언서 관리',items:[{v:'recruit',l:'인플루언서 모집',ms:'모집',ic:'recruit'},{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'}]};
+  const infl={t:'인플루언서 관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'},{v:'recruit',l:'스레드 모집',ms:'모집',ic:'recruit'}]};
   const comp={t:'구성요소 관리',items:[{v:'team',tt:'members',l:'팀원·권한',ic:'team'},{v:'team',tt:'accts',l:'광고주 계정',ic:'acct'},{v:'team',tt:'int',l:'연동 관리',ic:'int'},{v:'updates',l:'업데이트 제안',badge:updBadge()},{v:'history',l:'업데이트 이력'}]};
   return [ads,infl,tools,prop,comp]}
-function viewBody(){const v=A.view;return v==='recruit'?viewRecruit():v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
+function viewBody(){const v=A.view;return v==='stream'&&typeof viewStream==='function'?viewStream():v==='recruit'?viewRecruit():v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
 function homeView(k){return isClientView()?'cv':kindView(k||'seed')}
 
 /* ---- 계정·클라이언트·업데이트 기능 (아래에서 다시 정의) ---- */
@@ -1439,7 +1447,7 @@ function updGoModal(){const m=A.modal;const items=((A.ops&&A.ops.items)||[]).fil
 /* 업데이트 이력: 배포한 버전별 변경 사항 (public/changelog.json) */
 async function loadHist(){if(A.histBusy)return;A.histBusy=true;try{const r=await fetch('/changelog.json?nc='+Date.now(),{cache:'no-store'});A.hist=r.ok?await r.json():{versions:[]};if(!r.ok)A.histErr='이력 파일을 불러오지 못했습니다.'}catch(e){A.hist={versions:[]};A.histErr='이력 파일을 불러오지 못했습니다.'}finally{A.histBusy=false;scheduleRender()}}
 /* 데이터 백업: 팀원이 읽을 수 있는 모든 컬렉션을 JSON 파일 하나로 내려받기 (배포 전 롤백 대비) */
-const BK_COLS=['admins','accounts','campaigns','rows','thumbs','pool','recruits','guides','guideimg','reviews','cview','cconfirm','settings','links','linkstat','linkday'];
+const BK_COLS=['admins','accounts','campaigns','rows','thumbs','pool','recruits','streams','guides','guideimg','reviews','cview','cconfirm','settings','links','linkstat','linkday'];
 const BK_IMG=['thumbs','guideimg'];
 function bkLast(){try{return JSON.parse(localStorage.getItem('ring_backup_last')||'null')}catch(e){return null}}
 function bkVal(v){if(v&&typeof v==='object'){if(typeof v.toDate==='function'&&'seconds' in v)return {__ts:v.toDate().toISOString()};if(Array.isArray(v))return v.map(bkVal);const o={};for(const k in v)o[k]=bkVal(v[k]);return o}return v}
@@ -1755,8 +1763,9 @@ function renderReport(R,o){
   const sum=[
     [t('총 인플루언서 수','Influencers'),fmt(T.influencers)+t('명',''),t('콘텐츠 링크 등록 기준','With posted content')],[t('총 콘텐츠 수','Contents'),fmt(T.contents)+t('개',''),t(`전체 ${fmt(T.planned)}건 중 · 목표 ${tt.contents?fmt(tt.contents)+'개':'-'}`,`of ${fmt(T.planned)} planned · Target ${tt.contents?fmt(tt.contents):'-'}`)],
     o.admin&&hasCost&&[COM?'총 광고비 (판매수수료 포함)':'총 광고비',won(T.costAll),feeNote+(T.budget?` · 예산 대비 ${pct(T.costAll/T.budget,0)}`:' · 예산 미입력')],
-    o.admin&&hasCost&&['집행 비용 (수수료 제외)',won(T.cost0All),'인플루언서 비용 합계 · VAT 별도'],o.admin&&hasCost&&['대행수수료',won(T.agfAll),`수수료율 ${fee.rate}%${fee.mode==='excl'?' · 광고비에 미포함':''} · VAT 별도`],o.admin&&hasCost&&T.fixedAll>0&&['고정 광고비',won(T.fixedAll),'캠페인 고정 비용 · 대행수수료 미적용 · VAT 별도'],o.admin&&hasCost&&!COM&&['총 제안 단가',won(T.offer),''],o.admin&&COM&&SL&&SL.T.comm!=null&&['판매수수료 합계',won(SL.T.comm),`기본 수수료율 ${SL.info&&SL.info.rate!=null?SL.info.rate+'%':'-'} · 인플루언서별 입력 우선`],
-    !o.admin&&hasCost&&!COM&&[t('총 광고비','Total Ad Spend'),won(T.costPosted),feeNote+t(' · 게시 콘텐츠 기준',' · posted content')+(T.fixed?t(` · 고정 광고비 ${fmt(T.fixed)}원 포함`,` · incl. fixed fee ${won(T.fixed)}`):'')],
+    o.admin&&hasCost&&['집행 비용 (수수료 제외)',won(T.cost0All),'인플루언서 비용 합계 · VAT 별도'],o.admin&&hasCost&&['대행수수료',won(T.agfAll),`수수료율 ${fee.rate}%${fee.mode==='excl'?' · 광고비에 미포함':''} · VAT 별도`],o.admin&&hasCost&&T.fixedAll>0&&['고정 광고비',won(T.fixedAll),'캠페인 고정 비용 · 대행수수료 미적용 · VAT 별도'],o.admin&&hasCost&&T.rs&&['RS 정산액',won(T.rs.total),`${T.rs.mode==='max'?'MG와 RS 중 큰 금액':'MG + RS'} · 매출 ${compact(T.rs.base)}원 × ${T.rs.rate}% = ${fmt(T.rs.amt)}원${T.rs.mg?` · MG ${fmt(T.rs.mg)}원`:''} · VAT 별도`],o.admin&&hasCost&&!COM&&['총 제안 단가',won(T.offer),''],o.admin&&COM&&SL&&SL.T.comm!=null&&['판매수수료 합계',won(SL.T.comm),`기본 수수료율 ${SL.info&&SL.info.rate!=null?SL.info.rate+'%':'-'} · 인플루언서별 입력 우선`],
+    !o.admin&&hasCost&&!COM&&[t('총 광고비','Total Ad Spend'),won(T.costPosted),feeNote+t(' · 게시 콘텐츠 기준',' · posted content')+(T.fixed?t(` · 고정 광고비${T.rs?'·RS':''} ${fmt(T.fixed)}원 포함`,` · incl. fixed${T.rs?'/RS':''} ${won(T.fixed)}`):'')],
+    !o.admin&&hasCost&&T.rs&&[t('RS 정산액','Revenue Share'),won(T.rs.total),t(`매출 ${compact(T.rs.base)}원 × ${T.rs.rate}%${T.rs.mode==='max'?' · 미니멈 개런티 적용':' · MG 포함'}`,`${T.rs.rate}% of ${compactEn(T.rs.base)} revenue${T.rs.mode==='max'?' · min. guarantee':' · incl. MG'}`)],
     hasCost&&!COM&&sv('cpv')&&[L.cpv,won1(T.cpv),t('광고비 ÷ 조회 수','Ad spend ÷ views')],hasCost&&!COM&&sv('cpe')&&[t('전체 CPE','Overall CPE'),won1(T.cpe),t('광고비 ÷ 인게이지먼트','Ad spend ÷ engagement')],
     sv('views')&&[L.views,fmt(T.views),''],sv('likes')&&[t('총 좋아요 수','Likes'),fmt(T.likes),''],sv('cmts')&&[t('총 댓글 수','Comments'),fmt(T.cmts),''],sv('shares')&&[t('총 공유 수','Shares'),fmt(T.shares),''],sv('saves')&&[t('총 저장 수','Saves'),fmt(T.saves),''],
     sv('part')&&[t('총 참여 수','Total Interactions'),fmt(T.part),t('좋아요+댓글+공유+저장','Likes + comments + shares + saves')],sv('eng')&&[t('총 인게이지먼트 수','Total Engagement'),fmt(T.eng),t('집계: ','Counts: ')+engK.filter(([k])=>m.eng[k]).map(x=>en?x[2]:x[1]).join(en?', ':'·')],
@@ -1855,7 +1864,7 @@ function tabSettings(c){
    ${fld('name','캠페인명',c.name)}${fld('advertiser','광고주',c.advertiser)}<div class="f" style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:500;color:var(--ink2)">광고주 로고<div class="row">${c.advLogo?`<img class="advprev" src="${esc(c.advLogo)}" alt="">`:''}<label class="btn sm" style="cursor:pointer">${c.advLogo?'변경':'이미지 선택'}<input type="file" accept="image/*" data-advlogo hidden></label>${c.advLogo?'<button class="btn sm danger" data-act="advLogoDel">삭제</button>':''}</div><span class="hint" style="font-weight:400;color:var(--muted);font-size:11.5px">리포트 상단에 RINGCOMS × 광고주 로고로 표시 (배경 없는 PNG 권장)</span></div>${fld('brand','브랜드명',c.brand)}<label class="f">캠페인 구분<select id="s_kind" data-cf="kind">${Object.entries(KINDS).map(([k,o])=>`<option value="${k}" ${kindOf(c)===k?'selected':''}>${o.label}${k==='trial'?' (무상협찬)':''}</option>`).join('')}</select><span class="hint">바꾸면 해당 메뉴 목록으로 옮겨집니다${TRL?'':' · 체험단은 비용 항목 없이 관리'}</span></label>${TRL||COM?'':fld('ctype','캠페인 유형',c.ctype,null,'',CAMP_TYPES)}
    <label class="f">상태<select id="s_status" data-cf="status"><option value="" ${c.status!=='보류'&&c.status!=='종료'?'selected':''}>자동 판정 (현재: ${esc(c.summary&&c.summary.status||'시작 전')})</option><option ${c.status==='보류'?'selected':''}>보류</option><option ${c.status==='종료'?'selected':''}>종료</option></select><span class="hint">진행 상황에 따라 시작 전·진행 중·완료가 자동으로 바뀝니다</span></label>${fld('start','시작일',c.start,'date')}${fld('end','종료일',c.end,'date')}${fld('owner','담당자',c.owner)}
    ${(TRL&&c.objective!=='2차 라이선스 활용')||COM?'':fld('usageMonths','2차 활용 기간 (개월)',c.usageMonths,'num')}${fld('asof','데이터 기준일',c.asof,'date','리포트에 표시되는 성과 수집 기준일 (예: 업로드 후 D+7)')}</div></section>
-  ${acctSettings(c)}${TRL?trialSettings(c,fld):''}${COM?comSettings(c,fld):''}${A.view==='create'?'':groupSettings(c)}
+  ${acctSettings(c)}${TRL?trialSettings(c,fld):''}${COM?comSettings(c,fld):''}${costTermsPanel(c,fld,tg)}${A.view==='create'?'':groupSettings(c)}
   ${COM?`<section class="panel"><div class="panel-h"><h2>캠페인 목적</h2><span class="sub">${isLive(c)?'라이브커머스':'공동구매'}는 판매(매출) 목적으로 고정됩니다 · 리포트 상단에 「판매 성과」가 나옵니다</span></div>
    ${tg('metrics.clicks','판매 링크 클릭 (유입) 입력',M.clicks,isGB(c)?'공구 링크 클릭 수를 넣으면 구매 전환율(주문 ÷ 클릭)을 계산합니다':'상품 클릭 수를 따로 받는 경우에만 켜세요 · 구매 전환율은 누적 시청자 기준으로 계산')}</section>`:`<section class="panel"><div class="panel-h"><h2>캠페인 목적</h2><span class="sub">목적에 따라 리포트 상단의 핵심 지표가 바뀝니다</span></div>
    <div class="objs">${(TRL?OBJ_TRIAL:OBJECTIVES).map(o=>`<button class="obj ${c.objective===o.k?'on':''}" data-act="objective" data-k="${o.k}"><b>${o.k}</b><span>${o.d}</span></button>`).join('')}</div>
@@ -1874,7 +1883,7 @@ function tabSettings(c){
   ${`<section class="panel"><div class="panel-h"><h2>집행 비용 집계 항목</h2></div><p class="small muted" style="margin-top:0">선택한 항목의 합이 집행 비용이 되고 CPV·CPE·CPA·ROAS 계산에 쓰입니다.</p>
    ${COM?tg('costInc.fee',isLive(c)?'출연료':'고정비',K.fee)+tg('costInc.comm','판매수수료',K.comm,'매출 × 판매수수료율 · ROAS 계산에 포함')+tg('costInc.ops',isLive(c)?'방송 제작비':'샘플·배송비',K.ops):tg('costInc.fee','원고료',K.fee)+tg('costInc.use','2차 활용비',K.use)+tg('costInc.ops','운영비',K.ops,'제품비·배송비 등')}${tg('costInc.ad','광고 집행비',K.ad,'부스팅 등 매체비. 콘텐츠 자체 효율만 볼 때는 끄세요')}
    ${COM?`<p class="small muted" style="margin:8px 0 0">판매수수료가 켜져 있으면 집행 비용 = ${isLive(c)?'출연료':'고정비'} + 판매수수료 + ${isLive(c)?'방송 제작비':'샘플·배송비'}${K.ad?' + 광고 집행비':''} 입니다. ROAS = 매출 ÷ 광고비.</p>`:''}
-   <div class="hr" style="margin:14px 0 10px"></div><div class="fgrid">${TRL?`<label class="f">대행수수료율 (%)<input id="s_agencyRate" type="text" value="0" disabled><span class="hint">체험단 캠페인은 대행수수료 0% 고정</span></label>`:`<label class="f">대행수수료율 (%)<input id="s_agencyRate" type="text" inputmode="decimal" data-cf="agencyRate" data-t="num" value="${feeRate(c)}"><span class="hint">기본 20%. 수수료가 없으면 0 입력</span></label>`}${fld('fixedAd','고정 광고비 (원)',c.fixedAd,'num','캠페인 단위 고정 비용(기획·가이드·리포트비 등) · VAT 별도 · 대행수수료 미적용 · 총 광고비와 CPV·CPA·ROAS에 포함')}
+   <div class="hr" style="margin:14px 0 10px"></div><div class="fgrid">${TRL?`<label class="f">대행수수료율 (%)<input id="s_agencyRate" type="text" value="0" disabled><span class="hint">체험단 캠페인은 대행수수료 0% 고정</span></label>`:`<label class="f">대행수수료율 (%)<input id="s_agencyRate" type="text" inputmode="decimal" data-cf="agencyRate" data-t="num" value="${feeRate(c)}"><span class="hint">기본 20%. 수수료가 없으면 0 입력</span></label>`}
    <div class="f">어드민 화면 광고비 기준${feeSwitch(c)}<span class="hint">광고비 = 집행 비용 + 대행수수료(${feeRate(c)}%) · CPV·CPE·CPA·ROAS도 이 기준으로 계산</span></div></div></section>`}</div>
   ${A.view==='create'?'':`<section class="panel"><div class="panel-h"><h2>캠페인 관리</h2></div><div class="row"><button class="btn" data-act="duplicate">설정 복제해서 새 캠페인 만들기</button><span class="grow"></span><button class="btn danger" data-act="delCampaign">${A.confirm==='delc'?'한 번 더 누르면 영구 삭제':'캠페인 삭제'}</button></div></section>`}
   </div>`;
@@ -2040,6 +2049,34 @@ function integrationPanel(){const key=((A.settings||{}).ytKey||'').trim();const 
     <li><b>API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → API 키</b>를 만듭니다.</li>
     <li>만든 키의 <b>키 수정</b>에서 애플리케이션 제한을 <b>웹사이트</b>로 하고 <code>${esc(location.host)}/*</code> 를 추가, API 제한은 <b>YouTube Data API v3</b>만 선택 후 저장합니다.</li>
     <li>키를 복사해 위 칸에 붙여넣고 <b>저장</b>을 누릅니다. 하루 무료 한도(1만)로 「성과 불러오기」를 수천 번 누를 수 있습니다.</li></ol></details>`:`<p class="small muted" style="margin:0">키 연결·변경은 마스터만 할 수 있습니다.</p>`}</section>`}
+/* ---- Meta 인스타그램: 시스템 사용자 토큰을 사이트에서 바로 저장 (secrets/meta · 마스터만 저장, 재배포 불필요) ---- */
+async function metaLoad(force){if(!canEdit()||(A.metaBusy&&!force))return;A.metaBusy=true;scheduleRender();
+  try{if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,200));const d=A.metaDemo||null;A.metaSt=d?{configured:true,ok:true,account:d.account,igId:d.igId,src:'site',saved:d,info:{expires:'never',type:'SYSTEM_USER',scopes:['instagram_basic','pages_show_list','business_management','instagram_manage_messages']}}:{configured:false,src:'',saved:null,envToken:false}}
+    else A.metaSt=await aiFetch('/api/meta',{action:'status'})}
+  catch(e){A.metaSt={error:/404/.test(e.message)?'연동 서버에 연결하지 못했습니다 (배포 후 다시 시도).':e.message}}
+  finally{A.metaBusy=false;A.metaSt&&(A.metaSt.at=new Date().toISOString());scheduleRender()}}
+function metaPanel(){if(!canEdit())return '';const st=A.metaSt;if(!st&&!A.metaBusy)setTimeout(()=>metaLoad(),0);
+  const on=st&&st.configured&&st.ok;const sv=st&&st.saved;const inf=(st&&st.info)||{};
+  const pill=A.metaBusy&&!st?'<span class="pill">확인 중…</span>':st&&st.error?'<span class="pill crit">확인 실패</span>':on?'<span class="pill ok">연결됨</span>':st&&st.configured?'<span class="pill warn">토큰 오류</span>':'<span class="pill warn">미연결</span>';
+  const exp=inf.expires==='never'?'만료 없음':inf.expires?fmtDT(inf.expires)+' 만료':'';
+  const srcL=st&&st.src==='site'?'연동 관리에 저장한 토큰':st&&st.src==='env'?'Netlify 환경변수 META_IG_TOKEN (예전 방식)':'';
+  const sc=(inf.scopes||[]);const has=k=>sc.includes(k);
+  return `<section class="panel"><div class="panel-h"><div><h2>Meta 인스타그램 연결</h2><div class="sub">시스템 사용자 토큰을 새로 발급받았다면 여기에 붙여넣고 「저장」만 누르세요. 저장 전에 Meta에 실제로 조회해 보고, 바로 성과 불러오기·영상 검수에 적용됩니다 (재배포 필요 없음).</div></div><div class="row">${pill}<button class="btn sm ghost" data-act="metaRecheck" ${A.metaBusy?'disabled':''}>${A.metaBusy?'확인 중…':'다시 확인'}</button></div></div>
+   ${st&&!st.error?`<dl class="kv" style="grid-template-columns:auto 1fr;margin-bottom:12px">
+     <dt>조회 계정</dt><dd style="text-align:left;font-weight:400">${on?`<b>@${esc(st.account||'')}</b> <span class="muted small">ID ${esc(st.igId||'')}</span>`:st.configured?`<span style="color:var(--crit,#d33)">${esc(st.error||'연결 확인 실패')}</span>`:'<span class="muted">연결된 토큰이 없습니다</span>'}</dd>
+     ${srcL?`<dt>사용 중인 토큰</dt><dd style="text-align:left;font-weight:400">${srcL}${sv&&sv.mask?` · <code>${esc(sv.mask)}</code>`:''}${exp?` · ${esc(exp)}`:''}</dd>`:''}
+     ${sv&&sv.at?`<dt>저장</dt><dd style="text-align:left;font-weight:400">${fmtDT(sv.at)} · ${esc(sv.by||'')}</dd>`:''}
+     ${sc.length?`<dt>권한</dt><dd style="text-align:left;font-weight:400" class="small">${sc.map(esc).join(' · ')}${on&&!has('instagram_manage_messages')?'<br><span class="muted">DM·메신저 기능을 쓰려면 instagram_manage_messages · pages_messaging 권한을 추가해 다시 발급하세요.</span>':''}</dd>`:''}
+   </dl>`:st&&st.error?`<p class="small" style="color:var(--crit,#d33);margin:0 0 10px">${esc(st.error)}</p>`:''}
+   ${isMaster()?`<div class="fgrid"><label class="f wide">시스템 사용자 토큰 (EAA…)<input type="password" id="meta-token" placeholder="${sv?'새 토큰으로 바꾸려면 붙여넣기':'Meta 비즈니스 설정에서 발급한 토큰 붙여넣기'}" autocomplete="off"></label>
+     <label class="f">인스타그램 계정 ID (선택)<input type="text" id="meta-igid" inputmode="numeric" placeholder="비우면 자동으로 찾음 (17841…)" value="${esc((sv&&sv.igId)||'')}"></label>
+     <div class="f"><span>&nbsp;</span><div class="row"><button class="btn primary" data-act="metaSave" ${A.metaSaving?'disabled':''}>${A.metaSaving?'확인하고 저장하는 중…':'확인하고 저장'}</button>${sv?`<button class="btn danger" data-act="metaClear">${A.confirm==='metaClear'?'한 번 더 누르면 삭제':'저장한 토큰 삭제'}</button>`:''}</div></div></div>
+     ${st&&st.src==='env'?'<p class="small muted" style="margin:8px 0 0">지금은 Netlify 환경변수 토큰을 쓰고 있습니다. 여기에 저장하면 저장한 토큰이 우선 적용됩니다.</p>':''}`:'<p class="small muted" style="margin:0">토큰 연결·변경은 마스터만 할 수 있습니다.</p>'}
+   <details style="margin-top:10px"><summary class="small bold" style="cursor:pointer">시스템 사용자 토큰 발급 방법 (만료 없음)</summary><ol class="steps small" style="margin-top:8px">
+    <li><a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noopener">Meta 비즈니스 설정 → 시스템 사용자</a>에서 관리자 시스템 사용자를 고르거나 새로 만듭니다.</li>
+    <li>「자산 할당」에서 링컴즈 <b>페이스북 페이지</b>와 <b>인스타그램 계정</b>, 그리고 Meta 개발자 <b>앱</b>을 할당합니다.</li>
+    <li>「새 토큰 생성」 → 앱 선택 → 만료 <b>안 함</b> → 권한 <code>instagram_basic</code> · <code>pages_show_list</code> · <code>business_management</code> (DM·메신저까지 쓰려면 <code>instagram_manage_messages</code> · <code>pages_messaging</code> · <code>pages_read_engagement</code>) 체크 후 생성합니다.</li>
+    <li>만든 토큰(EAA…로 시작)을 위 칸에 붙여넣고 「확인하고 저장」을 누릅니다. 토큰은 마스터·매니저만 읽을 수 있는 곳에 저장되고, 화면에는 앞뒤 몇 글자만 보입니다.</li></ol></details></section>`}
 /* 연동 현황: 사이트가 쓰는 외부 서비스와 상태 */
 async function loadIntStatus(){if(A.intBusy||!canEdit())return;A.intBusy=true;scheduleRender();
   try{let tok='';try{tok=await DB.idToken()}catch(e){}
@@ -2063,7 +2100,8 @@ function connectionPanel(){const st=A.intStatus;const on=!!(((A.settings||{}).yt
   return `<section class="panel"><div class="panel-h"><div><h2>연결 현황</h2><div class="sub">이 사이트가 사용하는 외부 서비스입니다. 변경은 마스터만 할 수 있습니다.</div></div>${canEdit()&&DB.mode!=='demo'?`<button class="btn sm" data-act="intCheck">${A.intBusy?'확인 중…':'상태 다시 확인'}</button>`:''}</div>
    <div class="tblwrap"><table class="tbl"><thead><tr><th>서비스</th><th>상태</th><th>하는 일</th><th>관리 위치</th></tr></thead><tbody>
    ${row('YouTube Data API',`<span class="pill ${on?'ok':'warn'}">${on?'연결됨':'미연결'}</span>`,'유튜브 조회수·좋아요·댓글 수 (「성과 불러오기」), 유튜브 채널 구독자·카테고리 (「채널 정보 불러오기」)','아래 YouTube 연결 · Google Cloud 콘솔')}
-   ${row('Meta 인스타그램 API',mtPill,'인스타그램 조회수·좋아요·댓글·썸네일, 인스타그램 채널 팔로워·소개글, 영상 검수용 영상 (무료 · 프로페셔널 계정만)'+mtNote,'Netlify 환경변수 <code>META_IG_TOKEN</code>')}
+   ${row('Meta 인스타그램 API',mtPill,'인스타그램 조회수·좋아요·댓글·썸네일, 인스타그램 채널 팔로워·소개글, 영상 검수용 영상 (무료 · 프로페셔널 계정만)'+mtNote,'아래 Meta 인스타그램 연결에서 토큰 저장 (없으면 Netlify 환경변수 <code>META_IG_TOKEN</code>)')}
+   ${typeof rqThRow==='function'?rqThRow(row):''}${typeof stIntRows==='function'?stIntRows(row):''}
    ${row('Apify',apPill,'섭외 후보 탐색(인스타그램·틱톡 키워드 검색), Meta API로 못 가져온 인스타그램(개인 계정 등)·틱톡 수집 실패분 대체'+apUse,'Netlify 환경변수 <code>APIFY_TOKEN</code> (보안상 사이트에서 입력하지 않음)')}
    ${row('모두싸인','<span class="pill accent">링크 연결</span>','인플루언서 관리의 「계약하기」로 모두싸인을 열고, 계약 진행 상태·계약서 링크를 기록 (서명 완료 자동 반영은 API 연동 시)','모두싸인 팀 계정 · API는 미연결')}
    ${row('틱톡 공개 페이지','<span class="pill ok">키 불필요</span>','틱톡 조회수·좋아요·댓글·공유·저장 수를 직접 읽음','설정 없음')}
@@ -2072,6 +2110,15 @@ function connectionPanel(){const st=A.intStatus;const on=!!(((A.settings||{}).yt
    </tbody></table></div>
    ${st&&st.error?`<p class="small" style="margin:8px 0 0;color:var(--crit,#d33)">${esc(st.error)}</p>`:''}${st&&st.at?`<p class="small muted" style="margin:8px 0 0">마지막 확인 ${fmtDT(st.at)}</p>`:''}
 </section>`}
+/* 광고 비용 조건: 고정 광고비 + RS(수익 쉐어) — 모든 캠페인 유형 공통 */
+function costTermsPanel(c,fld,tg){const o=c.rs||{};const on=rsOn(c);const COM=isCom(c);const s=c.summary||{};const rev=n(s.rev);const r=rsCalc(c,rev);
+  return `<section class="panel"><div class="panel-h"><div><h2>광고 비용 조건</h2><div class="sub">캠페인 단위로 받는 고정 광고비와 RS(수익 쉐어) 조건입니다. 둘 다 VAT 별도 · 대행수수료 미적용이며, 총 광고비와 CPV·CPA·ROAS에 포함됩니다.</div></div>${on?`<span class="pill accent">RS ${has(o.rate)?n(o.rate):0}%</span>`:''}</div>
+   <div class="fgrid">${fld('fixedAd','고정 광고비 (원)',c.fixedAd,'num','캠페인 단위 고정 비용(기획·가이드·리포트비 등)')}</div>
+   <div style="margin-top:12px">${tg('rs.on','RS 조건으로 진행하는 캠페인',on,'미니멈 개런티(MG)를 받고, 판매 매출에 따라 수익을 나누는 캠페인이면 켜세요'+(COM?'':' · 켜면 인플루언서 관리에 매출 입력 칸이 함께 켜집니다'))}</div>
+   ${on?`<div class="fgrid" style="margin-top:10px">${fld('rs.rate','RS 비율 (%)',o.rate,'num','매출 × RS 비율 = RS 금액')}${fld('rs.mg','미니멈 개런티 · MG (원)',o.mg,'num','판매와 상관없이 받는 최소 금액')}
+     <label class="f">정산 방식<select id="s_rs_mode" data-cf="rs.mode">${RS_MODES.map(([k,l])=>`<option value="${k}" ${(o.mode==='max'?'max':'sum')===k?'selected':''}>${l}</option>`).join('')}</select><span class="hint">${o.mode==='max'?'RS 금액이 MG보다 작으면 MG만, 크면 RS 금액만 정산':'MG에 RS 금액을 더해 정산'}</span></label></div>
+     <div class="tcalc" style="margin-top:10px"><div><span>기준 매출 (인플루언서 관리 합계)</span><b>${fmt(rev)}원</b></div><div><span>RS 금액 (${r?r.rate:0}%)</span><b>${fmt(r?r.amt:0)}원</b></div><div><span>MG</span><b>${fmt(r?r.mg:0)}원</b></div><div><span>RS 정산액</span><b>${fmt(r?r.total:0)}원</b></div></div>
+     ${COM?'<p class="small muted" style="margin:8px 0 0">인플루언서별 판매수수료(위 판매 조건)와는 별도로, 광고주와 링컴즈 사이의 RS 조건입니다.</p>':''}`:''}</section>`}
 function trialSettings(c,fld){const tr=c.trial||{};const tc=trialCalc(c,summaryOf(c,curRows()).n);
   return `<section class="panel"><div class="panel-h"><div><h2>체험단 제품·모집 정보</h2><div class="sub">무상으로 제공하는 제품 정보와 모집 결과입니다. 광고주 리포트의 「체험단 모집 성과」와 체험단 목록의 카테고리별 신청 분석에 쓰입니다.</div></div></div>
    <div class="fgrid">${fld('trial.product','제공 제품명',tr.product)}${fld('trial.cat','제품 카테고리',tr.cat,null,'카테고리별 신청 경쟁률 분석 기준',TRIAL_CATS)}${fld('trial.price','제품 판매단가 (원)',tr.price,'num','소비자 판매가 기준')}${fld('trial.qty','1인당 제공 수량',has(tr.qty)?tr.qty:1,'num')}
@@ -2106,7 +2153,7 @@ function sumBlock(c,s,compact_){const {M}=settings(c);const cl=CONV_LABEL[c.conv
     if(!compact_)items.push(['정산 예정액',fmt(s.payout)+'원',`${isLive(c)?'출연료':'고정비'} + 판매수수료 · VAT 별도`]);return items}
   if(isTrial(c)){const tc=trialCalc(c,s.n);const items=[['제품 제공가치',tc.totalValue!=null?fmt(tc.totalValue)+'원':'–',tc.price!=null?`판매단가 ${fmt(tc.price)}원${tc.qty>1?' × '+tc.qty+'개':''} × 선정 ${tc.selected}명`:'판매단가 미입력 (캠페인 설정)'],['진행',`${s.uploaded}/${s.n}명`,`업로드 완료 / 전체 · 발송 ${s.contract}명`],
     ['조회수',started?compact(s.views):'–',started?`ER ${pct(s.er)}`:'진행 전']];if(!compact_)items.splice(1,0,['신청 경쟁률',fmtX(tc.compete),tc.recruit!=null?`모집 ${fmt(tc.recruit)} · 신청 ${tc.apps!=null?fmt(tc.apps):'–'}${tc.appsAuto?'(자동)':''} · 선정 ${fmt(tc.selected)}명`:'모집 정보 미입력 (캠페인 설정)']);return items}
-  const fm=feeMode(c);const items=[['광고비 (VAT 별도)',fmt(s.cost)+'원',`${fm==='incl'?`대행수수료 ${feeRate(c)}% 포함 (수수료 ${fmt(s.agf)})`:`대행수수료 미포함 (별도 ${fmt(s.agf)})`} · 원고료 ${fmt(s.fee)}${n(s.fixed)?` · 고정 광고비 ${fmt(s.fixed)}`:''}${compact_?'':` · 제안 단가 ${fmt(s.offer)}`}${!compact_&&b?` · 예산 대비 ${pct(s.cost/b,0)}`:''}`],['진행',`${s.uploaded}/${s.n}명`,`업로드 완료 / 전체 · 계약 ${s.contract}명`],
+  const fm=feeMode(c);const items=[['광고비 (VAT 별도)',fmt(s.cost)+'원',`${fm==='incl'?`대행수수료 ${feeRate(c)}% 포함 (수수료 ${fmt(s.agf)})`:`대행수수료 미포함 (별도 ${fmt(s.agf)})`} · 원고료 ${fmt(s.fee)}${n(s.fixedAd)?` · 고정 광고비 ${fmt(s.fixedAd)}`:''}${s.rs?` · RS ${s.rs.rate}% 정산 ${fmt(s.rs.total)}`:''}${compact_?'':` · 제안 단가 ${fmt(s.offer)}`}${!compact_&&b?` · 예산 대비 ${pct(s.cost/b,0)}`:''}`],['진행',`${s.uploaded}/${s.n}명`,`업로드 완료 / 전체 · 계약 ${s.contract}명`],
     ['조회수',started?compact(s.views):'–',started?`ER ${pct(s.er)}`:'진행 전'],['CPV',started&&s.cpv!=null?fmt1(s.cpv)+'원':'–','광고비 ÷ 조회']];
   if(M.conv)items.push([cl+' 수',fmt(s.conv),M.clicks?`클릭 ${fmt(s.clicks)}`:'']);if(M.revenue)items.push(['매출',compact(s.rev)+'원',`ROAS ${pct(s.roas,0)}`]);
   return items}
@@ -2403,7 +2450,7 @@ function viewTeam(){if(A.settingsErr&&!viewTeam.busy){viewTeam.busy=true;loadSet
   const tt=A.teamTab==='int'?'int':A.teamTab==='accts'?'accts':'members';
   const head=`<div class="page-h"><div><div class="eyebrow">Settings</div><h1>권한 관리</h1><div class="sub">${tt==='int'?'성과 수집 등에 쓰는 외부 서비스 연결을 관리합니다. 연결 변경은 마스터만 할 수 있습니다.':tt==='accts'?'광고주가 이 플랫폼을 쓸 수 있도록 계정을 만들고, 초대한 Google 계정만 로그인하게 합니다.':'여기 등록된 Google 계정만 로그인할 수 있고, 권한에 따라 할 수 있는 일이 나뉩니다.'}</div></div></div>
   <div class="tabs noprint" role="tablist" style="max-width:960px">${[['members','팀원 관리',list.length],['accts','광고주 계정',Object.keys(A.accounts||{}).length],['int','연동 관리','']].map(([k,l,x])=>`<button role="tab" class="${tt===k?'on':''}" data-act="teamTab" data-t="${k}">${l}${x?`<em>${x}</em>`:''}</button>`).join('')}</div>`;
-  if(tt==='int')return head+`<div class="stack" style="max-width:860px">${typeof aiIntPanel==='function'?aiIntPanel():''}${integrationPanel()}${connectionPanel()}</div>`;
+  if(tt==='int')return head+`<div class="stack" style="max-width:860px">${connectionPanel()}${integrationPanel()}${metaPanel()}${typeof rqThIntPanel==='function'?rqThIntPanel():''}${typeof stIntPanel==='function'?stIntPanel():''}${typeof aiIntPanel==='function'?aiIntPanel():''}</div>`;
   if(tt==='accts')return head+viewAccounts();
   return head+`<div class="stack" style="max-width:860px">
   ${canEdit()?`<section class="panel"><div class="panel-h"><h2>팀원 추가</h2></div><div class="row"><input type="email" id="new-admin" placeholder="teammate@gmail.com" style="max-width:260px"><input type="text" id="new-admin-memo" placeholder="누구 계정인지 (예: 홍길동 매니저)" style="max-width:220px"><select id="new-admin-role" style="width:auto">${opts.map(r=>`<option value="${r}" ${r==='manager'?'selected':''}>${ROLES[r]}</option>`).join('')}</select><button class="btn primary" data-act="addAdmin">팀원 추가</button></div>${!isMaster()?'<p class="small muted" style="margin:8px 0 0">매니저는 매니저·뷰어 권한으로만 추가할 수 있습니다. 마스터 권한은 마스터가 부여합니다.</p>':''}</section>`:''}
@@ -2779,7 +2826,7 @@ const ACT={
   signIn(){DB.signIn().catch(e=>toast(e&&e.code==='auth/unauthorized-domain'?'이 주소가 Firebase 승인된 도메인에 없습니다. 설치 안내 4단계를 확인하세요.':'로그인하지 못했습니다.','crit'))},
   signOut(){DB.signOut()},
   demoReset(){if(A.confirm!=='reset'){A.confirm='reset';toast('한 번 더 누르면 데모 데이터를 처음 상태로 되돌립니다.');return}A.confirm=null;DB.reset();toast('데모 데이터를 초기화했습니다.');A.view='list';render()},
-  nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(a.dataset.tt)A.teamTab=a.dataset.tt;if(v==='guides')A.gid='';if(v==='proposals')A.pid='';if(v==='recruit')A.rcid='';if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
+  nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(a.dataset.tt)A.teamTab=a.dataset.tt;if(v==='guides')A.gid='';if(v==='proposals')A.pid='';if(v==='recruit')A.rcid='';if(v==='stream')A.sid='';if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
   back(a){ACT.nav(a)},
   lnbFold(el){const g=el.dataset.g;if(!g)return;A.lnbFold.has(g)?A.lnbFold.delete(g):A.lnbFold.add(g);try{localStorage.setItem('lnb_fold',JSON.stringify([...A.lnbFold]))}catch(e){}render()},
   lnbMini(){A.lnbMini=!A.lnbMini;try{localStorage.setItem('lnb_mini',A.lnbMini?'1':'')}catch(e){}render()},
@@ -2945,6 +2992,19 @@ document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||(!t.d
   if(t.dataset.trk){setPath(T.d,t.dataset.trk,t.type==='checkbox'?t.checked:t.value)}
   else{const b=(T.d.page.btns||[]).find(x=>x.id===t.dataset.trkb);if(b)b[t.dataset.f]=t.value}
   T.dirty=true;render()});
+/* Meta 인스타그램 연동 관리 동작 */
+Object.assign(ACT,{
+  metaRecheck(){metaLoad(true)},
+  async metaSave(){if(!isMaster()||A.metaSaving)return;const token=String(($('#meta-token')||{}).value||'').trim(),igId=String(($('#meta-igid')||{}).value||'').trim();
+    if(!token)return toast('토큰을 붙여넣어 주세요.','crit');A.metaSaving=true;render();
+    try{let j;if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,500));if(token.length<20)throw new Error('토큰을 붙여넣어 주세요.');A.metaDemo={mask:token.slice(0,6)+'…'+token.slice(-4),igId:igId||'17841400000000000',account:'ringcoms_mcn',by:A.user.email,at:new Date().toISOString()};j={account:'ringcoms_mcn'}}
+      else j=await aiFetch('/api/meta',{action:'save',token,igId});
+      const el=$('#meta-token');if(el)el.value='';toast(`Meta 토큰을 저장했습니다 · @${j.account||''} 계정으로 바로 적용됩니다.`);A.intStatus=null}
+    catch(e){toast('저장하지 못했습니다: '+e.message,'crit')}
+    finally{A.metaSaving=false;await metaLoad(true)}},
+  async metaClear(){if(!isMaster())return;if(A.confirm!=='metaClear'){A.confirm='metaClear';render();return}A.confirm=null;
+    try{if(DB.mode==='demo')A.metaDemo=null;else await aiFetch('/api/meta',{action:'clear'});toast('저장한 Meta 토큰을 삭제했습니다.');A.intStatus=null}catch(e){toast('삭제하지 못했습니다: '+e.message,'crit')}await metaLoad(true)}
+});
 document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a)return;if(a.disabled)return;const k=a.dataset.act;if(!ACT[k])return;
   if(A.view!=='share'&&A.user&&!canEdit()&&WRITE_ACTS.has(k)){toast('보기 전용(뷰어) 권한이라 수정할 수 없습니다.','crit');return}
   if(!['delCampaign','delRow','bulkDel','shareRegen','delAdmin','demoReset','poolDel','poolResync','delGroup','delYtKey','logoReset','delAcct','delMember','updDel','updBulk',...(window.CONFIRM_ACTS||[])].includes(k))A.confirm=null;
@@ -2990,6 +3050,7 @@ document.addEventListener('change',e=>{const t=e.target;
     cUpdate(up).then(()=>{toast(`${KINDS[k].label}(으)로 옮겼습니다.${k==='trial'?' 비용 항목은 숨겨지고 데이터는 그대로 남습니다.':''}`);if(A.view==='campaign')routeSync()}).catch(saveErr);scheduleSync(A.cid);return}
   if(t.dataset.cf==='start'||t.dataset.cf==='end'){const c=curC();if(!c)return;const f=t.dataset.cf,old=c[f]||'',v=t.value||null;const up={[f]:v};let k=0;groupsOf(c).forEach(g=>{if(!g[f]||g[f]===old){up[`groups.${g.id}.${f}`]=v||'';k++}});cUpdate(up).catch(saveErr);scheduleSync(A.cid);if(k&&!(A.view==='create'))toast(`그룹 ${k}개의 ${f==='start'?'시작일':'종료일'}도 같이 바꿨습니다.`);return}
   if(t.dataset.cf){let v=t.value;const ty=t.dataset.t;if(ty==='num')v=parseNum(v);else if(ty==='pct'){const x=parseNum(v);v=x==null?null:x/100}patchC(t.dataset.cf,v===''?null:v);return}
+  if(t.dataset.cb==='rs.on'){const c=curC();patchC('rs.on',t.checked);if(t.checked&&c&&!isCom(c)&&!(c.metrics||{}).revenue)patchC('metrics.revenue',true);if(c&&A.view!=='create')scheduleSync(A.cid);render();return}
   if(t.dataset.cb){patchC(t.dataset.cb,t.checked);return}
   if(t.dataset.gf){const [g,f]=t.dataset.gf.split('.');const v=t.value.trim();if(f==='name'&&!v){toast('그룹 이름은 비울 수 없습니다.','crit');return}patchC(`groups.${g}.${f}`,v||null);return}
   if(t.dataset.sh){DB.update('campaigns/'+A.cid,{['share.'+t.dataset.sh]:t.checked}).catch(saveErr);scheduleSync(A.cid);return}
@@ -3284,8 +3345,13 @@ service cloud.firestore {
       allow read: if isTeam();
       allow write: if canEdit();
     }
-    // 인플루언서 모집 (스레드 글·구글폼·신청자): 링컴즈 팀원 읽기, 마스터·매니저 수정
+    // 스레드 모집 (스레드 글·구글폼·신청자): 링컴즈 팀원 읽기, 마스터·매니저 수정
     match /recruits/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
+    // 스트리머 광고 (PPL · 프로모션, 스트리머별 방송·소프트콘 기록): 링컴즈 팀원 읽기, 마스터·매니저 수정
+    match /streams/{id} {
       allow read: if isTeam();
       allow write: if canEdit();
     }
@@ -3329,6 +3395,11 @@ service cloud.firestore {
       allow read: if isTeam() || isClientAdmin();
       allow write: if isMaster();
     }
+    // 비밀 연동 값(Meta 인스타그램 시스템 사용자 토큰 등): 마스터만 저장, 마스터·매니저만 읽기 (서버 함수가 호출한 팀원 권한으로 읽음) · 뷰어·광고주는 읽을 수 없음
+    match /secrets/{id} {
+      allow read: if canEdit();
+      allow write: if isMaster();
+    }
     // 프로필 이미지 등 공개 정보: 누구나 한 건씩 읽기, 마스터·매니저만 수정
     match /public/{id} {
       allow get: if true;
@@ -3338,9 +3409,10 @@ service cloud.firestore {
   }
 }
 </script>
-<script src="/tools.js?v=0.20"></script>
-<script src="/proposal-deck.js?v=0.20"></script>
-<script src="/proposal.js?v=0.20"></script>
-<script src="/recruit.js?v=0.22"></script>
+<script src="/tools.js?v=0.23"></script>
+<script src="/proposal-deck.js?v=0.23"></script>
+<script src="/proposal.js?v=0.23"></script>
+<script src="/recruit.js?v=0.23"></script>
+<script src="/stream.js?v=0.23"></script>
 </body>
 </html>

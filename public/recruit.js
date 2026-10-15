@@ -1,5 +1,5 @@
-/* RINGCOMS 캠페인 관리 · 인플루언서 모집 (v0.22)
-   인플루언서 관리 > 인플루언서 모집
+/* RINGCOMS 캠페인 관리 · 스레드 모집 (v0.22 · v0.23 이름 변경)
+   인플루언서 관리 > 스레드 모집
    - 광고주 홈페이지·앱 정보·상품소개서 → AI(Gemini, /api/recruit)가 스레드 모집 글 + 구글폼 문항 초안
    - 화면에서 고치고 복사·붙여넣기, 또는 로그인한 팀원 본인의 스레드 계정으로 바로 게시 (/api/threads)
    - 구글폼·신청자 시트·축약 링크(ad.ringcoms.com/l/코드) 자동 생성 — 로그인한 Google 계정 권한(drive.file)으로 브라우저에서 직접 만듦
@@ -74,6 +74,16 @@ function rqThChip(){const t=A.th||{};if(!t.loaded)return '<span class="pill">스
   if(t.connected)return `<span class="rq-th on" title="이 계정(${esc(A.user.email)})에 연결된 스레드 계정${t.exp?` · ${md(t.exp.slice(0,10))}까지 (게시할 때 자동 연장)`:''}">${RQ_TH_IC}<b>@${esc(t.username||'연결됨')}</b>${soon?'<em>만료 임박</em>':''}</span>${canEdit()?`<button class="btn sm ghost" data-act="rqThConnect">다시 연결</button><button class="btn sm ghost" data-act="rqThOff">${A.confirm==='rqThOff'?'한 번 더 누르면 해제':'연결 해제'}</button>`:''}`;
   return canEdit()?`<button class="btn sm" data-act="rqThConnect" title="로그인한 계정(${esc(A.user.email)})에 내 스레드 계정을 연결합니다">${RQ_TH_IC} 스레드 계정 연결</button>`:'<span class="pill">스레드 미연결</span>'}
 const RQ_TH_IC='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M16.5 11.2c-.3-2.6-1.9-4-4.4-4-2.6 0-4.3 1.8-4.3 4.8s1.7 4.8 4.3 4.8c2 0 3.4-1 3.8-2.8.5-2.3-1.2-3.5-3.6-3.5-1.7 0-2.8.8-2.8 2 0 1.1 1 1.8 2.2 1.8 2.3 0 3.4-1.8 3.4-4.4"/><path d="M19 7.5C17.6 4.9 15.2 3.5 12 3.5c-5 0-8 3.3-8 8.5s3 8.5 8 8.5c3.4 0 5.9-1.6 7.1-4.5"/></svg>';
+/* 연동 관리 화면: 스레드 (앱 준비 상태 + 로그인한 팀원 본인의 연결) */
+function rqThPill(){const t=A.th||{};if(!t.loaded)return '<span class="pill">확인 중…</span>';if(t.connected)return '<span class="pill ok">연결됨</span>';if(!t.ready&&DB.mode!=='demo')return '<span class="pill warn">앱 미연결</span>';return '<span class="pill warn">내 계정 미연결</span>'}
+function rqThRow(row){if(!canEdit())return '';if(!(A.th||{}).loaded)setTimeout(()=>rqThStatus(),0);const t=A.th||{};
+  return row('Threads API',rqThPill(),'스레드 모집 글을 로그인한 팀원의 스레드 계정으로 바로 게시 (본문 + 이어 쓰기)'+(t.connected?`<div class="small" style="margin-top:6px">내 연결 <b>@${esc(t.username||'')}</b>${t.exp?` · ${md(String(t.exp).slice(0,10))}까지 (게시할 때 자동 연장)`:''}</div>`:''),'아래 스레드 연결 · Netlify 환경변수 <code>THREADS_APP_ID</code> · <code>THREADS_APP_SECRET</code>')}
+function rqThIntPanel(){if(!canEdit())return '';if(!(A.th||{}).loaded)setTimeout(()=>rqThStatus(),0);const t=A.th||{};const soon=t.exp&&new Date(t.exp).getTime()-Date.now()<7*864e5;
+  return `<section class="panel"><div class="panel-h"><div><h2>스레드(Threads) 연결</h2><div class="sub">스레드 모집 글을 바로 게시할 때 씁니다. 연결은 로그인한 팀원 계정마다 따로 저장되고 본인만 쓸 수 있습니다.</div></div><div class="row">${rqThPill()}<button class="btn sm ghost" data-act="rqThRecheck">다시 확인</button></div></div>
+   <dl class="kv" style="grid-template-columns:auto 1fr;margin-bottom:12px"><dt>Threads 앱</dt><dd style="text-align:left;font-weight:400">${t.ready||DB.mode==='demo'?`<span class="pill ok">준비됨</span>${t.appId?` <span class="muted small">앱 ID ${esc(t.appId)}</span>`:''}`:'<span class="pill warn">미연결</span> <span class="small muted">Netlify 환경변수 THREADS_APP_ID · THREADS_APP_SECRET 필요</span>'}</dd>
+    <dt>내 스레드 계정</dt><dd style="text-align:left;font-weight:400">${t.connected?`<b>@${esc(t.username||'')}</b> <span class="muted small">${esc(A.user.email)}에 연결</span>${t.exp?` · ${md(String(t.exp).slice(0,10))}까지${soon?' <span class="pill warn">만료 임박</span>':''}`:''}`:'<span class="muted">연결 안 됨</span>'}${t.err?`<br><span class="small" style="color:var(--crit,#d33)">${esc(t.err)}</span>`:''}</dd></dl>
+   <div class="row">${t.connected?`<button class="btn" data-act="rqThConnect">다시 연결</button><button class="btn danger" data-act="rqThOff">${A.confirm==='rqThOff'?'한 번 더 누르면 해제':'연결 해제'}</button>`:`<button class="btn primary" data-act="rqThConnect" ${t.ready||DB.mode==='demo'?'':'disabled'}>${RQ_TH_IC} 내 스레드 계정 연결</button>`}<button class="btn sm ghost" data-act="rqThHelp">${A.rq.thHelp?'준비 방법 닫기':'준비 방법 보기'}</button></div>
+   ${A.rq.thHelp?`<div style="margin-top:12px">${rqThHelp()}</div>`:''}</section>`}
 /* 연결: 팝업 → threads.net 로그인·허용 → /threads-callback.html 이 code를 돌려줌 → 서버가 60일 토큰으로 바꿔 저장 */
 function rqThOpen(){
   if(DB.mode==='demo'){DB.set('threads/'+A.user.email,{token:'demo',username:'ringcoms_mcn',exp:new Date(Date.now()+60*864e5).toISOString(),email:A.user.email}).then(()=>{toast('데모: 스레드 계정 @ringcoms_mcn 을 연결했습니다.');rqThStatus(true)});return}
@@ -122,7 +132,7 @@ function viewRecruit(){rqWatch();if(A.rcid)return rqEditor();
   const camps=Object.entries(A.campaigns).filter(([,c])=>inAcctScope(c)).sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
   const usedC=[...new Set(all.map(r=>r.cid).filter(c=>c&&A.campaigns[c]))];
   const stN=s=>all.filter(r=>(r.status||'작성 중')===s).length;
-  return `${rqCss()}<div class="page-h"><div><div class="eyebrow">Influencer Recruit</div><h1>인플루언서 모집</h1><div class="sub">광고주 홈페이지·앱 정보·상품소개서를 올리면 AI가 스레드 모집 글과 신청 구글폼을 만들고, 신청자를 캠페인 인플루언서 관리와 인플루언서 풀로 바로 옮깁니다.</div></div>
+  return `${rqCss()}<div class="page-h"><div><div class="eyebrow">Threads Recruit</div><h1>스레드 모집</h1><div class="sub">광고주 홈페이지·앱 정보·상품소개서를 올리면 AI가 스레드 모집 글과 신청 구글폼을 만들고, 신청자를 캠페인 인플루언서 관리와 인플루언서 풀로 바로 옮깁니다.</div></div>
    <div class="row">${rqThChip()}${canEdit()?'<button class="btn primary" data-act="rqNew">+ 새 모집</button>':''}</div></div>
   ${A.recErr?`<div class="banner" style="margin-bottom:12px"><b>보안 규칙 게시가 필요합니다.</b> 모집 데이터(recruits·threads)를 쓰려면 Firebase 콘솔에서 새 보안 규칙을 게시해야 합니다.</div>`:''}
   ${A.th.wait?'<div class="banner info" style="margin-bottom:12px">스레드 연결 창에서 로그인하고 「허용」을 눌러 주세요. 끝나면 이 화면이 자동으로 바뀝니다.</div>':''}
@@ -132,7 +142,7 @@ function viewRecruit(){rqWatch();if(A.rcid)return rqEditor();
   <div class="row" style="margin-bottom:12px;gap:8px"><div class="chips">${[['','전체',all.length],...RQ_ST.map(s=>[s,s,stN(s)])].map(([v,l,k])=>`<span class="chip ${(F.st||'')===v?'on':''}" data-act="rqF" data-k="st" data-v="${esc(v)}">${l} <em>${k}</em></span>`).join('')}</div>
    <select id="rq-fc" data-rqf="cid" style="width:auto;max-width:240px"><option value="">모든 캠페인</option>${usedC.map(id=>`<option value="${id}" ${F.cid===id?'selected':''}>${esc(rqCampName(id))}</option>`).join('')}<option value="none" ${F.cid==='none'?'selected':''}>캠페인 미연결</option></select>
    <input type="text" id="rq-fq" data-rqf="q" value="${esc(F.q||'')}" placeholder="모집명·캠페인·제공 내역 검색" style="max-width:240px"></div>
-  ${!A.recLoaded?'<div class="panel empty">불러오는 중…</div>':!all.length?`<div class="panel empty rq-empty"><b>아직 만든 모집이 없습니다.</b><span>「+ 새 모집」에서 캠페인을 고르고 광고주 정보를 넣으면, AI가 스레드 글과 신청 폼을 만들어 줍니다.</span><ol class="rq-flow"><li><i>1</i>정보 넣기<small>홈페이지 · 앱 · 소개서</small></li><li><i>2</i>스레드 글<small>AI 초안 → 수정 → 게시</small></li><li><i>3</i>구글폼·링크<small>폼 · 시트 · 축약 링크</small></li><li><i>4</i>신청자<small>인플루언서 관리 · 풀</small></li></ol></div>`
+  ${!A.recLoaded?'<div class="panel empty">불러오는 중…</div>':!all.length?`<div class="panel empty rq-empty"><b>아직 만든 모집이 없습니다.</b><span>「+ 새 모집」에서 캠페인을 고르고 광고주 정보를 넣으면, AI가 스레드 글과 신청 폼을 만들어 줍니다.</span><ol class="rq-flow"><li><i>1</i>정보 넣기<small>홈페이지 · 앱 · 소개서</small></li><li><i>2</i>스레드 글 · 구글폼<small>본문 → 폼 → 링크 → 게시</small></li><li><i>3</i>신청자<small>인플루언서 관리 · 풀</small></li></ol></div>`
   :!L.length?'<div class="panel empty">조건에 맞는 모집이 없습니다.</div>'
   :gk.map(k=>rqGroup(k,groups[k],all)).join('')}`}
 function rqGroup(cid,list,all){const c=cid?A.campaigns[cid]:null;list.sort((a,b)=>(+b.round||0)-(+a.round||0)||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
@@ -143,12 +153,12 @@ function rqGroup(cid,list,all){const c=cid?A.campaigns[cid]:null;list.sort((a,b)
       <td class="small">${r.threads&&r.threads.id?`<span class="pill ok">스레드 게시</span>`:(r.post||{}).main?'<span class="pill">글 준비</span>':'<span class="muted">–</span>'}</td>
       <td class="small">${r.form&&r.form.code?`<span class="rq-mono">/l/${esc(r.form.code)}</span>${v!=null?` <span class="muted">방문 ${fmt(v)}</span>`:''}`:'<span class="muted">폼 없음</span>'}</td>
       <td class="n"><b>${ap.length}</b>${nw&&ap.length?` <span class="pill accent" title="아직 인플루언서 관리에 추가하지 않은 신청자">새 ${nw}</span>`:''}</td>
-      <td class="small">${(r.conf||{}).deadline?md((r.conf||{}).deadline):'–'}</td><td class="small">${md(String(r.updatedAt||r.createdAt||'').slice(0,10))}</td></tr>`};
+      <td class="small">${(r.conf||{}).deadline?md((r.conf||{}).deadline):'–'}</td><td class="small">${md(String(r.updatedAt||r.createdAt||'').slice(0,10))}</td><td class="n"><button class="btn sm" data-act="rqAppsGo" data-r="${esc(r.id)}" title="신청자 목록으로 바로 이동">신청 현황 보기</button></td></tr>`};
   const card=r=>{const ap=rqApps(r);const st=r.status||'작성 중';return `<div class="mcard" data-act="rqOpen" data-r="${esc(r.id)}"><div class="mh"><span class="rq-rd">${r.round||1}차</span><div class="grow"><div class="mt">${esc(r.title||'제목 없음')}</div><div class="ms">${esc([(r.conf||{}).kind,(r.conf||{}).deadline?'마감 '+md((r.conf||{}).deadline):''].filter(Boolean).join(' · '))}</div></div><span class="pill ${st==='모집 중'?'ok':st==='마감'?'':'accent'}">${esc(st)}</span></div>
-    <div class="mkv"><div><span>스레드</span><b>${r.threads&&r.threads.id?'게시됨':(r.post||{}).main?'준비':'–'}</b></div><div><span>폼</span><b>${r.form&&r.form.code?'만듦':'–'}</b></div><div><span>신청자</span><b>${ap.length}</b></div></div></div>`};
+    <div class="mkv"><div><span>스레드</span><b>${r.threads&&r.threads.id?'게시됨':(r.post||{}).main?'준비':'–'}</b></div><div><span>폼</span><b>${r.form&&r.form.code?'만듦':'–'}</b></div><div><span>신청자</span><b>${ap.length}</b></div></div><div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn sm" data-act="rqAppsGo" data-r="${esc(r.id)}">신청 현황 보기</button></div></div>`};
   return `<section class="panel rq-grp"><div class="panel-h"><div class="row" style="gap:8px">${c?`<b class="rq-gt">${esc(c.name)}</b><span class="pill">${esc(rqKindOf(c))}</span>`:'<b class="rq-gt">캠페인 미연결</b>'}<span class="small muted">모집 ${list.length}건 · 신청 ${nApps}명</span></div>
     <div class="row">${c?`<button class="btn sm ghost" data-act="rqGoCamp" data-c="${esc(cid)}">캠페인 열기</button>`:''}${canEdit()&&c?`<button class="btn sm" data-act="rqNext" data-c="${esc(cid)}" title="가장 최근 차수의 정보·글·문항을 복사해 새 차수를 준비합니다">+ ${nextR}차 모집 추가</button>`:''}</div></div>
-    <div class="tblwrap hide-m"><table class="tbl rq-tbl"><thead><tr><th style="width:56px">차수</th><th>모집</th><th>상태</th><th>스레드</th><th>신청 링크</th><th class="n">신청자</th><th>마감</th><th>수정</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
+    <div class="tblwrap hide-m"><table class="tbl rq-tbl"><thead><tr><th style="width:56px">차수</th><th>모집</th><th>상태</th><th>스레드</th><th>신청 링크</th><th class="n">신청자</th><th>마감</th><th>수정</th><th class="n" style="width:120px"></th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
     <div class="mcards show-m">${list.map(card).join('')}</div></section>`}
 function rqThHelp(){const red=(DB.mode==='demo'?'https://ad.ringcoms.com':location.origin)+'/threads-callback.html';
   return `<section class="panel rq-help" style="margin-bottom:14px"><div class="panel-h"><div><h2>스레드 계정 연결 준비 (처음 한 번)</h2><div class="sub">스레드에 바로 게시하려면 Meta 개발자 앱이 필요합니다. 준비 전에도 글 복사·붙여넣기는 그대로 쓸 수 있습니다.</div></div>${A.rq.thHelp?'<button class="btn sm ghost" data-act="rqThHelp">닫기</button>':''}</div>
@@ -176,7 +186,7 @@ function rqSrcFields(r,p){const s=r.src||{},c=r.conf||{};const ed=canEdit();cons
     <label class="f">홈페이지<input type="url" id="${p}-l0" ${at('src.links.0')} value="${esc(L[0]||'')}" placeholder="https://brand.com"></label>
     <label class="f">앱 정보 (앱스토어 · 플레이스토어)<input type="url" id="${p}-l1" ${at('src.links.1')} value="${esc(L[1]||'')}" placeholder="https://apps.apple.com/… 또는 play.google.com/…"></label>
     <label class="f">상품 · 이벤트 페이지<input type="url" id="${p}-l2" ${at('src.links.2')} value="${esc(L[2]||'')}" placeholder="https://smartstore.naver.com/…"></label>
-    <div class="f rq-file"><span>상품소개서 (PDF · PPT)</span>${s.srcName?`<div class="rq-filebox"><b>📄 ${esc(s.srcName)}</b><span class="muted small">${fmt(rqLen(s.srcText))}자 읽음</span>${ed?`<button class="btn sm ghost" data-act="rqSrcDel" data-p="${p}">빼기</button>`:''}</div>`:ed?`<label class="btn" style="cursor:pointer;justify-content:center">소개서 올리기<input type="file" accept="application/pdf,.pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,.txt,.md" data-rqsrc="${p}" hidden></label>`:'<span class="muted small">없음</span>'}<span class="hint">50MB 이하 · 브라우저에서 글자만 읽어 AI에 넘깁니다.</span></div>
+    <div class="f rq-file"><span>상품소개서 (PDF · PPT)</span>${A.rq.srcBusy===p?`<span class="btn rq-upbtn busy"><span class="rq-spin"></span> 소개서 읽는 중…</span>`:s.srcName?`<div class="rq-filebox done"><span class="rq-upok" aria-hidden="true">✓</span><div class="grow"><b>업로드 완료</b><span class="small">📄 ${esc(s.srcName)} · ${fmt(rqLen(s.srcText))}자 읽음</span></div>${ed?`<label class="btn sm ghost" style="cursor:pointer">바꾸기<input type="file" accept="application/pdf,.pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,.txt,.md" data-rqsrc="${p}" hidden></label><button class="btn sm ghost" data-act="rqSrcDel" data-p="${p}">빼기</button>`:''}</div>`:ed?`<label class="btn rq-upbtn" style="cursor:pointer;justify-content:center">⬆ 소개서 올리기 (PDF · PPT)<input type="file" accept="application/pdf,.pdf,.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,.txt,.md" data-rqsrc="${p}" hidden></label>`:'<span class="muted small">없음</span>'}<span class="hint">50MB 이하 · 브라우저에서 글자만 읽어 AI에 넘깁니다.</span></div>
     <label class="f wide">상품 정보 · 요청사항 메모<textarea id="${p}-memo" ${at('src.memo')} rows="3" placeholder="페이지에서 읽기 어려운 상품 정보, 꼭 넣을 문구, 광고주 요청 등">${esc(s.memo||'')}</textarea></label></div></div>
    <div class="rq-sec"><h3>모집 조건</h3><div class="fgrid">
     <label class="f">유형<select id="${p}-kind" ${at('conf.kind')}>${RQ_KINDS.map(k=>`<option ${c.kind===k?'selected':''}>${k}</option>`).join('')}</select></label>
@@ -191,8 +201,8 @@ function rqSrcFields(r,p){const s=r.src||{},c=r.conf||{};const ed=canEdit();cons
 /* ============ 화면: 모집 편집 ============ */
 function rqEditor(){const r=rqCur();if(!r)return `${rqCss()}<div class="panel empty">${A.recLoaded?'모집을 찾을 수 없습니다.':'불러오는 중…'} <button class="btn sm" data-act="rqBack">목록으로</button></div>`;
   const ed=canEdit();const c=r.cid?A.campaigns[r.cid]:null;const g=r.gid&&A.guides?A.guides[r.gid]:null;const st=r.status||'작성 중';const ap=rqApps(r);
-  const done={src:!!((r.src||{}).links||[]).some(Boolean)||!!(r.src||{}).srcText||!!(r.src||{}).memo,post:!!(r.post||{}).main,form:!!(r.form||{}).code,apps:ap.length>0};
-  const tabs=[['src','정보·연결'],['post','스레드 글'],['form','구글폼·링크'],['apps','신청자']];const tab=A.rq.tab||'src';
+  const done={src:!!((r.src||{}).links||[]).some(Boolean)||!!(r.src||{}).srcText||!!(r.src||{}).memo,post:!!(r.post||{}).main&&!!(r.form||{}).code,apps:ap.length>0};
+  const tabs=[['src','정보·연결'],['post','스레드 글 · 구글폼'],['apps','신청자']];const tab=A.rq.tab==='form'?'post':(A.rq.tab||'src');
   if(r.form&&r.form.code&&A.rq.visits[A.rcid]===undefined)rqVisits(A.rcid,r);
   const aiRun=rqAiRunning(r);
   return `${rqCss()}<div class="page-h"><div><button class="btn sm ghost" data-act="rqBack" style="margin:0 0 6px -8px">‹ 모집 목록</button><div class="eyebrow">${esc(c?c.name:'캠페인 미연결')} · ${r.round||1}차</div>
@@ -204,7 +214,7 @@ function rqEditor(){const r=rqCur();if(!r)return `${rqCss()}<div class="panel em
   ${A.rq.thHelp?rqThHelp():''}
   ${aiRun?'<div class="banner info" style="margin-bottom:12px"><span class="rq-spin"></span> AI가 스레드 글과 폼 문항을 만드는 중입니다 (30초~2분). 끝나면 자동으로 채워집니다.</div>':r.aiStatus==='실패'?`<div class="banner" style="margin-bottom:12px">AI 작성 실패: ${esc(r.aiError||'')}</div>`:''}
   <div class="tabs rq-steps">${tabs.map(([k,l],i)=>`<button class="${tab===k?'on':''}" data-act="rqTab" data-t="${k}"><i class="${done[k]?'ok':''}">${done[k]?'✓':i+1}</i>${l}${k==='apps'&&ap.filter(a=>!a.added).length?`<em>${ap.filter(a=>!a.added).length}</em>`:''}</button>`).join('')}</div>
-  ${tab==='post'?rqTabPost(r):tab==='form'?rqTabForm(r):tab==='apps'?rqTabApps(r):rqTabSrc(r)}`}
+  ${tab==='post'?rqTabPost(r)+`<div class="rq-sep"><span>구글폼</span></div>`+rqTabForm(r):tab==='apps'?rqTabApps(r):rqTabSrc(r)}`}
 function rqAiRunning(r){return r&&r.aiStatus==='진행 중'&&r.aiAt&&(Date.now()-new Date(r.aiAt).getTime()<6*60*1000)}
 
 /* ---- 탭 1: 정보·연결 ---- */
@@ -224,13 +234,13 @@ function rqTabPost(r){const ed=canEdit();const p=r.post||{};const reps=p.replies
   const box=(path,val,i)=>{const n=rqCount(val,r);return `<div class="rq-pbox"><div class="rq-ph"><b>${i<0?'본문':`이어 쓰기 ${i+1}`}</b><span class="rq-cnt ${n>RQ_MAX?'over':''}" data-cnt="${path}">${n} / ${RQ_MAX}</span>${i>=0&&ed?`<button class="btn sm ghost" data-act="rqReplyDel" data-i="${i}">빼기</button>`:''}<button class="btn sm" data-act="rqCopy" data-path="${path}">복사</button></div>
     <textarea id="rqe-${path.replace(/\./g,'-')}" data-rqe="${path}" data-rqcnt="1" rows="${i<0?10:6}" ${ed?'':'disabled'} placeholder="${i<0?'AI로 만들거나 직접 써 주세요. 신청 링크가 들어갈 자리에 {링크} 를 넣으면 복사·게시할 때 축약 링크로 바뀝니다.':'상세 조건·일정·유의사항'}">${esc(val||'')}</textarea></div>`};
   return `<div class="rq-post"><div class="rq-col">
-    ${!sh?`<div class="banner info" style="margin:0 0 12px">아직 신청 링크가 없습니다. 「구글폼·링크」에서 폼을 만들면 글 속 <b>{링크}</b> 가 축약 링크로 바뀝니다.</div>`:`<div class="linkbox" style="margin-bottom:12px"><span class="grow">신청 링크 ${esc(sh)}</span><button class="btn sm" data-act="rqCopyTxt" data-v="${esc(sh)}">복사</button></div>`}
+    ${!sh?`<div class="banner info" style="margin:0 0 12px">아직 신청 링크가 없습니다. 아래 「구글폼」에서 폼을 만들면 글 속 <b>{링크}</b> 가 축약 링크로 바뀝니다.</div>`:`<div class="linkbox" style="margin-bottom:12px"><span class="grow">신청 링크 ${esc(sh)}</span><button class="btn sm" data-act="rqCopyTxt" data-v="${esc(sh)}">복사</button></div>`}
     ${box('post.main',p.main,-1)}${reps.map((t,i)=>box('post.replies.'+i,t,i)).join('')}
-    <div class="row" style="gap:8px;margin-top:10px">${ed&&reps.length<3?'<button class="btn sm" data-act="rqReplyAdd">+ 이어 쓰기 추가</button>':''}<span class="grow"></span><button class="btn" data-act="rqCopy" data-path="all" title="본문과 이어 쓰기를 한 번에 복사 (빈 줄로 구분)">전체 복사</button>
-     ${ed?(th.connected?`<button class="btn primary" data-act="rqThPost" ${p.main?'':'disabled'}>${A.confirm==='rqThPost'?`@${esc(th.username)} 계정에 지금 게시할까요? 한 번 더 누르기`:`스레드에 바로 게시${reps.filter(x=>String(x).trim()).length?` (+이어 쓰기 ${reps.filter(x=>String(x).trim()).length})`:''}`}</button>`:'<button class="btn primary" data-act="rqThConnect">스레드 계정 연결하고 게시</button>'):''}</div>
+    <div class="row" style="gap:8px;margin-top:10px">${ed&&reps.length<3?'<button class="btn sm" data-act="rqReplyAdd">+ 이어 쓰기 추가</button>':''}<span class="grow"></span><button class="btn" data-act="rqCopy" data-path="all" title="본문과 이어 쓰기를 한 번에 복사 (빈 줄로 구분)">전체 복사</button></div>
     <p class="small muted" style="margin:8px 0 0">스레드 글은 1개에 500자까지입니다. 긴 내용은 이어 쓰기(내 글에 다는 답글)로 나눠 올라갑니다. 붙여넣기로 올릴 때는 본문을 먼저 올리고, 이어 쓰기를 내 글의 답글로 달아 주세요.</p>
     ${r.threads&&r.threads.id?`<div class="rq-posted"><b>✓ 스레드에 게시했습니다</b><span>@${esc(r.threads.username||'')} · ${esc(String(r.threads.at||'').slice(0,16).replace('T',' '))} · ${esc(r.threads.byEmail||'')}${(r.threads.replies||[]).length?` · 이어 쓰기 ${(r.threads.replies||[]).length}개`:''}</span>${r.threads.permalink?`<a class="btn sm" href="${esc(r.threads.permalink)}" target="_blank" rel="noopener">스레드에서 보기 ↗</a>`:''}</div>`:''}
-   </div><div class="rq-col rq-pvcol"><div class="rq-pvh">미리보기</div><div class="rq-pv" id="rq-pv">${rqPreview(r)}</div></div></div>`}
+   </div><div class="rq-col rq-pvcol"><div class="rq-pvh">미리보기</div><div class="rq-pv" id="rq-pv">${rqPreview(r)}</div>
+    ${ed?`<div class="rq-pvact">${th.connected?`<button class="btn primary" data-act="rqThPost" ${p.main&&A.rq.busy!=='post'?'':'disabled'}>${A.rq.busy==='post'?'<span class="rq-spin"></span> 게시하는 중…':A.confirm==='rqThPost'?`@${esc(th.username)} 계정에 지금 게시할까요? 한 번 더 누르기`:`스레드에 바로 게시${reps.filter(x=>String(x).trim()).length?` (+이어 쓰기 ${reps.filter(x=>String(x).trim()).length})`:''}`}</button>`:'<button class="btn primary" data-act="rqThConnect">스레드 계정 연결하고 게시</button>'}${!sh?'<span class="small muted">구글폼을 먼저 만들면 {링크} 가 신청 링크로 바뀐 채 게시됩니다.</span>':''}</div>`:''}</div></div>`}
 function rqPreview(r){const p=r.post||{};const th=A.th||{};const nm=th.connected?th.username:'내_스레드_계정';const sh=rqShort(r);
   const fmtT=t=>esc(String(t||'')).split(esc(RQ_LINK)).join(`<span class="rq-lk">${esc(sh||'ad.ringcoms.com/l/······')}</span>`).replace(/(#[^\s#]+)/g,'<span class="rq-tag">$1</span>').replace(/\n/g,'<br>');
   const item=(t,last)=>`<div class="rq-pi"><div class="rq-av"><span>${esc((nm||'R').charAt(0).toUpperCase())}</span>${last?'':'<i></i>'}</div><div class="rq-pb"><div class="rq-pn"><b>${esc(nm)}</b><span>방금</span></div><div class="rq-pt">${fmtT(t)||'<span class="muted">본문을 입력하면 여기에 보입니다.</span>'}</div><div class="rq-pa">♡ &nbsp;💬 &nbsp;↻ &nbsp;➚</div></div></div>`;
@@ -238,14 +248,17 @@ function rqPreview(r){const p=r.post||{};const th=A.th||{};const nm=th.connected
 
 /* ---- 탭 3: 구글폼 · 링크 ---- */
 function rqTabForm(r){const ed=canEdit();const f=r.form||{};const made=!!f.code;
-  if(made){const v=A.rq.visits[A.rcid];const sh=rqShort(r);const card=(t,s,u,btn)=>`<div class="rq-lc"><div class="rq-lt">${t}</div><div class="rq-ls">${s}</div>${u?`<div class="rq-lu">${esc(u)}</div><div class="row" style="gap:6px"><button class="btn sm" data-act="rqCopyTxt" data-v="${esc(u)}">복사</button><a class="btn sm" href="${esc(u)}" target="_blank" rel="noopener">${btn||'열기'} ↗</a></div>`:'<div class="rq-lu muted">없음</div>'}</div>`;
+  if(made){const v=A.rq.visits[A.rcid];const sh=rqShort(r);const card=(t,s,u,btn,extra)=>`<div class="rq-lc"><div class="rq-lt">${t}</div><div class="rq-ls">${s}</div>${u?`<div class="rq-lu">${esc(u)}</div>${extra||''}<div class="row" style="gap:6px"><button class="btn sm" data-act="rqCopyTxt" data-v="${esc(u)}">복사</button><a class="btn sm" href="${esc(u)}" target="_blank" rel="noopener">${btn||'열기'} ↗</a></div>`:'<div class="rq-lu muted">없음</div>'}</div>`;
+    const lsUrl=rqSheetUrl(f);const resp=f.editUrl?f.editUrl.replace(/\/edit.*$/,'/edit#responses'):'';
+    const sheetCard=lsUrl?card('③ 신청 인플루언서 리스트','구글폼 「응답」 탭에서 연결한 구글 시트 · 응답이 들어올 때마다 자동으로 쌓입니다',lsUrl,'시트 열기')
+      :`<div class="rq-lc"><div class="rq-lt">③ 신청 인플루언서 리스트</div><div class="rq-ls">구글폼 「응답」 탭 → <b>Sheets에 연결</b>을 누르면 생기는 시트를 가져옵니다</div><div class="rq-lu muted">아직 연결된 시트가 없습니다</div><div class="row" style="gap:6px">${resp?`<a class="btn sm" href="${esc(resp)}" target="_blank" rel="noopener">응답 탭 열기 ↗</a>`:''}${ed&&f.formId?`<button class="btn sm primary" data-act="rqSheetCheck" ${A.rq.busy?'disabled':''}>${A.rq.busy==='sheet'?'<span class="rq-spin"></span> 확인 중…':'연결 확인'}</button>`:''}</div>${f.manual&&ed?`<div class="row" style="gap:6px;margin-top:6px"><input type="url" id="rqm-sheet2" placeholder="https://docs.google.com/spreadsheets/d/…" style="flex:1;min-width:0"><button class="btn sm" data-act="rqSheetManual">넣기</button></div>`:''}</div>`;
     return `<section class="panel" style="margin-bottom:14px"><div class="panel-h"><div><h2>구글폼 · 신청 링크</h2><div class="sub">${f.manual?'직접 만든 폼을 연결했습니다.':`${esc(f.owner||'')} 계정으로 ${esc(String(f.createdAt||'').slice(0,10))}에 만들었습니다.`}${v!=null?` · 신청 링크 방문 ${fmt(v)}회`:''}</div></div>${ed?`<button class="btn sm danger" data-act="rqFormReset" title="이 모집에서 폼 연결만 끊습니다 (구글폼·시트·링크 자체는 지워지지 않음)">${A.confirm==='rqFormReset'?'한 번 더 누르면 연결 해제':'폼 연결 해제'}</button>`:''}</div>
-     <div class="rq-lcs">${card('① 스레드 본문에 넣을 링크','축약 링크 · 방문 수가 집계됩니다',sh,'열어 보기')}${card('② 문항 수정','구글폼 편집 화면 (만든 계정·공유받은 팀원)',f.editUrl,'수정하기')}${card('③ 신청자 데이터','구글 시트 · 「신청자 불러오기」 때마다 최신으로 정리',f.sheetUrl,'시트 열기')}${card('신청 화면 원본','구글폼 응답 주소 (축약 링크가 여기로 연결)',f.responderUri)}</div>
-     ${f.manual?'<p class="small muted" style="margin:10px 0 0">직접 연결한 폼은 플랫폼이 응답을 읽을 수 없습니다. 시트를 엑셀로 받아 캠페인 「엑셀 업로드」로 넣어 주세요.</p>':f.shared?`<p class="small muted" style="margin:10px 0 0">팀원 ${f.shared}명(마스터·매니저)에게 폼·시트 편집 권한을 공유했습니다. 신청자 불러오기는 만든 계정(${esc(f.owner||'')})으로 로그인했을 때 가능합니다.</p>`:`<p class="small muted" style="margin:10px 0 0">신청자 불러오기는 폼을 만든 계정(${esc(f.owner||'')})으로 로그인했을 때 가능합니다.</p>`}</section>
-     <section class="panel"><div class="panel-h"><div><h2>문항 (${(f.qs||[]).length}개)</h2><div class="sub">문항은 「② 문항 수정」에서 고치세요. 바꾼 문항은 「신청자 불러오기」 때 다시 읽어 이름·채널·연락처 칸에 맞춰 넣습니다.</div></div></div>
+     <div class="rq-lcs">${card('① 스레드 본문에 넣을 링크','축약 링크 · 방문 수가 집계됩니다',sh,'열어 보기',f.responderUri?`<div class="rq-lfull">구글폼 전체 주소 <a href="${esc(f.responderUri)}" target="_blank" rel="noopener">${esc(f.responderUri)}</a></div>`:'')}${card('② 구글폼 문항 수정','구글폼 편집 화면 (만든 계정·공유받은 팀원)',f.editUrl,'수정하기')}${sheetCard}</div>
+     ${f.manual?'<p class="small muted" style="margin:10px 0 0">직접 연결한 폼은 플랫폼이 응답을 읽을 수 없습니다. 시트를 엑셀로 받아 캠페인 「엑셀 업로드」로 넣어 주세요.</p>':f.shared?`<p class="small muted" style="margin:10px 0 0">팀원 ${f.shared}명(마스터·매니저)에게 폼 편집 권한을 공유했습니다. 신청자 불러오기는 만든 계정(${esc(f.owner||'')})으로 로그인했을 때 가능합니다.</p>`:`<p class="small muted" style="margin:10px 0 0">신청자 불러오기는 폼을 만든 계정(${esc(f.owner||'')})으로 로그인했을 때 가능합니다.</p>`}</section>
+     <section class="panel"><p class="rq-sumd">생성된 구글폼 문항을 요약해 안내드립니다. 문항 제목·형식과, 각 답변이 인플루언서 관리의 어느 칸(이름·채널·연락처 등)으로 들어가는지 보여 줍니다.</p><div class="panel-h"><div><h2>문항 요약 (${(f.qs||[]).length}개)</h2><div class="sub">바꾼 문항은 「신청자 불러오기」 때 다시 읽어 알맞은 칸에 넣습니다.</div></div>${f.editUrl?`<a class="btn sm primary" href="${esc(f.editUrl)}" target="_blank" rel="noopener">문항 수정하기 ↗</a>`:''}</div>
      <ol class="rq-qro">${(f.qs||[]).map(q=>`<li><b>${esc(q.title)}</b>${q.req?' <span class="rq-req">*</span>':''} <span class="pill">${RQ_QT[q.type]||q.type}</span>${q.key?` <span class="muted small">→ ${esc(RQ_KEYL[q.key]||'')}</span>`:''}</li>`).join('')}</ol></section>`}
   const qs=f.qs||[];
-  return `<section class="panel" style="margin-bottom:14px"><div class="panel-h"><div><h2>구글폼 내용</h2><div class="sub">AI가 채운 제목·설명·문항을 고친 뒤 「구글폼 만들기」를 누르면 폼 · 신청자 시트 · 축약 링크가 한 번에 만들어집니다.</div></div></div>
+  return `<section class="panel" style="margin-bottom:14px"><div class="panel-h"><div><h2>구글폼 내용</h2><div class="sub">AI가 채운 제목·설명·문항을 고친 뒤 「구글폼 만들기」를 누르면 폼과 축약 링크가 한 번에 만들어집니다. 신청자 시트는 구글폼 「응답」 탭의 「Sheets에 연결」로 만듭니다.</div></div></div>
    <div class="fgrid"><label class="f wide">폼 제목<input type="text" id="rqe-ftitle" data-rqe="form.title" value="${esc(f.title||r.title||'')}" ${ed?'':'disabled'}></label>
     <label class="f wide">폼 설명 (첫 화면)<textarea id="rqe-fdesc" data-rqe="form.desc" rows="5" ${ed?'':'disabled'} placeholder="캠페인 소개 · 제공 내역 · 일정 · 선정 안내">${esc(f.desc||'')}</textarea></label></div></section>
   <section class="panel" style="margin-bottom:14px"><div class="panel-h"><div><h2>문항 (${qs.length}개)</h2><div class="sub">「연결 정보」는 신청자를 인플루언서 관리 칸(이름·채널·연락처 등)에 맞춰 넣는 기준입니다.</div></div>${ed?'<div class="row"><button class="btn sm ghost" data-act="rqQReset">기본 문항으로</button><button class="btn sm" data-act="rqQAdd">+ 문항 추가</button></div>':''}</div>
@@ -256,12 +269,12 @@ function rqTabForm(r){const ed=canEdit();const f=r.form||{};const made=!!f.code;
       <input type="text" class="rq-qd" id="rqq-${q.id}-d" data-rqq="${i}.desc" value="${esc(q.desc||'')}" placeholder="설명 (선택)" ${ed?'':'disabled'}>
       ${['radio','checkbox','dropdown'].includes(q.type)?`<div class="rq-opts">${(q.opts||[]).map((o,j)=>`<span class="rq-opt"><input type="text" id="rqq-${q.id}-o${j}" data-rqq="${i}.opts.${j}" value="${esc(o)}" ${ed?'':'disabled'} aria-label="보기">${ed?`<button class="btn sm ghost" data-act="rqOptDel" data-i="${i}" data-j="${j}" aria-label="보기 빼기">✕</button>`:''}</span>`).join('')}${ed?`<button class="btn sm ghost" data-act="rqOptAdd" data-i="${i}">+ 보기</button>`:''}</div>`:''}
       ${q.ai?'<span class="pill accent" style="align-self:flex-start">AI 추천 문항</span>':''}</div></div>`).join('')}</div></section>
-  ${ed?`<section class="panel"><div class="panel-h"><div><h2>구글폼 만들기</h2><div class="sub">처음 한 번 Google 권한 창이 뜹니다 — 이 사이트가 <b>만든 파일에만</b> 접근하는 권한(drive.file)이라 다른 드라이브 파일은 보지 못합니다.</div></div></div>
-   <label class="row small" style="margin-bottom:12px"><input type="checkbox" data-rqe="form.share" ${f.share!==false?'checked':''}> 팀원(마스터·매니저)에게 폼·시트 편집 권한 공유</label>
-   <div class="row" style="gap:8px"><button class="btn primary" data-act="rqForm" ${A.rq.busy?'disabled':''}>${A.rq.busy==='form'?'<span class="rq-spin"></span> 만드는 중…':'구글폼 · 시트 · 축약 링크 만들기'}</button><span class="grow"></span><button class="btn sm ghost" data-act="rqManualT">직접 만든 폼 연결</button></div>
-   ${A.rq.manual?`<div class="fgrid" style="margin-top:12px"><label class="f">신청 링크 (응답 주소)<input type="url" id="rqm-resp" placeholder="https://docs.google.com/forms/d/e/…/viewform"></label><label class="f">문항 수정 링크<input type="url" id="rqm-edit" placeholder="https://docs.google.com/forms/d/…/edit"></label><label class="f">신청자 시트 링크<input type="url" id="rqm-sheet" placeholder="https://docs.google.com/spreadsheets/d/…"></label><div class="f"><span>&nbsp;</span><button class="btn" data-act="rqFormManual">연결하고 축약 링크 만들기</button></div></div>`:''}
+  ${ed?`<section class="panel" style="margin-bottom:14px"><div class="panel-h"><div><h2>구글폼 만들기</h2><div class="sub">처음 한 번 Google 권한 창이 뜹니다 — 이 사이트가 <b>만든 파일에만</b> 접근하는 권한(drive.file)이라 다른 드라이브 파일은 보지 못합니다.</div></div></div>
+   <label class="row small" style="margin-bottom:12px"><input type="checkbox" data-rqe="form.share" ${f.share!==false?'checked':''}> 팀원(마스터·매니저)에게 폼 편집 권한 공유</label>
+   <div class="row" style="gap:8px"><button class="btn primary" data-act="rqForm" ${A.rq.busy?'disabled':''}>${A.rq.busy==='form'?'<span class="rq-spin"></span> 만드는 중…':'구글폼 · 축약 링크 만들기'}</button><span class="grow"></span><button class="btn sm ghost" data-act="rqManualT">직접 만든 폼 연결</button></div>
+   ${A.rq.manual?`<div class="fgrid" style="margin-top:12px"><label class="f">신청 링크 (응답 주소)<input type="url" id="rqm-resp" placeholder="https://docs.google.com/forms/d/e/…/viewform"></label><label class="f">문항 수정 링크<input type="url" id="rqm-edit" placeholder="https://docs.google.com/forms/d/…/edit"></label><label class="f">신청자 시트 링크 (응답 탭 → Sheets에 연결, 선택)<input type="url" id="rqm-sheet" placeholder="https://docs.google.com/spreadsheets/d/…"></label><div class="f"><span>&nbsp;</span><button class="btn" data-act="rqFormManual">연결하고 축약 링크 만들기</button></div></div>`:''}
    ${A.rq.gErr?`<div class="banner" style="margin-top:12px">${esc(A.rq.gErr.msg)}${A.rq.gErr.api?` <a href="${RQ_API(A.rq.gErr.api)}" target="_blank" rel="noopener">API 사용 설정 ↗</a>`:''}</div>`:''}
-   <details class="small muted" style="margin-top:12px"><summary>처음 쓰기 전 확인 (관리자 1회)</summary><ol class="steps"><li>Google Cloud 프로젝트(${esc((window.FIREBASE_CONFIG||{}).projectId||'')})에서 <a href="${RQ_API('forms')}" target="_blank" rel="noopener">Google Forms API</a> · <a href="${RQ_API('sheets')}" target="_blank" rel="noopener">Google Sheets API</a> · <a href="${RQ_API('drive')}" target="_blank" rel="noopener">Google Drive API</a>(팀원 공유용) 「사용」</li><li>OAuth 동의 화면에 범위 <code>…/auth/drive.file</code> 추가 (민감하지 않은 범위라 심사 없음)</li></ol></details></section>`:''}`}
+   <details class="small muted" style="margin-top:12px"><summary>처음 쓰기 전 확인 (관리자 1회)</summary><ol class="steps"><li>Google Cloud 프로젝트(${esc((window.FIREBASE_CONFIG||{}).projectId||'')})에서 <a href="${RQ_API('forms')}" target="_blank" rel="noopener">Google Forms API</a> · <a href="${RQ_API('drive')}" target="_blank" rel="noopener">Google Drive API</a>(팀원 공유용) 「사용」</li><li>OAuth 동의 화면에 범위 <code>…/auth/drive.file</code> 추가 (민감하지 않은 범위라 심사 없음)</li></ol></details></section>`:''}`}
 
 /* ---- 탭 4: 신청자 ---- */
 function rqTabApps(r){const ed=canEdit();const f=r.form||{};const ap=rqApps(r);const sel=A.rq.sel;const camps=Object.entries(A.campaigns).filter(([,c])=>inAcctScope(c)&&!['완료','종료'].includes(campStatus(c))).sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
@@ -269,8 +282,8 @@ function rqTabApps(r){const ed=canEdit();const f=r.form||{};const ap=rqApps(r);c
   const st=a=>a.added?(a.added.cid?`<span class="pill ok" title="${esc((rqCampName(a.added.cid)||'캠페인')+' 인플루언서 관리 · '+String(a.added.at||'').slice(0,16).replace('T',' '))}">✓ ${a.added.dup?'이미 있음':'추가됨'}</span>`:'<span class="pill ok" title="인플루언서 풀에만 등록">✓ 풀 등록</span>'):'<span class="pill accent">새 신청</span>';
   const chl=a=>a.chlink?`<a href="${esc(a.chlink)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(a.acct||a.chlink.replace(/^https?:\/\/(www\.)?/,'').slice(0,28))}</a>`:esc(a.acct||'');
   return `<section class="panel" style="margin-bottom:14px"><div class="panel-h"><div><h2>신청자 ${ap.length}명${nNew?` <span class="pill accent">새 신청 ${nNew}</span>`:''}</h2><div class="sub">${f.lastSync?`${esc(String(f.lastSync).slice(0,16).replace('T',' '))}에 불러옴${f.syncBy?` · ${esc(f.syncBy)}`:''}`:'구글폼 응답을 불러와 시트에 정리하고, 아래에서 골라 캠페인에 추가합니다.'}</div></div>
-    <div class="row">${f.sheetUrl?`<a class="btn sm" href="${esc(f.sheetUrl)}" target="_blank" rel="noopener">시트 열기 ↗</a>`:''}${ed&&f.formId?`<button class="btn primary" data-act="rqSync" ${A.rq.busy?'disabled':''}>${A.rq.busy==='sync'?'<span class="rq-spin"></span> 불러오는 중…':'신청자 불러오기'}</button>`:''}</div></div>
-   ${!f.code?'<div class="empty">먼저 「구글폼·링크」에서 폼을 만들어 주세요.</div>':f.manual&&!ap.length?'<div class="empty">직접 연결한 폼은 응답을 불러올 수 없습니다. 시트를 엑셀로 받아 캠페인 인플루언서 관리 「엑셀 업로드」로 넣어 주세요.</div>':!ap.length?'<div class="empty">아직 불러온 신청자가 없습니다. 「신청자 불러오기」를 눌러 주세요.</div>':`
+    <div class="row">${rqSheetUrl(f)?`<a class="btn sm" href="${esc(rqSheetUrl(f))}" target="_blank" rel="noopener">신청 인플루언서 리스트 (시트) ↗</a>`:''}${ed&&f.formId?`<button class="btn primary" data-act="rqSync" ${A.rq.busy?'disabled':''}>${A.rq.busy==='sync'?'<span class="rq-spin"></span> 불러오는 중…':'신청자 불러오기'}</button>`:''}</div></div>
+   ${!f.code?'<div class="empty">먼저 「스레드 글 · 구글폼」에서 폼을 만들어 주세요.</div>':f.manual&&!ap.length?'<div class="empty">직접 연결한 폼은 응답을 불러올 수 없습니다. 시트를 엑셀로 받아 캠페인 인플루언서 관리 「엑셀 업로드」로 넣어 주세요.</div>':!ap.length?'<div class="empty">아직 불러온 신청자가 없습니다. 「신청자 불러오기」를 눌러 주세요.</div>':`
    ${ed?`<div class="rq-bar"><label class="row small" style="gap:6px"><input type="checkbox" data-act="rqSelAll" ${sel.size&&sel.size===ap.filter(a=>!a.added).length?'checked':''}> 새 신청 전체 선택</label><b class="small">${sel.size}명 선택</b><span class="grow"></span>
      <select id="rq-tgt" data-rqtgt="1" style="width:auto;max-width:260px"><option value="">캠페인 선택</option>${camps.map(([id,c])=>`<option value="${id}" ${tgt===id?'selected':''}>${esc(c.name)}${id===r.cid?' (연결)':''}</option>`).join('')}</select>
      <button class="btn sm primary" data-act="rqAddCamp" ${sel.size?'':'disabled'}>인플루언서 관리에 추가</button><button class="btn sm" data-act="rqAddPool" ${sel.size?'':'disabled'} title="캠페인 없이 인플루언서 풀에만 등록">풀에만 등록</button></div>`:''}
@@ -281,12 +294,16 @@ function rqTabApps(r){const ed=canEdit();const f=r.form||{};const ap=rqApps(r);c
 
 /* ============ 동작 ============ */
 Object.assign(ACT,{
-  rqOpen(a){A.rcid=a.dataset.r;A.rq.tab='src';A.rq.sel=new Set();A.rq.tgt=null;A.rq.manual=false;A.rq.gErr=null;A.confirm=null;const r=rqCur();if(r&&A.rq.tab==='src'&&(r.post||{}).main)A.rq.tab='post';render();window.scrollTo(0,0)},
+  rqAppsGo(a,e){if(e&&e.stopPropagation)e.stopPropagation();A.rcid=a.dataset.r;A.rq.tab='apps';A.rq.sel=new Set();A.rq.tgt=null;A.rq.manual=false;A.rq.gErr=null;A.confirm=null;render();window.scrollTo(0,0)},
+  async rqSheetCheck(){rqSheetLink()},
+  async rqSheetManual(){const u=String(($('#rqm-sheet2')||{}).value||'').trim();if(!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(u))return toast('구글 시트 주소(https://docs.google.com/spreadsheets/…)를 넣어 주세요.','crit');await rqSave(A.rcid,{'form.sheetUrl':u,'form.linkedSheetUrl':u});toast('신청 인플루언서 리스트 시트를 연결했습니다.');render()},
+  rqOpen(a){A.rcid=a.dataset.r;A.rq.tab='src';A.rq.sel=new Set();A.rq.tgt=null;A.rq.manual=false;A.rq.gErr=null;A.confirm=null;const r=rqCur();if(r&&A.rq.tab==='src'&&((r.post||{}).main||(r.form||{}).code))A.rq.tab='post';render();window.scrollTo(0,0)},
   rqBack(){A.rcid='';A.rq.sel=new Set();render();window.scrollTo(0,0)},
   rqTab(a){A.rq.tab=a.dataset.t;A.rq.gErr=null;render()},
   rqF(a){A.rq.F[a.dataset.k]=a.dataset.v;render()},
   rqThHelp(){A.rq.thHelp=!A.rq.thHelp;render()},
   rqThConnect(){rqThOpen()},
+  rqThRecheck(){rqThStatus(true)},
   async rqThOff(){if(A.confirm!=='rqThOff'){A.confirm='rqThOff';render();return}A.confirm=null;try{await DB.del('threads/'+A.user.email);toast('스레드 연결을 해제했습니다.');await rqThStatus(true)}catch(e){saveErr(e)}},
   rqGoCamp(a){if(typeof openCampaign==='function'){A.rcid='';openCampaign(a.dataset.c,'grid')}},
   rqGoGuide(a){A.view='guides';A.gid=a.dataset.g;render();window.scrollTo(0,0)},
@@ -329,7 +346,7 @@ Object.assign(ACT,{
   async rqForm(){rqFormCreate()},
   async rqFormManual(){const r=rqCur();if(!r)return;const resp=($('#rqm-resp')||{}).value||'',edit=($('#rqm-edit')||{}).value||'',sheet=($('#rqm-sheet')||{}).value||'';
     if(!/^https:\/\/\S+$/.test(resp.trim()))return toast('신청 링크(응답 주소)를 https:// 로 시작하게 넣어 주세요.','crit');
-    try{const code=await rqMakeLink(r,resp.trim());await rqSave(A.rcid,{form:{...(r.form||{}),manual:true,responderUri:resp.trim(),editUrl:edit.trim(),sheetUrl:sheet.trim(),code,owner:A.user.email,createdAt:T_NOW()}});A.rq.manual=false;toast('폼을 연결하고 축약 링크를 만들었습니다.');render()}catch(e){toast('연결하지 못했습니다: '+(e.message||e),'crit')}},
+    try{const code=await rqMakeLink(r,resp.trim());await rqSave(A.rcid,{form:{...(r.form||{}),manual:true,responderUri:resp.trim(),editUrl:edit.trim(),sheetUrl:sheet.trim(),linkedSheetUrl:sheet.trim(),code,owner:A.user.email,createdAt:T_NOW()}});A.rq.manual=false;toast('폼을 연결하고 축약 링크를 만들었습니다.');render()}catch(e){toast('연결하지 못했습니다: '+(e.message||e),'crit')}},
   async rqFormReset(){if(A.confirm!=='rqFormReset'){A.confirm='rqFormReset';render();return}A.confirm=null;const r=rqCur();if(!r)return;const f=r.form||{};
     await rqSave(A.rcid,{form:{title:f.title||'',desc:f.desc||'',qs:f.qs||[],share:f.share!==false}});toast('폼 연결을 해제했습니다. 이전 축약 링크는 그대로 이전 폼으로 연결됩니다.');render()},
   async rqSync(){rqSyncApps()},
@@ -370,9 +387,12 @@ document.addEventListener('input',e=>{const t=e.target;if(!t.dataset||!t.dataset
   const cnt=document.querySelector(`[data-cnt="${path}"]`);if(cnt){const n=rqCount(t.value,r);cnt.textContent=n+' / '+RQ_MAX;cnt.classList.toggle('over',n>RQ_MAX)}
   const tmp=clone(r);if(/^post\.replies\.\d+$/.test(path)){tmp.post.replies[+path.split('.')[2]]=t.value}else setIn(tmp,path,t.value);const pv=$('#rq-pv');if(pv)pv.innerHTML=rqPreview(tmp)});
 /* 상품소개서: 브라우저에서 글자만 읽음 (proposal.js readSrc 재사용) */
-document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.rqsrc||!t.files||!t.files[0])return;const p=t.dataset.rqsrc;const info={};
-  const ok=await readSrc(t.files[0],info,'new');A.ppPages=null;if(!ok)return;
-  if(p==='rqn'){Object.assign(A.rq.nw.src,{srcText:info.srcText||'',srcName:info.srcName||''});render()}else{await rqSave(A.rcid,{'src.srcText':info.srcText||'','src.srcName':info.srcName||''})}});
+document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.rqsrc||!t.files||!t.files[0])return;const p=t.dataset.rqsrc;const info={};const file=t.files[0];
+  A.rq.srcBusy=p;render();let ok=false;try{ok=await readSrc(file,info,'new')}finally{A.rq.srcBusy='';A.ppPages=null}
+  if(!ok){render();return}
+  if(p==='rqn'){if(A.rq.nw)Object.assign(A.rq.nw.src,{srcText:info.srcText||'',srcName:info.srcName||''});render()}
+  else{const r=rqCur();if(r){r.src=r.src||{};r.src.srcText=info.srcText||'';r.src.srcName=info.srcName||''}render();await rqSave(A.rcid,{'src.srcText':info.srcText||'','src.srcName':info.srcName||''})}
+  toast(`업로드 완료 · ${info.srcName||'소개서'}를 읽었습니다.`)});
 
 /* ============ AI: 스레드 글 + 폼 문항 ============ */
 function rqCtx(r){const c=r.cid?A.campaigns[r.cid]:null;const g=r.gid&&A.guides?A.guides[r.gid]:null;
@@ -422,8 +442,8 @@ async function rqFormCreate(){const r=rqCur();if(!r||A.rq.busy)return;A.rq.gErr=
   let tokP=null;if(DB.mode!=='demo')tokP=rqGTok(); // 클릭 직후 권한 창을 띄워야 팝업이 막히지 않음
   A.rq.busy='form';render();const id=A.rcid;
   try{if(tokP)await tokP;
-    let form,editUrl,sheet,qmap={},shared=0;
-    if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,700));const fid='demo'+uid();form={formId:fid,responderUri:'https://docs.google.com/forms/d/e/'+fid+'/viewform'};editUrl='https://docs.google.com/forms/d/'+fid+'/edit';sheet={spreadsheetId:'demo',spreadsheetUrl:'https://docs.google.com/spreadsheets/d/demo'};qs.forEach((q,i)=>qmap['dq'+i]=q.key||'')}
+    let form,editUrl,qmap={},shared=0;
+    if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,700));const fid='demo'+uid();form={formId:fid,responderUri:'https://docs.google.com/forms/d/e/'+fid+'/viewform'};editUrl='https://docs.google.com/forms/d/'+fid+'/edit';qs.forEach((q,i)=>qmap['dq'+i]=q.key||'')}
     else{
       form=await rqG('POST','https://forms.googleapis.com/v1/forms',{info:{title,documentTitle:title}});
       const reqs=[{updateFormInfo:{info:{description:String(f.desc||'')},updateMask:'description'}},...qs.map((q,i)=>({createItem:{item:rqItem(q),location:{index:i}}}))];
@@ -431,14 +451,24 @@ async function rqFormCreate(){const r=rqCur();if(!r||A.rq.busy)return;A.rq.gErr=
       (bu.replies||[]).slice(1).forEach((rep,i)=>{const qid=((rep.createItem||{}).questionId||[])[0];if(qid)qmap[qid]=qs[i].key||''});
       try{await rqG('POST',`https://forms.googleapis.com/v1/forms/${form.formId}:setPublishSettings`,{publishSettings:{publishState:{isPublished:true,isAcceptingResponses:true}}})}catch(e){console.warn('publish',e.message)}
       editUrl=`https://docs.google.com/forms/d/${form.formId}/edit`;
-      sheet=await rqG('POST','https://sheets.googleapis.com/v4/spreadsheets',{properties:{title:title+' · 신청자'},sheets:[{properties:{title:'신청자',gridProperties:{frozenRowCount:1}}}]});
-      try{await rqG('PUT',`https://sheets.googleapis.com/v4/spreadsheets/${sheet.spreadsheetId}/values/${encodeURIComponent('신청자!A1')}?valueInputOption=RAW`,{values:[['신청 일시',...qs.map(q=>q.title)]]})}catch(e){console.warn('sheet head',e.message)}
       if(f.share!==false){const ems=Object.entries(A.admins||{}).filter(([em,a])=>em!==A.user.email&&(a.acct||TEAM)===TEAM&&['master','manager'].includes(a.role)).map(([em])=>em).slice(0,20);
-        for(const em of ems){let ok=0;for(const fid of [form.formId,sheet.spreadsheetId]){try{await rqG('POST',`https://www.googleapis.com/drive/v3/files/${fid}/permissions?sendNotificationEmail=false`,{role:'writer',type:'user',emailAddress:em});ok++}catch(e){console.warn('share',em,e.message);if(e.api)break}}if(ok)shared++}}}
+        for(const em of ems){let ok=0;for(const fid of [form.formId]){try{await rqG('POST',`https://www.googleapis.com/drive/v3/files/${fid}/permissions?sendNotificationEmail=false`,{role:'writer',type:'user',emailAddress:em});ok++}catch(e){console.warn('share',em,e.message);if(e.api)break}}if(ok)shared++}}}
     const code=await rqMakeLink(r,form.responderUri);
-    await DB.update('recruits/'+id,{form:{...f,title,qs,formId:form.formId,responderUri:form.responderUri,editUrl,sheetId:sheet.spreadsheetId,sheetUrl:sheet.spreadsheetUrl,code,qmap,owner:A.user.email,createdAt:T_NOW(),shared},updatedAt:T_NOW(),by:A.user.email});
-    A.rq.visits[id]=0;toast('구글폼 · 신청자 시트 · 축약 링크를 만들었습니다. 스레드 글의 {링크} 가 축약 링크로 바뀝니다.')}
+    await DB.update('recruits/'+id,{form:{...f,title,qs,formId:form.formId,responderUri:form.responderUri,editUrl,code,qmap,owner:A.user.email,createdAt:T_NOW(),shared},updatedAt:T_NOW(),by:A.user.email});
+    A.rq.visits[id]=0;toast('구글폼 · 축약 링크를 만들었습니다. 스레드 글의 {링크} 가 축약 링크로 바뀝니다. 신청자 시트는 구글폼 「응답」 탭에서 「Sheets에 연결」을 눌러 주세요.')}
   catch(e){console.error(e);A.rq.gErr={msg:'구글폼을 만들지 못했습니다: '+(e.message||e),api:e.api||''};toast(A.rq.gErr.msg,'crit')}
+  finally{A.rq.busy='';render()}}
+
+/* 신청 인플루언서 리스트: 구글폼 「응답」 탭 → 「Sheets에 연결」로 생긴 시트 (Forms API linkedSheetId) */
+function rqSheetUrl(f){f=f||{};if(f.linkedSheetId)return 'https://docs.google.com/spreadsheets/d/'+f.linkedSheetId+'/edit';return f.linkedSheetUrl||''}
+async function rqSheetLink(){const r=rqCur();if(!r||A.rq.busy)return;const f=r.form||{};if(!f.formId)return toast('플랫폼에서 만든 폼만 확인할 수 있습니다.','crit');
+  let tokP=null;if(DB.mode!=='demo')tokP=rqGTok();A.rq.busy='sheet';render();const id=A.rcid;
+  try{if(tokP)await tokP;let ls='';
+    if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,400));ls='demo_linked_'+String(f.formId).slice(-6)}
+    else{const fm=await rqG('GET',`https://forms.googleapis.com/v1/forms/${f.formId}`);ls=fm.linkedSheetId||''}
+    if(!ls){toast('아직 연결된 시트가 없습니다. 「응답 탭 열기」 → 「Sheets에 연결」 → 「새 스프레드시트 만들기」를 누른 뒤 다시 확인해 주세요.','crit');return}
+    await DB.update('recruits/'+id,{'form.linkedSheetId':ls,updatedAt:T_NOW()});toast('신청 인플루언서 리스트 시트를 가져왔습니다.')}
+  catch(e){console.error(e);toast('시트 연결을 확인하지 못했습니다: '+(e.message||e),'crit')}
   finally{A.rq.busy='';render()}}
 
 /* ============ 신청자 불러오기 · 정리 ============ */
@@ -456,9 +486,9 @@ function rqNormApp(vals,at,extra){const o={at,raw:{}};const memo=[];
 async function rqSyncApps(){const r=rqCur();if(!r||A.rq.busy)return;const f=r.form||{};if(!f.formId)return toast('플랫폼에서 만든 폼만 불러올 수 있습니다.','crit');
   if(DB.mode!=='demo'&&f.owner&&f.owner!==A.user.email)toast(`이 폼은 ${f.owner} 계정으로 만들었습니다. 같은 계정이 아니면 불러오지 못할 수 있습니다.`);
   let tokP=null;if(DB.mode!=='demo')tokP=rqGTok();A.rq.busy='sync';render();const id=A.rcid;
-  try{if(tokP)await tokP;let list=[];const qmap={...(f.qmap||{})};let heads=[];
+  try{if(tokP)await tokP;let list=[];const qmap={...(f.qmap||{})};let heads=[];let lsId='';
     if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,600));list=rqDemoResps(f)}
-    else{const fm=await rqG('GET',`https://forms.googleapis.com/v1/forms/${f.formId}`);
+    else{const fm=await rqG('GET',`https://forms.googleapis.com/v1/forms/${f.formId}`);lsId=fm.linkedSheetId||'';
       const items=(fm.items||[]).filter(it=>it.questionItem&&it.questionItem.question);
       heads=items.map(it=>({qid:it.questionItem.question.questionId,title:it.title||''}));
       heads.forEach(h=>{if(!(h.qid in qmap))qmap[h.qid]=rqGuessKey(h.title)});
@@ -467,12 +497,9 @@ async function rqSyncApps(){const r=rqCur();if(!r||A.rq.busy)return;const f=r.fo
     const old=r.apps||{};const apps={};
     list.forEach(x=>{const k='r'+String(x.id).replace(/[^A-Za-z0-9_]/g,'_').slice(0,60);const prev=old[k]||{};apps[k]=rqNormApp(x.vals,x.at,prev.added?{added:prev.added}:{})});
     for(const k in old)if(!apps[k]&&old[k].added)apps[k]=old[k]; // 폼에서 지운 응답이라도 이미 옮긴 사람은 기록 유지
-    if(DB.mode!=='demo'&&f.sheetId){const H=heads.length?heads.map(h=>h.title):(f.qs||[]).map(q=>q.title);const sorted=list.slice().sort((a,b)=>String(a.at).localeCompare(String(b.at)));
-      const rows=[['신청 일시',...H,'플랫폼 상태'],...sorted.map(x=>{const k='r'+String(x.id).replace(/[^A-Za-z0-9_]/g,'_').slice(0,60);const ad=(apps[k]||{}).added;return [rqKst(x.at),...x.vals.map(v=>v.val),ad?(ad.cid?'추가: '+rqCampName(ad.cid):'풀 등록'):'']})];
-      try{await rqG('POST',`https://sheets.googleapis.com/v4/spreadsheets/${f.sheetId}/values/${encodeURIComponent('신청자')}:clear`,{});await rqG('PUT',`https://sheets.googleapis.com/v4/spreadsheets/${f.sheetId}/values/${encodeURIComponent('신청자!A1')}?valueInputOption=RAW`,{values:rows})}catch(e){console.warn('sheet',e.message);toast('신청자는 불러왔지만 시트에 쓰지 못했습니다: '+e.message,'crit')}}
     const nNew=Object.keys(apps).filter(k=>!old[k]).length;
-    await DB.update('recruits/'+id,{apps,'form.qmap':qmap,'form.lastSync':T_NOW(),'form.syncBy':A.user.email,'form.nResp':list.length,updatedAt:T_NOW()});
-    toast(`신청자 ${list.length}명을 불러왔습니다${nNew?` (새로 ${nNew}명)`:''}.${f.sheetId&&DB.mode!=='demo'?' 시트에도 정리했습니다.':''}`)}
+    await DB.update('recruits/'+id,{apps,'form.qmap':qmap,'form.lastSync':T_NOW(),'form.syncBy':A.user.email,'form.nResp':list.length,...(lsId?{'form.linkedSheetId':lsId}:{}),updatedAt:T_NOW()});
+    toast(`신청자 ${list.length}명을 불러왔습니다${nNew?` (새로 ${nNew}명)`:''}.${!lsId&&!rqSheetUrl(f)&&DB.mode!=='demo'?' 신청 인플루언서 리스트 시트는 구글폼 「응답」 탭 → 「Sheets에 연결」로 만들 수 있습니다.':''}`)}
   catch(e){console.error(e);toast('신청자를 불러오지 못했습니다: '+(e.message||e),'crit')}
   finally{A.rq.busy='';render()}}
 const rqKst=iso=>{const d=new Date(iso);if(isNaN(d))return String(iso||'');const k=new Date(d.getTime()+9*3600e3).toISOString();return k.slice(0,10)+' '+k.slice(11,16)};
@@ -512,6 +539,13 @@ function rqCss(){return rqCss.done?'':(rqCss.done=1,document.head.insertAdjacent
 .rq-flow li{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:120px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);font-weight:600;color:var(--ink)}.rq-flow i{font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}.rq-flow small{font-weight:400;color:var(--muted);font-size:11.5px}
 .rq-sec{margin-top:16px}.rq-sec h3{font-size:13.5px;font-weight:700;margin:0 0 10px}
 .rq-file>span:first-child{font-size:12.5px;font-weight:500;color:var(--ink2)}.rq-file{display:flex;flex-direction:column;gap:5px}.rq-filebox{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px dashed var(--line2);border-radius:8px;padding:6px 10px}
+.rq-filebox.done{border:1px solid #16a34a;background:rgba(22,163,74,.08)}.rq-filebox.done .grow{display:flex;flex-direction:column;min-width:0}.rq-filebox.done b{color:#15803d}.rq-filebox.done .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rq-upok{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#16a34a;color:#fff;font-weight:700;flex:none}
+.rq-upbtn{border-style:dashed}.rq-upbtn.busy{opacity:.8;cursor:wait}
+.rq-pvact{display:flex;flex-direction:column;gap:6px;margin-top:12px}.rq-pvact .btn{width:100%;justify-content:center}
+.rq-lfull{font-size:11px;color:var(--muted);margin:-2px 0 8px;word-break:break-all;line-height:1.4}.rq-lfull a{color:inherit}
+.rq-sep{display:flex;align-items:center;gap:10px;margin:22px 0 12px;font-weight:600;font-size:14px}.rq-sep:before,.rq-sep:after{content:'';height:1px;background:var(--line);flex:1}
+.rq-sumd{margin:0 0 12px;padding:10px 12px;border-radius:8px;background:var(--bg2,rgba(35,71,212,.06));font-size:13px;line-height:1.5}
 .rq-h1 input{font-size:22px;font-weight:700;border-color:transparent;padding:4px 8px;margin-left:-8px;max-width:640px;background:transparent}.rq-h1 input:hover{border-color:var(--line2)}
 .rq-steps button i{font-style:normal;width:20px;height:20px;border-radius:50%;border:1.5px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}.rq-steps button i.ok{background:var(--ok);border-color:var(--ok);color:#fff}
 .rq-post{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:16px;align-items:start}.rq-col{min-width:0}
@@ -523,7 +557,7 @@ function rqCss(){return rqCss.done?'':(rqCss.done=1,document.head.insertAdjacent
 .rq-pb{flex:1;min-width:0;padding-bottom:14px}.rq-pn{display:flex;gap:6px;align-items:baseline}.rq-pn b{font-size:14px}.rq-pn span{color:#999;font-size:13px}.rq-pt{white-space:normal;overflow-wrap:anywhere;margin-top:2px}.rq-pa{color:#666;font-size:14px;margin-top:8px;letter-spacing:2px}
 .rq-lk{color:#0095f6}.rq-tag{color:#0095f6}
 .rq-posted{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--ok-soft);color:var(--ok)}.rq-posted span{color:var(--ink2);font-size:12.5px;flex:1}
-.rq-lcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}.rq-lc{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--surface2);min-width:0}.rq-lc:first-child{background:var(--accent-soft);border-color:transparent}
+.rq-lcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.rq-lc{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--surface2);min-width:0}.rq-lc:first-child{background:var(--accent-soft);border-color:transparent}
 .rq-lt{font-weight:700;font-size:13.5px}.rq-ls{font-size:12px;color:var(--muted)}.rq-lu{font-family:var(--mono);font-size:12px;overflow-wrap:anywhere;flex:1}
 .rq-qs{display:flex;flex-direction:column;gap:10px}.rq-q{display:flex;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}.rq-qn{flex:none;width:24px;height:24px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
 .rq-qb{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}.rq-qr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.rq-qr>input[type=text]{flex:1 1 220px;font-weight:600}.rq-qd{font-size:12.5px}

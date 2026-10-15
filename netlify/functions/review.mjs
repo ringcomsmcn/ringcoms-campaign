@@ -6,7 +6,7 @@
 //               인스타그램 = 계정명을 알면 Meta 공식 API로 영상 주소 확인(무료), 안 되면 Apify / 틱톡 = Apify (APIFY_TOKEN 필요)
 // 환경변수: GEMINI_API_KEY (필수), APIFY_TOKEN (인스타·틱톡), APIFY_IG_ACTOR, APIFY_TT_ACTOR
 import { geminiBest, uploadFile, deleteFile, checkEditor, fsPatch } from '../lib/gemini.mjs';
-import { metaOn, metaPosts, handleOf } from '../lib/meta.mjs';
+import { metaOn, metaPosts, handleOf, useMetaCred } from '../lib/meta.mjs';
 import { createWriteStream, createReadStream, promises as fsp } from 'node:fs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -168,6 +168,7 @@ export default async (req) => {
   if (!id) return;
   const who = await checkEditor(req);
   if (!who.ok) return; // 로그인·권한이 없으면 아무것도 쓰지 않음
+  await useMetaCred(who.tok); // 연동 관리에 저장한 Meta 토큰 (없으면 환경변수)
   const save = (o) => fsPatch(who.tok, 'reviews/' + id, o).catch(e => console.error('save', e.message));
   let file = '';
   try {

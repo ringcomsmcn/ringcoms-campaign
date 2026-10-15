@@ -13,7 +13,10 @@
 | `public/img/ringcoms-wide.png` | 가로형 RINGCOMS 로고 (흰색, 가이드 PPT·PDF 우상단 · 광고주 색으로 자동 변환) |
 | `netlify/functions/ai.mjs` | AI 연결 상태 확인·인사이트 코멘트 초안 (`/api/ai`, action `status`·`insight`) |
 | `public/proposal-deck.js` | 제안서 장표 빌더 (ringcoms-influencer-proposal 스킬 build.js 브라우저 이식 · 컬러 결정 · 이미지 자르기 · 배경/그래픽 생성 · HTML 미리보기) |
-| `public/recruit.js` | 인플루언서 모집: 스레드 글·구글폼·신청자 (`recruits/{id}`), 스레드 연결 `threads/{이메일}`(본인만) |
+| `public/recruit.js` | 스레드 모집: 스레드 글·구글폼·신청자 (`recruits/{id}`), 스레드 연결 `threads/{이메일}`(본인만) |
+| `public/stream.js` | 광고 관리 > 스트리머 광고: PPL·프로모션, SOOP·치지직·유튜브 방송 불러오기·매칭·집계 (`streams/{id}`) |
+| `netlify/functions/stream.mjs` | SOOP·치지직 방송(다시보기) 목록 서버 함수 (`/api/stream`: vods·status, 키 불필요) |
+| `netlify/functions/meta.mjs` | 연동 관리의 Meta 인스타그램 토큰 저장·확인 (`/api/meta`: status·save·clear, 저장 위치 `secrets/meta`) |
 | `public/threads-callback.html` | 스레드 계정 연결 창이 돌아오는 페이지 |
 | `netlify/functions/recruit.mjs` | 모집 글·폼 문항 AI 백그라운드 함수 (`/api/recruit`), 프롬프트는 `netlify/lib/recruit.mjs` |
 | `netlify/functions/threads.mjs` | 스레드 연결·게시 (`/api/threads`: config·exchange·status·post) |
@@ -36,7 +39,7 @@
 ## 환경변수 (Netlify → Site configuration → Environment variables)
 | 이름 | 필수 | 설명 |
 |---|---|---|
-| `META_IG_TOKEN` | 권장 | Meta 시스템 사용자 토큰(만료 없음) — 인스타그램 Business Discovery 조회 (무료) |
+| `META_IG_TOKEN` | 아니오 (예전 방식) | Meta 시스템 사용자 토큰. 이제는 **연동 관리 → Meta 인스타그램 연결**에서 저장하는 토큰이 우선 (재배포 불필요). 사이트에 저장한 토큰이 없을 때만 사용 |
 | `META_IG_USER_ID` | 권장 | 링컴즈 인스타그램 비즈니스 계정 ID(17841…). 비우면 토큰의 페이지에서 자동으로 찾음 — 「토큰으로 페이지 목록을 읽지 못했습니다」가 뜨면 이 값을 넣으세요 |
 | `META_GRAPH_VERSION` | 아니오 | 기본 `v24.0` |
 | `APIFY_TOKEN` | 예 | Apify API 토큰 (섭외 후보 탐색, Meta API로 못 가져온 인스타그램·틱톡 보조 수집) |
@@ -49,6 +52,7 @@
 | `NETLIFY_TOKEN` | 크레딧 조회에 필요 | Netlify 개인 액세스 토큰(User settings → Applications → Personal access tokens) — 연동 관리에서 이번 달 크레딧 잔량·남은 배포 횟수 표시 |
 | `THREADS_APP_ID` | 스레드 게시에 필요 | Meta 개발자 앱(사용 사례 「Threads API 액세스」)의 Threads 앱 ID |
 | `THREADS_APP_SECRET` | 스레드 게시에 필요 | Threads 앱 시크릿 |
+| `SOOP_CLIENT_ID` · `CHZZK_CLIENT_ID` | 아니오 | 스트리머 광고: 공식 Open API 키를 받으면 넣을 자리 (지금은 공개 방송 목록을 키 없이 읽음) |
 | `NETLIFY_TEAM` | 아니오 | 팀 슬러그 (비우면 토큰의 첫 번째 팀, 현재 `jcj602`) |
 
 ## 성과 불러오기 동작
@@ -143,7 +147,7 @@
 - `public/proposal-deck.js`의 `FONTS`(무료 30종, 웹폰트)와 `DL`(설치용 TTF·OTF 주소 + 폰트 파일 속 글꼴 이름)
 - PPT는 `DL`의 글꼴 이름으로 저장 → 「글꼴 받기」로 받은 파일을 설치하면 그대로 보임
 
-## 인플루언서 모집 (인플루언서 관리 → 인플루언서 모집)
+## 스레드 모집 (인플루언서 관리 → 스레드 모집)
 - 흐름: 정보·연결(캠페인·가이드·링크·소개서·조건) → 스레드 글(AI 초안·편집·복사·게시) → 구글폼·링크 → 신청자(불러오기·캠페인 추가)
 - 스레드 글은 1개 500자 제한 → 본문 + 이어 쓰기(답글)로 나눠 게시. 글 속 `{링크}`가 축약 링크로 바뀜
 - 스레드 연결: 팀원 로그인 계정마다 `threads/{이메일}`에 60일 토큰 저장(보안 규칙상 본인만 읽기·쓰기). 준비: Meta 앱 → 권한 `threads_basic`·`threads_content_publish` → 리디렉션 URL `https://ad.ringcoms.com/threads-callback.html` → Threads 테스터에 팀원 계정 추가·수락 → Netlify 환경변수 2개

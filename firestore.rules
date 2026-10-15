@@ -97,8 +97,13 @@ service cloud.firestore {
       allow read: if isTeam();
       allow write: if canEdit();
     }
-    // 인플루언서 모집 (스레드 글·구글폼·신청자): 링컴즈 팀원 읽기, 마스터·매니저 수정
+    // 스레드 모집 (스레드 글·구글폼·신청자): 링컴즈 팀원 읽기, 마스터·매니저 수정
     match /recruits/{id} {
+      allow read: if isTeam();
+      allow write: if canEdit();
+    }
+    // 스트리머 광고 (PPL · 프로모션, 스트리머별 방송·소프트콘 기록): 링컴즈 팀원 읽기, 마스터·매니저 수정
+    match /streams/{id} {
       allow read: if isTeam();
       allow write: if canEdit();
     }
@@ -140,6 +145,11 @@ service cloud.firestore {
     // 연동 설정(유튜브 API 키 등): 팀원·광고주 관리자 읽기, 마스터만 수정
     match /settings/{id} {
       allow read: if isTeam() || isClientAdmin();
+      allow write: if isMaster();
+    }
+    // 비밀 연동 값(Meta 인스타그램 시스템 사용자 토큰 등): 마스터만 저장, 마스터·매니저만 읽기 (서버 함수가 호출한 팀원 권한으로 읽음) · 뷰어·광고주는 읽을 수 없음
+    match /secrets/{id} {
+      allow read: if canEdit();
       allow write: if isMaster();
     }
     // 인플루언서 전용 링크 설정: 브릿지 페이지가 로그인 없이 한 건씩 읽기, 목록은 팀원, 수정은 마스터·매니저(광고주 관리자는 자기 캠페인)

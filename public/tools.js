@@ -168,68 +168,150 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
     return `<div class="scene"><div class="scene-h"><b>#${si+1}</b><select id="${id(b+'.part')}" data-gv="${b}.part" style="width:auto">${G_PARTS.map(o=>`<option ${o===s.part?'selected':''}>${o}</option>`).join('')}</select><input type="text" id="${id(b+'.time')}" data-gv="${b}.time" value="${esc(s.time||'')}" placeholder="0~3초" style="width:90px"><span class="grow"></span>${ed?`<button class="btn sm ghost" data-act="sceneDel" data-c="${ci}" data-s="${si}" title="장면 삭제">${A.confirm==='sd'+s.id?'한 번 더 누르면 삭제':'✕'}</button>`:''}</div>
      <div class="scene-b"><div class="scene-img ${A.gpaste===s.id?'paste-on':''}" tabindex="0" data-gpaste="${s.id}" title="여기를 클릭한 뒤 Ctrl+V(맥은 ⌘+V)로 이미지를 붙여넣으세요">${im?`<img src="${im}" alt="장면 ${si+1} 참고 이미지">`:`<span class="muted small">${A.gpaste===s.id?'<b>Ctrl+V</b>로 붙여넣으세요':'클릭 → Ctrl+V로 이미지 붙여넣기'}</span>`}
        <div class="row" style="gap:4px;justify-content:center">${ed?`<label class="btn sm" style="cursor:pointer">${im?'바꾸기':'이미지 넣기'}<input type="file" accept="image/*" data-gimg="${s.id}" hidden></label>${im?`<button class="btn sm ghost" data-act="gimgDel" data-k="${s.id}">삭제</button>`:''}`:''}</div>
-       <div class="row" style="gap:4px;justify-content:center"><button class="btn sm" data-act="canvaGo" data-to="canva" data-c="${ci}" data-s="${si}" title="이미지 프롬프트를 복사하고 Canva를 엽니다">Canva AI ↗</button><button class="btn sm" data-act="canvaGo" data-to="gemini" data-c="${ci}" data-s="${si}" title="이미지 프롬프트를 복사하고 Gemini를 엽니다 (무료)">Gemini ↗</button><button class="btn sm ghost" data-act="canvaGo" data-to="copy" data-c="${ci}" data-s="${si}">프롬프트 복사</button>${ed?`<button class="btn sm ghost" data-act="gimgClip" data-k="${s.id}" title="복사해 둔 이미지를 바로 넣습니다">📋 붙여넣기</button>`:''}</div></div>
+       <div class="row" style="gap:4px;justify-content:center"><button class="btn sm" data-act="canvaGo" data-to="gemini" data-c="${ci}" data-s="${si}" title="이미지 프롬프트를 복사하고 Gemini를 엽니다 (무료)">Gemini ↗</button><button class="btn sm" data-act="canvaGo" data-to="canva" data-c="${ci}" data-s="${si}" title="이미지 프롬프트를 복사하고 Canva를 엽니다">Canva AI ↗</button><button class="btn sm ghost" data-act="canvaGo" data-to="copy" data-c="${ci}" data-s="${si}">프롬프트 복사</button>${ed?`<button class="btn sm ghost" data-act="gimgClip" data-k="${s.id}" title="복사해 둔 이미지를 바로 넣습니다">📋 붙여넣기</button>`:''}</div></div>
       <div class="fgrid one">${ta(b+'.shot','📷 이렇게 찍어요',{rows:2,ph:'예: 얼굴 반쪽만 바르고 정면 클로즈업'})}${ta(b+'.say','🎙 이렇게 말해요 (예시 멘트)',{rows:3,ph:'예: 수부지라 매트 쿠션 고민 많았는데…'})}${ta(b+'.sub','💬 자막 (화면 글자)',{rows:1,ph:'예: 아직도 파데 국물 생겨?'})}${tx(b+'.point','⭐ 강조 포인트',{wide:true,ph:'예: 촉촉하게 발리고 보송하게 마무리'})}${tx(b+'.ref','🔗 참고 영상 링크',{wide:true,ph:'https://'})}${ta(b+'.prompt','🖼 이미지 프롬프트 (Canva·AI 영상용)',{rows:2,ph:'AI가 채워 줍니다 · 장면을 그림으로 설명'})}</div></div></div>`};
   const conceptCard=(ci,cp)=>`<section class="panel concept"><div class="panel-h"><div class="row grow" style="gap:8px"><span class="cnum">${ci+1}</span><input type="text" id="${id(`concepts.${ci}.name`)}" data-gv="concepts.${ci}.name" value="${esc(cp.name||'')}" placeholder="컨셉 이름 (예: 3초 화잘먹 루틴)" style="max-width:340px;font-weight:600"></div>${ed&&(g.concepts||[]).length>1?`<button class="btn sm danger" data-act="conceptDel" data-c="${ci}">${A.confirm==='cd'+cp.id?'한 번 더 누르면 삭제':'컨셉 삭제'}</button>`:''}</div>
     <div class="fgrid">${tx(`concepts.${ci}.hook`,'첫 마디 · 후킹 문구',{wide:true,ph:'예: 아직도 여름에 파데 국물 생긴다고?!'})}</div>
     <div class="scenes">${(cp.scenes||[]).map((s,si)=>sceneCard(ci,si,s)).join('')}</div>${ed?`<button class="btn sm" data-act="sceneAdd" data-c="${ci}" style="margin-top:10px">+ 장면 추가</button>`:''}</section>`;
-  return `<div class="page-h"><div><button class="btn sm ghost" data-act="guideBack">← 가이드 목록</button><h1 style="margin-top:6px">${esc(g.title||'제목 없음')}</h1><div class="sub">${esc([g.advertiser,g.brand,g.platform].filter(Boolean).join(' · '))} · 마지막 수정 ${esc(String(g.updatedAt||'').slice(0,16).replace('T',' '))}</div></div>
-   <div class="row"><button class="btn" data-act="guidePpt">PPT 다운로드</button><button class="btn" data-act="guidePdf">PDF 다운로드</button><button class="btn" data-act="gotoReview">이 가이드로 영상 검수 →</button></div></div>
-  ${A.guidesErr?rulesBanner():''}
-  <div class="stack gedit">
-  <section class="panel ai-box"><div class="panel-h"><div><h2>① 광고주 정보 넣기 → AI로 가이드 채우기</h2><div class="sub">홈페이지·상품 상세 링크를 넣으면 AI가 ③ 꼭 지켜 주세요 · ④ 제품 정보 · ⑤ 컨셉·장면 · ⑥ 문구·해시태그 · ⑦ 금지 표현 · ⑧ 촬영 컷 · ⑨ 촬영·업로드 주의 · ⑩ 진행 순서까지 표준 형식으로 채웁니다.</div></div>${aiPill()}</div>
+  const PARTS={ai:`<section class="panel ai-box"><div class="panel-h"><div><h2>① 광고주 정보 넣기 → AI로 가이드 채우기</h2><div class="sub">홈페이지·상품 상세 링크를 넣으면 AI가 ③ 꼭 지켜 주세요 · ④ 제품 정보 · ⑤ 컨셉·장면 · ⑥ 문구·해시태그 · ⑦ 금지 표현 · ⑧ 촬영 컷 · ⑨ 촬영·업로드 주의 · ⑩ 진행 순서까지 표준 형식으로 채웁니다.</div></div>${aiPill()}</div>
    <div class="fgrid">${tl('links','광고주 홈페이지 · 상품 링크',{rows:3,ph:'https://brand.com\nhttps://smartstore.naver.com/…',hint:'한 줄에 하나씩, 최대 3개. 네이버 스마트스토어처럼 내용을 읽기 어려운 페이지는 아래 칸에 상품 정보를 붙여넣어 주세요.'})}
    ${ta('memo','상품 정보 · 광고주 요청사항 붙여넣기 (선택)',{rows:4,ph:'상품 상세 문구, 광고주 브리프, 꼭 넣을 표현, 피해야 할 표현 등을 그대로 붙여넣어도 됩니다'})}
    <label class="f">가이드 분량<select id="gd_level" data-gv="level">${Object.entries(G_LEVELS).map(([k,l])=>`<option value="${k}" ${gLevel(g)===k?'selected':''}>${l}</option>`).join('')}</select><span class="hint">${gLevel(g)==='light'?'핵심만 담아 PPT·PDF 5장 이내로 만듭니다 (컨셉 1개 권장)':'모든 항목을 장마다 자세히 담습니다 (10장 안팎)'}</span></label>
    <label class="f">컨셉 개수<select id="g-ain">${[1,2,3,4].map(x=>`<option ${x===(A.gain||(gLevel(g)==='light'?1:2))?'selected':''}>${x}</option>`).join('')}</select></label></div>
-   <div class="row" style="margin-top:10px">${ed?`<button class="btn primary" data-act="guideAi" data-m="fill" ${busy?'disabled':''}>${busy||gAiRunning(g)?'AI가 가이드를 만드는 중… (30초~2분)':'AI로 빈 칸 채우기'}</button><button class="btn" data-act="guideAi" data-m="replace" ${busy?'disabled':''}>AI로 새로 만들기 (내용 덮어쓰기)</button>`:''}<span class="small muted">결과는 초안입니다. 광고주 확인이 필요한 수치·효능 표현은 꼭 검토하세요.</span></div></section>
-
-  <section class="panel"><div class="panel-h"><h2>② 기본 정보</h2></div><div class="fgrid">
+   <div class="row" style="margin-top:10px">${ed?`<button class="btn primary" data-act="guideAi" data-m="fill" ${busy?'disabled':''}>${busy||gAiRunning(g)?'AI가 가이드를 만드는 중… (30초~2분)':'AI로 빈 칸 채우기'}</button><button class="btn" data-act="guideAi" data-m="replace" ${busy?'disabled':''}>AI로 새로 만들기 (내용 덮어쓰기)</button>`:''}<span class="small muted">결과는 초안입니다. 광고주 확인이 필요한 수치·효능 표현은 꼭 검토하세요.</span></div></section>`,
+    basic:`<section class="panel"><div class="panel-h"><h2>② 기본 정보</h2></div><div class="fgrid">
    ${tx('title','가이드 제목')}${tx('advertiser','광고주')}${tx('brand','브랜드')}
    <label class="f">연결 캠페인<select id="gd_cid" data-gv="cid"><option value="">연결 안 함</option>${camps.map(([cid,c])=>`<option value="${cid}" ${cid===g.cid?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
    ${sel('platform','채널 · 형식',G_PLATFORMS)}${tx('length','영상 길이',{ph:'30초 이내'})}${tx('ratio','화면 비율',{ph:'9:16 세로'})}
    <label class="f">가이드 색 (광고주 톤)<span class="row" style="flex-wrap:nowrap"><input type="color" id="gd_color" data-gv="color" value="${esc(g.color||'#7A1E2C')}" style="width:48px;padding:2px;height:34px"><span class="small muted">${esc(g.color||'#7A1E2C')}</span></span></label>
-   ${sel('status','상태',['작성 중','광고주 확인 중','완료'])}</div></section>
-
-  <section class="panel"><div class="panel-h"><div><h2>③ 이것만 꼭 지켜주세요 (한눈에 보기)</h2><div class="sub">인플루언서가 가장 먼저 보는 장입니다. 짧고 쉬운 문장으로, 한 줄에 한 가지만.</div></div></div><div class="fgrid">
+   ${sel('status','상태',['작성 중','광고주 확인 중','완료'])}</div></section>`,
+    summary:`<section class="panel"><div class="panel-h"><div><h2>③ 이것만 꼭 지켜주세요 (한눈에 보기)</h2><div class="sub">인플루언서가 가장 먼저 보는 장입니다. 짧고 쉬운 문장으로, 한 줄에 한 가지만.</div></div></div><div class="fgrid">
    ${tx('summary.one','핵심 메시지 한 줄',{wide:true,ph:'예: 운동 없이 입기만 해도 직각 어깨 & 여리핏 상체'})}
-   ${tl('summary.must','✅ 꼭 해 주세요',{wide:false})}${tl('summary.dont','❌ 하지 말아 주세요',{wide:false})}</div></section>
-
-  <section class="panel"><div class="panel-h"><h2>④ 제품 정보</h2></div><div class="fgrid">
+   ${tl('summary.must','✅ 꼭 해 주세요',{wide:false})}${tl('summary.dont','❌ 하지 말아 주세요',{wide:false})}</div></section>`,
+    product:`<section class="panel"><div class="panel-h"><h2>④ 제품 정보</h2></div><div class="fgrid">
    ${tx('product.name','제품명')}${tx('product.price','정가',{ph:'275,000원'})}${tx('product.sale','판매가 · 할인',{ph:'149,000원'})}${tx('product.option','옵션 · 사이즈',{ph:'S~XL'})}
    ${ta('product.intro','한 줄 소개',{rows:2})}
    ${(P.points||[]).map((pt,i)=>tx(`product.points.${i}.t`,`핵심 특징 ${i+1} · 제목`,{ph:'예: 입기만 하면 팔뚝·승모까지'})+tx(`product.points.${i}.d`,`핵심 특징 ${i+1} · 쉬운 설명`,{ph:'예: EMS 패드가 승모근과 팔뚝 라인을 집중 케어'})).join('')}
    ${tl('product.howto','사용 방법 (순서대로)',{wide:false,ph:'착용 후 패드 위치 맞추기\n강도 조절\n누워서 휴식'})}${ta('product.caution','사용 · 촬영 주의',{wide:false,rows:4})}</div>
-   ${ed&&(P.points||[]).length<5?'<button class="btn sm" data-act="pointAdd">+ 핵심 특징 추가</button>':''}</section>
-
-  <div class="banner info" style="margin:0"><b>장면 이미지 넣는 법</b> ① 장면의 「Canva AI」나 「Gemini」를 누르면 이미지 프롬프트가 복사되고 사이트가 열려요 → ② 프롬프트를 붙여넣어 이미지를 만들고, 마음에 드는 이미지를 <b>마우스 오른쪽 클릭 → 이미지 복사</b> → ③ 여기 돌아와 장면의 이미지 칸을 <b>클릭</b>하고 <b>Ctrl+V</b>(맥 ⌘+V). 다른 사이트에서 만든 이미지·캡처 화면도 같은 방법으로 붙여넣을 수 있어요.<br><span class="small">무료로 쓰기 좋은 곳: <b>Gemini</b>(gemini.google.com · 한국어 그대로, 실사 느낌 좋음) · <b>Microsoft Copilot / Designer</b>(무료, 하루 생성량 넉넉) · <b>ChatGPT</b>(무료는 하루 몇 장) · <b>Canva AI</b>(무료 계정은 월 제한) · <b>Ideogram</b>(화면 글자·자막이 들어간 이미지에 강함). 실존 인물·연예인 얼굴, 다른 브랜드 로고는 넣지 마세요.</span></div>
+   ${ed&&(P.points||[]).length<5?'<button class="btn sm" data-act="pointAdd">+ 핵심 특징 추가</button>':''}</section>`,
+    concept:`<div class="banner info" style="margin:0"><b>장면 이미지 넣는 법</b> ① 장면의 「Gemini」나 「Canva AI」를 누르면 이미지 프롬프트가 복사되고 사이트가 열려요 → ② 프롬프트를 붙여넣어 이미지를 만들고, 마음에 드는 이미지를 <b>마우스 오른쪽 클릭 → 이미지 복사</b> → ③ 여기 돌아와 장면의 이미지 칸을 <b>클릭</b>하고 <b>Ctrl+V</b>(맥 ⌘+V). 다른 사이트에서 만든 이미지·캡처 화면도 같은 방법으로 붙여넣을 수 있어요.<br><span class="small">무료로 쓰기 좋은 곳: <b>Gemini</b>(gemini.google.com · 한국어 그대로, 실사 느낌 좋음) · <b>Microsoft Copilot / Designer</b>(무료, 하루 생성량 넉넉) · <b>ChatGPT</b>(무료는 하루 몇 장) · <b>Canva AI</b>(무료 계정은 월 제한) · <b>Ideogram</b>(화면 글자·자막이 들어간 이미지에 강함). 실존 인물·연예인 얼굴, 다른 브랜드 로고는 넣지 마세요.</span></div>
   <div class="sect-h"><h2>⑤ 콘텐츠 컨셉 · 장면 구성</h2><span class="sub">컨셉이 여러 개면 인플루언서가 1개를 골라 촬영합니다. 장면마다 「찍는 법 · 말하는 법 · 자막 · 포인트」를 채우세요.</span><span class="grow"></span>${ed&&(g.concepts||[]).length<4?'<button class="btn sm" data-act="conceptAdd">+ 컨셉 추가</button>':''}</div>
-  ${(g.concepts||[]).map((cp,ci)=>conceptCard(ci,cp)).join('')}
-
-  <section class="panel"><div class="panel-h"><h2>⑥ 꼭 넣을 문구 · 해시태그 · 표기법</h2></div><div class="fgrid">
+  ${(g.concepts||[]).map((cp,ci)=>conceptCard(ci,cp)).join('')}`,
+    text:`<section class="panel"><div class="panel-h"><h2>⑥ 꼭 넣을 문구 · 해시태그 · 표기법</h2></div><div class="fgrid">
    ${tx('text.closing','마무리 핵심 메시지 (아웃트로에서 꼭 말해요)',{wide:true,ph:'예: 운동 없이 입는 것만으로 직각 어깨 & 여리핏 상체 완성!'})}${tl('text.keywords','필수 키워드 (본문·자막·멘트)',{wide:false})}${tl('text.tagsMust','필수 해시태그',{wide:false,hint:'#협찬은 본문 맨 앞에 넣도록 안내됩니다.'})}${tl('text.tagsRec','권장 해시태그',{wide:false})}
    <div class="stack" style="gap:10px">${tx('text.account','공식 계정 태그',{ph:'@brand_official'})}${tx('text.brandName','브랜드명 바른 표기',{ph:'포즈닉 (Pozenic)'})}${tx('text.productName','제품명 바른 표기',{ph:'여리셀라 (YeoriCella)'})}</div>
-   ${tl('text.ngNames','틀린 표기 (쓰면 안 돼요)',{wide:false,ph:'POZENIC\n여리셀'})}</div></section>
+   ${tl('text.ngNames','틀린 표기 (쓰면 안 돼요)',{wide:false,ph:'POZENIC\n여리셀'})}</div></section>`,
+    words:`<section class="panel"><div class="panel-h"><div><h2>⑦ 이렇게 말하면 안 돼요</h2><div class="sub">❌ 쓰면 안 되는 말 → ⭕ 이렇게 바꿔 말해요 · 광고법·공정위 기준</div></div>${ed?'<button class="btn sm" data-act="wordAdd">+ 추가</button>':''}</div>
+   <div class="tblwrap"><table class="tbl"><thead><tr><th>❌ 이렇게 말하지 마세요</th><th>⭕ 이렇게 바꿔 말해요</th><th></th></tr></thead><tbody>${(g.words||[]).map((w,i)=>`<tr><td><input type="text" id="gd_w${i}n" data-gv="words.${i}.no" value="${esc(w.no||'')}"></td><td><input type="text" id="gd_w${i}y" data-gv="words.${i}.yes" value="${esc(w.yes||'')}"></td><td class="n">${ed?`<button class="btn sm ghost" data-act="wordDel" data-i="${i}">✕</button>`:''}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">없음</td></tr>'}</tbody></table></div></section>`,
+    cuts:`<section class="panel"><div class="panel-h"><div><h2>⑧ 꼭 찍어야 할 컷</h2><div class="sub">썸네일·후킹·사용 장면·전후 비교·마무리처럼, 영상에 들어가야 할 컷을 표로 보여 줍니다.</div></div>${ed&&(g.cuts||[]).length<6?'<button class="btn sm" data-act="cutAdd">+ 컷 추가</button>':''}</div>
+   <div class="tblwrap"><table class="tbl"><thead><tr><th style="width:150px">컷</th><th>이렇게 찍어요</th><th style="width:96px">구분</th><th></th></tr></thead><tbody>${(g.cuts||[]).map((k,i)=>`<tr><td><input type="text" id="gd_k${i}n" data-gv="cuts.${i}.name" value="${esc(k.name||'')}"></td><td><input type="text" id="gd_k${i}d" data-gv="cuts.${i}.desc" value="${esc(k.desc||'')}"></td><td><select id="gd_k${i}m" data-gv="cuts.${i}.need">${['필수','권장','선택'].map(o=>`<option ${o===k.need?'selected':''}>${o}</option>`).join('')}</select></td><td class="n">${ed?`<button class="btn sm ghost" data-act="cutDel" data-i="${i}">✕</button>`:''}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">없음 · 「+ 컷 추가」</td></tr>'}</tbody></table></div></section>`,
+    notes:`<section class="panel"><div class="panel-h"><h2>⑨ 촬영 · 업로드 주의사항</h2></div><div class="fgrid one">${tl('shoot','📷 촬영할 때',{rows:7})}${tl('upload','📤 업로드할 때',{rows:6})}</div></section>`,
+    submit:`<section class="panel"><div class="panel-h"><h2>⑩ 제출 방법 · 일정</h2></div><div class="fgrid">${tx('submit.draftDue','초안 제출',{type:'date'})}${tx('submit.uploadDue','업로드 일정',{ph:'10/20 ~ 10/24'})}${tl('submit.how','진행 순서',{rows:5})}${tx('submit.form','제출 링크 (구글 폼 등)',{wide:true,ph:'https://'})}${ta('submit.extra','추가 안내 (할인 소구·2차 활용 등)',{rows:2})}</div></section>`};
+  PARTS.design=gDesignForm(g,ed);
+  const sub=G_SUBS.find(x=>x[0]===A.gsub)||G_SUBS[0];setTimeout(()=>schedGPv(true),0);
+  return `<div class="page-h"><div><button class="btn sm ghost" data-act="guideBack">← 가이드 목록</button><h1 style="margin-top:6px">${esc(g.title||'제목 없음')}</h1><div class="sub">${esc([g.advertiser,g.brand,g.platform].filter(Boolean).join(' · '))} · 마지막 수정 ${esc(String(g.updatedAt||'').slice(0,16).replace('T',' '))}</div></div>
+   <div class="row"><button class="btn" data-act="guidePpt">PPT 다운로드</button><button class="btn" data-act="guidePdf">PDF 다운로드</button><button class="btn" data-act="gotoReview">이 가이드로 영상 검수 →</button></div></div>
+  ${A.guidesErr?rulesBanner():''}
+  <div class="g-subtabs" role="tablist">${G_SUBS.map(([k,l])=>`<button class="chip ${sub[0]===k?'on':''}" data-act="gSub" data-k="${k}">${l}</button>`).join('')}</div>
+  ${sub[0]==='all'?`<section class="panel"><div class="panel-h"><div><h2>전체 미리보기</h2><div class="sub">PPT·PDF로 내보낼 장표 전체입니다 (${gLevel(g)==='light'?'Light · 5장 이내':'Detail'}). 장을 누르면 그 항목을 고치러 갑니다.</div></div></div><div class="g-pv all" data-gpv="all"><div class="empty small">미리보기를 만드는 중…</div></div></section>`
+   :`<div class="g-split"><div class="stack gedit">${PARTS[sub[0]]||''}</div><aside class="g-live"><div class="g-live-h"><b>미리보기</b><span class="small muted">${esc(sub[1])} · 고치는 대로 바뀝니다</span></div><div class="g-pv" data-gpv="${sub[0]}"><div class="empty small">미리보기를 만드는 중…</div></div></aside></div>`}
+  <div class="stack gedit" style="margin-top:16px">  <section class="panel"><div class="row"><span class="small muted grow">칸을 고치고 다른 칸으로 이동하면 바로 저장됩니다. PPT·PDF는 지금 내용 그대로 만들어집니다.</span>${ed?`<button class="btn sm" data-act="guideDup">복제</button><button class="btn sm danger" data-act="guideDel">${A.confirm==='gdel'?'한 번 더 누르면 삭제':'가이드 삭제'}</button>`:''}</div></section></div>`}
 
-  <section class="panel"><div class="panel-h"><div><h2>⑦ 이렇게 말하면 안 돼요</h2><div class="sub">❌ 쓰면 안 되는 말 → ⭕ 이렇게 바꿔 말해요 · 광고법·공정위 기준</div></div>${ed?'<button class="btn sm" data-act="wordAdd">+ 추가</button>':''}</div>
-   <div class="tblwrap"><table class="tbl"><thead><tr><th>❌ 이렇게 말하지 마세요</th><th>⭕ 이렇게 바꿔 말해요</th><th></th></tr></thead><tbody>${(g.words||[]).map((w,i)=>`<tr><td><input type="text" id="gd_w${i}n" data-gv="words.${i}.no" value="${esc(w.no||'')}"></td><td><input type="text" id="gd_w${i}y" data-gv="words.${i}.yes" value="${esc(w.yes||'')}"></td><td class="n">${ed?`<button class="btn sm ghost" data-act="wordDel" data-i="${i}">✕</button>`:''}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">없음</td></tr>'}</tbody></table></div></section>
+/* ---- 가이드 항목 목록 · 실시간 미리보기 · 디자인 (광고 제안서 생성과 같은 방식) ---- */
+/* 제안서 디자인 도우미 (proposal-deck.js의 window.PPD) */
+function gPD(){const x=window.PPD;return typeof x==='function'?x():x||null}
+const G_SUBS=[['ai','① 광고주 정보 · AI'],['basic','② 기본 정보'],['summary','③ 꼭 지켜 주세요'],['product','④ 제품 정보'],['concept','⑤ 컨셉 · 장면'],['text','⑥ 문구 · 해시태그'],['words','⑦ 금지 표현'],['cuts','⑧ 꼭 찍을 컷'],['notes','⑨ 촬영 · 업로드 주의'],['submit','⑩ 제출 · 일정'],['design','디자인 · 이미지'],['all','전체 미리보기']];
+/* 항목 → 미리보기 장 (장표 라벨) */
+const G_PVK={ai:/^(COVER|CHECK FIRST)$/,basic:/^COVER$/,summary:/^CHECK FIRST$/,product:/^(PRODUCT|CHECK FIRST)$/,concept:/^(CONCEPT|SCENE)/,text:/^(CAPTION|MUST · DO NOT)/,words:/^(DO NOT SAY|MUST · DO NOT)/,cuts:/^(MUST-HAVE|SCENE)/,notes:/^(CHECK LIST|MUST · DO NOT)/,submit:/^HOW TO SUBMIT/,design:/^(COVER|CHECK FIRST|EOD)$/};
+const G_KEYOF=[[/^COVER$/,'basic'],[/^CHECK FIRST$/,'summary'],[/^PRODUCT$/,'product'],[/^(CONCEPT|SCENE)/,'concept'],[/^MUST-HAVE/,'cuts'],[/^CAPTION/,'text'],[/^MUST · DO NOT/,'text'],[/^DO NOT SAY/,'words'],[/^CHECK LIST/,'notes'],[/^HOW TO SUBMIT/,'submit'],[/^EOD$/,'design']];
+const G_BG=[['ring','기본 (원형)'],['grad','그라데이션'],['wave','물결'],['dots','점 패턴'],['none','단색']];
+const G_BG_BODY=[['none','흰 배경'],['grad','그라데이션'],['wave','물결'],['dots','점 패턴'],['ring','링']];
+const gHx=v=>String(v||'').replace('#','').toUpperCase().replace(/[^0-9A-F]/g,'').slice(0,6);
+function gDz(g){return (g&&g.design)||{}}
+function gTheme(g){const m=gHx(g.color)||'7A1E2C';const p=gHx(gDz(g).point)||m;return gPD()?gPD().themeOf(m,p,'manual'):{primary:m,accent:p,closing:'404040'}}
+const gFontId=g=>gDz(g).font||'pretendard';
+/* 장표에 쓸 디자인 값 (PPT · PDF · 미리보기 공통) */
+async function gDesignOf(g,imgs,PDF){const d=gDz(g);const T=gTheme(g);const P=gPD();const fid=gFontId(g);const f=P?P.fontOf(fid):{fam:'Pretendard',id:'pretendard'};
+  const bgOf=(kind,st)=>{if(st==='up')return (imgs||{})['design_bg_'+kind]||null;return P&&st&&!['none','ring','skill'].includes(st)?P.bgImage(T,kind==='closing'?'cover':kind,st):null};
+  const coverSt=d.cover||'ring',bodySt=d.body||'none',closeSt=d.closing||'ring';
+  return {TH:T.primary,AC:gHx(d.point)||T.primary,pret:fid==='pretendard',font:f,
+    FT:fid==='pretendard'?'Pretendard ExtraBold':f.fam,FL:fid==='pretendard'?'Pretendard Light':f.fam,FB:fid==='pretendard'?'Pretendard':f.fam,B:PDF||fid!=='pretendard',
+    coverSt,coverBg:bgOf('cover',coverSt),coverImg:d.coverImg==='up'?(imgs||{}).design_coverimg||null:d.coverImg==='scene'?(()=>{const s=((g.concepts||[])[0]||{}).scenes||[];const k=s.find(x=>(imgs||{})[x.id]);return k?imgs[k.id]:null})():null,
+    bodyBg:bodySt==='none'?null:bodySt==='ring'?(P?P.bgImage(T,'body','ring'):null):bodyBg_(),closeSt,closeBg:bgOf('closing',closeSt),
+    closeTitle:d.closeTitle||'E.O.D',closeSub:d.closeSub||'궁금한 점은 담당자에게 편하게 물어봐 주세요.'};
+  function bodyBg_(){return bgOf('body',bodySt)}}
+/* 이미지 크기 맞춰 넣기 (비율 유지) */
+async function gPut(s,data,x,y,w,h){if(!data)return false;const d=await new Promise(r=>{const im=new Image();im.onload=()=>r([im.naturalWidth,im.naturalHeight]);im.onerror=()=>r(null);im.src=data});if(!d)return false;const k=Math.min(w/d[0],h/d[1]);s.addImage({data,x:x+(w-d[0]*k)/2,y:y+(h-d[1]*k)/2,w:d[0]*k,h:d[1]*k});return true}
+/* 표지 · 마지막 장 배경 */
+async function gCoverBg(s,D,ring,W,H,closing){const bg=closing?D.closeBg:D.coverBg,st=closing?D.closeSt:D.coverSt;s.background={color:closing&&st!=='none'&&!bg?D.TH:D.TH};
+  if(bg)s.addImage({data:bg,x:0,y:0,w:W,h:H});else if(st==='ring')s.addImage(closing?{data:ring,x:(W-5.2)/2,y:1.15,w:5.2,h:5.2}:{data:ring,x:W-6.4,y:0.6,w:6.3,h:6.3});
+  if(!closing&&D.coverImg)await gPut(s,D.coverImg,W-5.9,1.05,5.2,5.4)}
 
-  <section class="panel"><div class="panel-h"><div><h2>⑧ 꼭 찍어야 할 컷</h2><div class="sub">썸네일·후킹·사용 장면·전후 비교·마무리처럼, 영상에 들어가야 할 컷을 표로 보여 줍니다.</div></div>${ed&&(g.cuts||[]).length<6?'<button class="btn sm" data-act="cutAdd">+ 컷 추가</button>':''}</div>
-   <div class="tblwrap"><table class="tbl"><thead><tr><th style="width:150px">컷</th><th>이렇게 찍어요</th><th style="width:96px">구분</th><th></th></tr></thead><tbody>${(g.cuts||[]).map((k,i)=>`<tr><td><input type="text" id="gd_k${i}n" data-gv="cuts.${i}.name" value="${esc(k.name||'')}"></td><td><input type="text" id="gd_k${i}d" data-gv="cuts.${i}.desc" value="${esc(k.desc||'')}"></td><td><select id="gd_k${i}m" data-gv="cuts.${i}.need">${['필수','권장','선택'].map(o=>`<option ${o===k.need?'selected':''}>${o}</option>`).join('')}</select></td><td class="n">${ed?`<button class="btn sm ghost" data-act="cutDel" data-i="${i}">✕</button>`:''}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">없음 · 「+ 컷 추가」</td></tr>'}</tbody></table></div></section>
-
-  <div class="grid2"><section class="panel"><div class="panel-h"><h2>⑨ 촬영 · 업로드 주의사항</h2></div><div class="fgrid one">${tl('shoot','📷 촬영할 때',{rows:7})}${tl('upload','📤 업로드할 때',{rows:6})}</div></section>
-  <section class="panel"><div class="panel-h"><h2>⑩ 제출 방법 · 일정</h2></div><div class="fgrid">${tx('submit.draftDue','초안 제출',{type:'date'})}${tx('submit.uploadDue','업로드 일정',{ph:'10/20 ~ 10/24'})}${tl('submit.how','진행 순서',{rows:5})}${tx('submit.form','제출 링크 (구글 폼 등)',{wide:true,ph:'https://'})}${ta('submit.extra','추가 안내 (할인 소구·2차 활용 등)',{rows:2})}</div></section></div>
-
-  <section class="panel"><div class="row"><span class="small muted grow">칸을 고치고 다른 칸으로 이동하면 바로 저장됩니다. PPT·PDF는 지금 내용 그대로 만들어집니다.</span>${ed?`<button class="btn sm" data-act="guideDup">복제</button><button class="btn sm danger" data-act="guideDel">${A.confirm==='gdel'?'한 번 더 누르면 삭제':'가이드 삭제'}</button>`:''}</div></section>
-  </div>`}
+/* 미리보기: PDF와 같은 HTML 장표(HtmlDeck)로 그려서 해당 항목의 장만 보여 줌 */
+function schedGPv(fast){clearTimeout(schedGPv.t);schedGPv.t=setTimeout(buildGPv,fast?60:350)}
+async function buildGPv(){const g=curG();if(!g)return;const boxes=[...document.querySelectorAll('[data-gpv]')];if(!boxes.length)return;const seq=++buildGPv.n;
+  try{const P=gPD();if(P){P.loadFontCss(gFontId(g))}gPvCss();
+    const deck=new HtmlDeck();deck.layout='LAYOUT_WIDE';await (gLevel(g)==='light'?guideDeckLight:guideDeck)(deck,g,A.gimgs||{},true);if(seq!==buildGPv.n)return;
+    const fam=P?P.fontOf(gFontId(g)).fam:'Pretendard';
+    boxes.forEach(box=>{const k=box.dataset.gpv;const re=G_PVK[k];let L=deck.slides.map((s,i)=>({s,i}));if(k!=='all'&&re){const f=L.filter(x=>re.test(x.s.k||''));if(f.length)L=f}
+      const one=new HtmlDeck();one.slides=L.map(x=>x.s);const pages=one.html().split('</section>').filter(x=>x.trim()).map(x=>x+'</section>');
+      box.innerHTML=pages.map((h,j)=>{const lk=L[j].s.k||'';const go=(G_KEYOF.find(([r])=>r.test(lk))||[])[1]||'';return `<div class="gpv-wrap"><div class="gpv-n">${L[j].i+1}장${lk?' · '+esc(lk==='EOD'?'마지막 장':lk==='COVER'?'표지':lk):''}${k==='all'&&go?` <button class="btn sm ghost" data-act="gSub" data-k="${go}">고치기</button>`:''}</div><div class="gpv-slide" style="--gf:'${fam}'">${h}</div></div>`}).join('')||'<div class="empty small">이 항목은 장표에 없습니다.</div>';
+      gFitPv(box);HtmlDeck.fit(box)})}
+  catch(e){console.error(e);boxes.forEach(b=>b.innerHTML=`<div class="empty small">미리보기를 만들지 못했습니다: ${esc(e.message||e)}</div>`)}}
+buildGPv.n=0;
+function gFitPv(root){(root||document).querySelectorAll('.gpv-slide').forEach(w=>{const k=w.clientWidth/1280;const pg=w.querySelector('.dk-page');if(pg)pg.style.transform=`scale(${k})`})}
+window.addEventListener('resize',()=>{clearTimeout(gFitPv.t);gFitPv.t=setTimeout(()=>gFitPv(),120)});
+function gPvCss(){if(document.getElementById('gpv-css'))return;const st=document.createElement('style');st.id='gpv-css';st.textContent=`
+.g-subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;position:sticky;top:56px;z-index:5;background:var(--bg);padding:6px 0}
+.g-split{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start}
+.g-live{position:sticky;top:110px;border:1px solid var(--line);border-radius:12px;background:var(--card,#fff);padding:12px;max-height:calc(100vh - 130px);overflow:auto}
+.g-live-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+.g-pv{display:flex;flex-direction:column;gap:14px}.g-pv.all{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.gpv-n{font-size:12px;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.gpv-slide{position:relative;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}
+.gpv-slide .dk-page{position:absolute;left:0;top:0;transform-origin:0 0;width:13.333in;height:7.49in;overflow:hidden;line-height:1.22;color:#161B26;font-family:var(--gf),'Pretendard','Malgun Gothic',sans-serif!important}
+.gpv-slide .dk-t{position:absolute;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}.gpv-slide .dk-t:not(.dk-fit){overflow:visible}
+.gpv-slide .dk-s{position:absolute;box-sizing:border-box}.gpv-slide .dk-tb{position:absolute;border-collapse:collapse;table-layout:fixed;line-height:1.2;word-break:keep-all;overflow-wrap:anywhere}
+.g-dz .pp-thumbs{display:flex;gap:8px;flex-wrap:wrap}.g-dz .g-th{border:2px solid var(--line);border-radius:8px;background:#fff;padding:0;width:120px;cursor:pointer;display:flex;flex-direction:column;overflow:hidden;text-align:center}
+.g-dz .g-th.on{border-color:var(--accent,#2347D4);box-shadow:0 0 0 2px rgba(35,71,212,.18)}.g-dz .g-th img,.g-dz .g-th .sw{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}.g-dz .g-th i{font-style:normal;font-size:11px;padding:4px;color:var(--ink2)}
+.g-dz .g-fonts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.g-dz .g-font{border:2px solid var(--line);border-radius:8px;background:#fff;padding:8px 10px;text-align:left;cursor:pointer}.g-dz .g-font.on{border-color:var(--accent,#2347D4)}.g-dz .g-font b{display:block;font-size:17px}.g-dz .g-font span{font-size:11px;color:var(--muted)}
+@media (max-width:1000px){.g-split{grid-template-columns:1fr}.g-live{position:static;max-height:none}.g-subtabs{position:static}}`;document.head.appendChild(st)}
+/* 디자인 · 이미지 (메인 · 포인트 · 폰트 · 표지 배경 · 표지 이미지 · 본문 장 · 마지막 장) */
+function gDesignForm(g,ed){const d=gDz(g);const T=gTheme(g);const P=gPD();const fid=gFontId(g);const im=A.gimgs||{};
+  const sw=(kind,st)=>{if(st==='up'){const u=im['design_bg_'+kind];return u?`<img src="${u}" alt="">`:'<span class="sw" style="display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted)">직접 넣기</span>'}
+    const b=P&&!['none','ring'].includes(st)?P.bgImage(T,kind==='closing'?'cover':kind,st):null;if(b)return `<img src="${b}" alt="">`;
+    const bgc=kind==='body'?'#fff':'#'+T.primary;return `<span class="sw" style="background:${bgc};position:relative">${st==='ring'?`<i style="position:absolute;right:12%;top:18%;width:46%;aspect-ratio:1;border-radius:50%;border:7px solid ${kind==='body'?'rgba(0,0,0,.06)':'rgba(255,255,255,.22)'}"></i>`:''}</span>`};
+  const pick=(kind,key,opts)=>{const v=d[key]||(kind==='body'?'none':'ring');return `<div class="pp-thumbs">${[...opts,['up','내 이미지']].map(([k,l])=>`<button type="button" class="g-th ${v===k?'on':''}" data-act="gDz" data-p="${key}" data-v="${k}" ${ed?'':'disabled'}>${sw(kind,k)}<i>${l}</i></button>`).join('')}</div>
+    ${ed?`<div class="row" style="gap:6px;margin-top:6px"><label class="btn sm" style="cursor:pointer">이미지 파일 넣기<input type="file" accept="image/*" data-gimg="design_bg_${kind}" data-gdz="${key}" hidden></label>${im['design_bg_'+kind]?`<button class="btn sm ghost" data-act="gimgDel" data-k="design_bg_${kind}">넣은 이미지 지우기</button>`:''}</div>`:''}`};
+  const fonts=P?P.FONTS:[{id:'pretendard',name:'Pretendard',fam:'Pretendard'}];if(P)fonts.forEach(f=>P.loadFontCss(f.id));
+  const ci=d.coverImg||'none';const sceneImg=(()=>{const s=((g.concepts||[])[0]||{}).scenes||[];const k=s.find(x=>im[x.id]);return k?im[k.id]:null})();
+  return `<section class="panel g-dz"><div class="panel-h"><div><h2>색 · 폰트</h2><div class="sub">메인 색은 표지·제목 띠·카드에, 포인트 색은 번호·라벨·강조 글자에 쓰입니다. 광고주 톤에 맞춰 바꾸세요.</div></div></div>
+    <div class="fgrid"><label class="f">메인 색<span class="row" style="flex-wrap:nowrap"><input type="color" id="gd_color2" data-gv="color" value="#${esc(gHx(g.color)||'7A1E2C')}" style="width:48px;padding:2px;height:34px" ${ed?'':'disabled'}><span class="small muted">#${esc(gHx(g.color)||'7A1E2C')}</span></span></label>
+     <label class="f">포인트 색<span class="row" style="flex-wrap:nowrap"><input type="color" id="gd_point" data-gv="design.point" value="#${esc(gHx(d.point)||gHx(g.color)||'7A1E2C')}" style="width:48px;padding:2px;height:34px" ${ed?'':'disabled'}><span class="small muted">${d.point?'#'+esc(gHx(d.point)):'메인 색과 같음'}</span>${ed&&d.point?'<button class="btn sm ghost" data-act="gDz" data-p="point" data-v="">메인 색과 같게</button>':''}</span></label></div>
+    <div class="f wide" style="margin-top:12px"><b class="small">폰트</b><div class="g-fonts">${fonts.map(f=>`<button type="button" class="g-font ${fid===f.id?'on':''}" data-act="gDz" data-p="font" data-v="${f.id}" ${ed?'':'disabled'}><b style="font-family:'${f.fam}'">가나다 Aa</b><span>${esc(f.name)}</span></button>`).join('')}</div><span class="hint">PPT를 받는 PC에 같은 폰트가 없으면 비슷한 폰트로 보입니다. PDF는 고른 폰트 그대로 나옵니다.</span></div></section>
+   <section class="panel g-dz"><div class="panel-h"><div><h2>표지</h2><div class="sub">배경과 오른쪽에 올릴 이미지를 고릅니다.</div></div></div>
+    <div class="f wide"><b class="small">표지 배경</b>${pick('cover','cover',G_BG)}</div>
+    <div class="f wide" style="margin-top:12px"><b class="small">표지 이미지</b><div class="pp-thumbs">${[['none','없음',null],['scene','첫 장면 이미지',sceneImg],['up','내 이미지',im.design_coverimg]].map(([k,l,src])=>`<button type="button" class="g-th ${ci===k?'on':''}" data-act="gDz" data-p="coverImg" data-v="${k}" ${ed&&(k==='none'||src)?'':'disabled'}>${src?`<img src="${src}" alt="">`:`<span class="sw" style="display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted)">${k==='none'?'이미지 없이':'없음'}</span>`}<i>${l}</i></button>`).join('')}</div>
+     ${ed?`<div class="row" style="gap:6px;margin-top:6px"><label class="btn sm" style="cursor:pointer">제품 이미지 넣기<input type="file" accept="image/*" data-gimg="design_coverimg" data-gdz="coverImg" hidden></label>${im.design_coverimg?'<button class="btn sm ghost" data-act="gimgDel" data-k="design_coverimg">넣은 이미지 지우기</button>':''}<span class="small muted">배경 없는 PNG 제품 사진이 가장 잘 어울립니다.</span></div>`:''}</div></section>
+   <section class="panel g-dz"><div class="panel-h"><div><h2>본문 장</h2><div class="sub">③~⑩ 장의 배경입니다. 글자가 잘 읽히도록 연하게 깔립니다.</div></div></div><div class="f wide">${pick('body','body',G_BG_BODY)}</div></section>
+   <section class="panel g-dz"><div class="panel-h"><div><h2>마지막 장</h2><div class="sub">${gLevel(g)==='light'?'Light 가이드는 5장 이내라 마지막 장이 없습니다. Detail로 바꾸면 적용됩니다.':'가이드를 마무리하는 장입니다.'}</div></div></div>
+    <div class="f wide"><b class="small">배경</b>${pick('closing','closing',G_BG)}</div>
+    <div class="fgrid" style="margin-top:10px"><label class="f">큰 글자<input type="text" id="gd_dz_ct" data-gv="design.closeTitle" value="${esc(d.closeTitle||'')}" placeholder="E.O.D" ${ed?'':'disabled'}></label><label class="f wide">안내 문구<input type="text" id="gd_dz_cs" data-gv="design.closeSub" value="${esc(d.closeSub||'')}" placeholder="궁금한 점은 담당자에게 편하게 물어봐 주세요." ${ed?'':'disabled'}></label></div></section>`}
+Object.assign(ACT,{
+  gSub(a){A.gsub=a.dataset.k;render();const el=document.querySelector('.g-subtabs');if(el&&el.getBoundingClientRect().top<0)el.scrollIntoView({block:'start'})},
+  async gDz(a){const g=curG();if(!g||!canEdit())return;const p=a.dataset.p,v=a.dataset.v;g.design=g.design||{};if(v==='')delete g.design[p];else g.design[p]=v;
+    if(p==='font'&&gPD())gPD().loadFontCss(v);await gSave('design',g);render()}
+});
+/* 입력하는 동안 미리보기 갱신 (저장은 칸을 벗어날 때) */
+document.addEventListener('input',e=>{const t=e.target;if(!t.dataset||(!t.dataset.gv&&!t.dataset.gl)||A.view!=='guides'||!A.gid)return;const g=curG();if(!g||!canEdit())return;const p=t.dataset.gv||t.dataset.gl;setIn(g,p,t.dataset.gl?lines(t.value):t.value);schedGPv()});
 
 /* ---- 가이드 입력 저장 ---- */
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||(!t.dataset.gv&&!t.dataset.gl))return;const g=curG();if(!g)return;if(!canEdit())return toast('보기 전용 권한이라 수정할 수 없습니다.','crit');
-  const p=t.dataset.gv||t.dataset.gl;const v=t.dataset.gl?lines(t.value):t.value;setIn(g,p,v);gSave(p.split('.')[0],g);if(['color','title','status','level'].includes(p))render()});
+  const p=t.dataset.gv||t.dataset.gl;const v=t.dataset.gl?lines(t.value):t.value;setIn(g,p,v);gSave(p.split('.')[0],g);if(['color','title','status','level','design.point'].includes(p))render();else schedGPv(true)});
 async function gimgPut(sid,f){if(!canEdit())return toast('보기 전용 권한이라 수정할 수 없습니다.','crit');if(!sid)return toast('먼저 이미지를 넣을 장면 칸을 클릭하세요.','crit');
   try{const data=await fileToDataUrl(f,960,960,'image/jpeg',0.72);const imgs={...(A.gimgs||{}),[sid]:data};const size=Object.values(imgs).reduce((a,b)=>a+String(b).length,0);
     if(size>950000)return toast('이 가이드의 이미지가 너무 많습니다. 다른 장면 이미지를 지우거나 더 작은 이미지를 넣어 주세요.','crit');
-    await DB.set('guideimg/'+A.gid,{imgs,updatedAt:T_NOW()});A.gimgs=imgs;A.gpaste='';render();toast('장면 이미지를 넣었습니다.')}catch(err){console.error(err);toast('이미지를 넣지 못했습니다.','crit')}}
+    await DB.set('guideimg/'+A.gid,{imgs,updatedAt:T_NOW()});A.gimgs=imgs;A.gpaste='';render();toast(/^design_/.test(sid)?'디자인 이미지를 넣었습니다.':'장면 이미지를 넣었습니다.')}catch(err){console.error(err);toast('이미지를 넣지 못했습니다.','crit')}}
 /* 장면 칸 클릭 → 선택, Ctrl+V → 클립보드 이미지 넣기 */
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-gpaste]');if(!b||e.target.closest('button,label,input'))return;A.gpaste=b.dataset.gpaste;render();setTimeout(()=>{const el=document.querySelector(`[data-gpaste="${A.gpaste}"]`);if(el)el.focus({preventScroll:true})},0)});
 document.addEventListener('paste',e=>{if(A.view!=='guides'||!A.gid)return;const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'))return;
@@ -237,7 +319,7 @@ document.addEventListener('paste',e=>{if(A.view!=='guides'||!A.gid)return;const 
   if(!it){if(A.gpaste)toast('복사한 이미지가 없습니다. 이미지에서 마우스 오른쪽 클릭 → 「이미지 복사」를 한 뒤 다시 붙여넣어 주세요.','crit');return}
   e.preventDefault();gimgPut(A.gpaste||'',it.getAsFile())});
 ACT.gimgClip=async a=>{try{const its=await navigator.clipboard.read();for(const it of its){const ty=it.types.find(x=>/^image\//.test(x));if(ty){const bl=await it.getType(ty);return gimgPut(a.dataset.k,new File([bl],'paste.'+ty.split('/')[1],{type:ty}))}}toast('복사한 이미지가 없습니다. 이미지를 먼저 복사해 주세요.','crit')}catch(err){A.gpaste=a.dataset.k;render();toast('브라우저가 바로 붙여넣기를 막았어요. 장면 칸을 클릭한 뒤 Ctrl+V를 눌러 주세요.')}};
-document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.gimg||!t.files||!t.files[0])return;const f=t.files[0];t.value='';if(!canEdit())return;gimgPut(t.dataset.gimg,f)});
+document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.gimg||!t.files||!t.files[0])return;const f=t.files[0];t.value='';if(!canEdit())return;const dz=t.dataset.gdz;await gimgPut(t.dataset.gimg,f);if(dz){const g=curG();if(g){g.design=g.design||{};g.design[dz]='up';await gSave('design',g);render()}}});
 Object.assign(ACT,{
   async guideNew(){const cid=($('#g-newc')||{}).value||'';const c=cid?A.campaigns[cid]:null;const g=newGuide(c);if(c)g.cid=cid;const id=uid();try{await DB.set('guides/'+id,g);A.guides=A.guides||{};A.guides[id]=g;A.gid=id;render();window.scrollTo(0,0)}catch(e){saveErr(e)}},
   guideOpen(a){A.gid=a.dataset.g;A.confirm=null;render();window.scrollTo(0,0)},
@@ -316,16 +398,16 @@ function mockGuide(b){const nm=b.productName||'예시 제품';return {advertiser
 function ringImg(color){const cv=document.createElement('canvas');cv.width=cv.height=600;const x=cv.getContext('2d');x.strokeStyle=color;x.globalAlpha=.18;x.lineWidth=46;x.beginPath();x.arc(230,300,190,0,7);x.stroke();x.globalAlpha=.12;x.beginPath();x.arc(390,300,190,0,7);x.stroke();return cv.toDataURL('image/png')}
 const brk=s=>String(s||'').replace(/([.!?…])\s+(?=\S)/g,'$1\n').replace(/,\s+(?=[^,]{14,})/g,',\n').trim();
 async function guideDeck(pptx,g,imgs,PDF){
-  const W=13.333,H=7.5,X0=0.6,CW=W-1.2;const hx=v=>String(v||'#7A1E2C').replace('#','').toUpperCase();const TH=hx(g.color);
+  const W=13.333,H=7.5,X0=0.6,CW=W-1.2;const D=await gDesignOf(g,imgs,PDF);const hx=v=>String(v||'#7A1E2C').replace('#','').toUpperCase();const TH=D.TH,AC=D.AC;
   const mix=(h,t)=>{const c=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16));return c.map(v=>Math.round(v+(255-v)*t).toString(16).padStart(2,'0')).join('').toUpperCase()};
   const SOFT=mix(TH,.9),DARK='1B1E27',MUT='6B7280',LINE='E3E5EA',GREEN='157A3C',RED='C22727';
-  const FT='Pretendard ExtraBold',FL='Pretendard Light',FB='Pretendard';const B=PDF;// PDF는 굵기를 bold로 표시
+  const {FT,FL,FB,B}=D;// PDF는 굵기를 bold로 표시
   const P=g.product||{};const ym=new Date();const cr=`COPYRIGHT ⓒ RINGCOMS  |  ${ym.getFullYear()}.${String(ym.getMonth()+1).padStart(2,'0')}`;let pg=0;
   const ring=ringImg('#FFFFFF');const LG=await ringLogo('#'+TH);const LW_=1.75,LH_=LW_*182/900;
   const logo=(s,white)=>{const d=white?LG.white:LG.tint;if(d)s.addImage({data:d,x:W-0.6-LW_,y:0.42,w:LW_,h:LH_});else T(s,'RINGCOMS',{x:W-2.9,y:0.42,w:2.3,h:0.36,fontFace:FT,bold:B,fontSize:15,color:white?'FFFFFF':TH,align:'right',charSpacing:2})};
   const T=(s,text,o)=>s.addText(text,{fontFace:FB,valign:'middle',margin:0,charSpacing:0,...o});
-  const head=(s,label,title,sub)=>{pg++;s.background={color:'FFFFFF'};
-    T(s,label,{x:X0,y:0.38,w:7,h:0.3,fontFace:FL,fontSize:12,color:TH});
+  const head=(s,label,title,sub)=>{pg++;s.background={color:'FFFFFF'};s.k=label;if(D.bodyBg)s.addImage({data:D.bodyBg,x:0,y:0,w:W,h:H});
+    T(s,label,{x:X0,y:0.38,w:7,h:0.3,fontFace:FL,fontSize:12,color:AC});
     T(s,title,{x:X0,y:0.66,w:9.6,h:0.62,fontFace:FT,bold:B,fontSize:26,color:DARK,fit:'shrink'});
     if(sub)T(s,sub,{x:X0,y:1.28,w:11.6,h:0.36,fontFace:FL,fontSize:13,color:MUT,fit:'shrink'});
     logo(s,false);
@@ -336,10 +418,10 @@ async function guideDeck(pptx,g,imgs,PDF){
   const listRuns=(arr,mark,color)=>(arr||[]).flatMap((t,i)=>[{text:mark+' ',options:{bold:true,color}},{text:String(t),options:{breakLine:i<arr.length-1}}]);
 
   // 1 표지
-  {const s=pptx.addSlide();pg++;s.background={color:TH};s.addImage({data:ring,x:W-6.4,y:0.6,w:6.3,h:6.3});
+  {const s=pptx.addSlide();pg++;s.k='COVER';await gCoverBg(s,D,ring,W,H,false);
     logo(s,true);
     T(s,'CONTENT GUIDE',{x:X0+0.1,y:2.0,w:8,h:0.4,fontFace:FL,fontSize:15,color:'FFFFFF'});
-    T(s,[g.brand,P.name].filter(Boolean).join(' ')||g.title||'콘텐츠 가이드',{x:X0+0.1,y:2.45,w:9.2,h:1.3,fontFace:FT,bold:B,fontSize:40,color:'FFFFFF',fit:'shrink'});
+    T(s,[g.brand,P.name].filter(Boolean).join(' ')||g.title||'콘텐츠 가이드',{x:X0+0.1,y:2.45,w:D.coverImg?6.6:9.2,h:1.3,fontFace:FT,bold:B,fontSize:40,color:'FFFFFF',fit:'shrink'});
     T(s,`${g.platform||''} 콘텐츠 가이드`,{x:X0+0.1,y:3.8,w:9,h:0.55,fontFace:FL,fontSize:22,color:'FFFFFF'});
     T(s,[`영상 길이 ${g.length||'-'}`,`화면 ${g.ratio||'9:16 세로'}`,g.submit&&g.submit.uploadDue?`업로드 ${g.submit.uploadDue}`:''].filter(Boolean).join('   ·   '),{x:X0+0.1,y:4.6,w:10,h:0.4,fontSize:13,color:'FFFFFF',transparency:15});
     T(s,`${today().replace(/-/g,'.')}  ·  링컴즈 MCN 사업부 광고콘텐츠팀`,{x:X0+0.1,y:H-1.0,w:9,h:0.35,fontFace:FL,fontSize:12,color:'FFFFFF'})}
@@ -358,17 +440,17 @@ async function guideDeck(pptx,g,imgs,PDF){
     T(s,P.name||'-',{x:X0,y:1.85,w:4.6,h:0.6,fontFace:FT,bold:B,fontSize:22,color:DARK,fit:'shrink'});
     const pr=[P.price?{text:`정가 ${P.price}`,options:{color:MUT,fontSize:12,breakLine:!!P.sale}}:null,P.sale?{text:`판매가 ${P.sale}`,options:{bold:true,color:TH,fontSize:16}}:null].filter(Boolean);
     if(pr.length)T(s,pr,{x:X0,y:2.45,w:4.6,h:0.75});if(P.option)T(s,`옵션 · ${P.option}`,{x:X0,y:3.2,w:4.6,h:0.35,fontSize:12,color:MUT});
-    if((P.howto||[]).length){T(s,'사용 방법',{x:X0,y:3.7,w:4.6,h:0.35,fontFace:FT,bold:B,fontSize:14,color:TH});T(s,P.howto.flatMap((t,i)=>[{text:`STEP ${i+1}  `,options:{bold:true,color:TH}},{text:t,options:{breakLine:i<P.howto.length-1}}]),{x:X0,y:4.05,w:4.6,h:1.9,fontSize:12.5,color:DARK,paraSpaceAfter:5,fit:'shrink'})}
+    if((P.howto||[]).length){T(s,'사용 방법',{x:X0,y:3.7,w:4.6,h:0.35,fontFace:FT,bold:B,fontSize:14,color:AC});T(s,P.howto.flatMap((t,i)=>[{text:`STEP ${i+1}  `,options:{bold:true,color:TH}},{text:t,options:{breakLine:i<P.howto.length-1}}]),{x:X0,y:4.05,w:4.6,h:1.9,fontSize:12.5,color:DARK,paraSpaceAfter:5,fit:'shrink'})}
     if(P.caution)T(s,'⚠ '+P.caution,{x:X0,y:6.0,w:4.6,h:0.75,fontSize:11,color:RED,fit:'shrink'});
     const pts=(P.points||[]).filter(x=>x.t||x.d).slice(0,5);const px=X0+4.9,pw=CW-4.9;const ph=Math.min(1.45,(4.85-(pts.length-1)*0.15)/Math.max(1,pts.length));
-    pts.forEach((pt,i)=>{const y=1.9+i*(ph+0.15);card(s,px,y,pw,ph,SOFT,null);T(s,String(i+1).padStart(2,'0'),{x:px+0.25,y,w:0.7,h:ph,fontFace:FT,bold:B,fontSize:22,color:TH});
+    pts.forEach((pt,i)=>{const y=1.9+i*(ph+0.15);card(s,px,y,pw,ph,SOFT,null);T(s,String(i+1).padStart(2,'0'),{x:px+0.25,y,w:0.7,h:ph,fontFace:FT,bold:B,fontSize:22,color:AC});
       T(s,[{text:pt.t||'',options:{bold:true,fontSize:16,color:DARK,breakLine:true}},{text:brk(pt.d||''),options:{fontSize:12.5,color:'394253'}}],{x:px+1.0,y:y+0.05,w:pw-1.25,h:ph-0.1,fit:'shrink'})})}
 
   // 4 컨셉 고르기
   const CS=(g.concepts||[]).filter(c=>c.name||(c.scenes||[]).length);
   if(CS.length>1){const s=pptx.addSlide();head(s,'CONCEPT','컨셉을 1개 골라 주세요','아래 컨셉 중 본인 채널과 잘 맞는 것을 골라 촬영해 주세요. 다음 장부터 장면별 가이드가 있어요.');
     const cw=(CW-(CS.length-1)*0.25)/CS.length;CS.forEach((c,i)=>{const x=X0+i*(cw+0.25);card(s,x,1.95,cw,4.6,SOFT,null);
-      T(s,String(i+1),{x:x+0.3,y:2.15,w:0.8,h:0.8,fontFace:FT,bold:B,fontSize:34,color:TH});T(s,c.name||'',{x:x+0.3,y:3.05,w:cw-0.6,h:0.9,fontFace:FT,bold:B,fontSize:19,color:DARK,fit:'shrink'});
+      T(s,String(i+1),{x:x+0.3,y:2.15,w:0.8,h:0.8,fontFace:FT,bold:B,fontSize:34,color:AC});T(s,c.name||'',{x:x+0.3,y:3.05,w:cw-0.6,h:0.9,fontFace:FT,bold:B,fontSize:19,color:DARK,fit:'shrink'});
       T(s,[{text:'이렇게 시작해요',options:{fontSize:11,color:MUT,breakLine:true}},{text:'“'+(c.hook||'-')+'”',options:{fontSize:15,bold:true,color:TH}}],{x:x+0.3,y:4.05,w:cw-0.6,h:1.3,fit:'shrink'});
       T(s,`장면 ${(c.scenes||[]).length}개`,{x:x+0.3,y:5.75,w:cw-0.6,h:0.4,fontSize:11,color:MUT})})}
 
@@ -391,7 +473,7 @@ async function guideDeck(pptx,g,imgs,PDF){
   if(KS.length||CL){const s=pptx.addSlide();head(s,'MUST-HAVE CUTS','꼭 찍어야 할 컷','컨셉과 상관없이 영상 안에 아래 컷이 들어가야 해요. 「필수」는 꼭 넣어 주세요!');
     const n_=Math.max(1,KS.length),gap=0.2,cw=(CW-(n_-1)*gap)/n_,ch=CL?3.55:4.6;
     KS.forEach((k,i)=>{const x=X0+i*(cw+gap),y=1.9;const M=k.need==='필수';card(s,x,y,cw,ch,M?SOFT:'FFFFFF',M?null:undefined);
-      T(s,String(i+1).padStart(2,'0'),{x:x+0.2,y:y+0.18,w:0.8,h:0.5,fontFace:FT,bold:B,fontSize:20,color:TH});
+      T(s,String(i+1).padStart(2,'0'),{x:x+0.2,y:y+0.18,w:0.8,h:0.5,fontFace:FT,bold:B,fontSize:20,color:AC});
       card(s,x+cw-1.0,y+0.24,0.8,0.36,M?TH:'FFFFFF',M?null:TH);T(s,k.need||'권장',{x:x+cw-1.0,y:y+0.24,w:0.8,h:0.36,fontSize:11,bold:true,color:M?'FFFFFF':TH,align:'center'});
       T(s,k.name||'',{x:x+0.2,y:y+0.85,w:cw-0.4,h:0.6,fontFace:FT,bold:B,fontSize:16,color:DARK,fit:'shrink'});
       T(s,brk(k.desc||''),{x:x+0.2,y:y+1.5,w:cw-0.4,h:ch-1.7,fontSize:12.5,color:'394253',valign:'top',fit:'shrink'})});
@@ -401,7 +483,7 @@ async function guideDeck(pptx,g,imgs,PDF){
   {const s=pptx.addSlide();const Tx=g.text||{};head(s,'CAPTION · HASHTAG','꼭 넣을 문구와 해시태그','본문(캡션)·자막·멘트에 아래 내용을 넣어 주세요. 오타가 없는지 한 번 더 확인해 주세요!');
     const cw=(CW-0.3)/2,ch=2.3;const boxes=[['필수 키워드',(Tx.keywords||[]).join('   ·   ')||'-','본문·자막·멘트 중 한 곳 이상에 넣어 주세요.'],['필수 해시태그',(Tx.tagsMust||[]).join('  ')||'#협찬','#협찬은 본문 맨 앞에 넣어 주세요. (공정위 지침)'],['권장 해시태그',(Tx.tagsRec||[]).join('  ')||'-','본문 또는 댓글에 넣어 주세요.'],['계정 태그 · 바른 표기',[Tx.account?`공식 계정  ${Tx.account}`:'',Tx.brandName?`브랜드  ${Tx.brandName}`:'',Tx.productName?`제품  ${Tx.productName}`:''].filter(Boolean).join('\n')||'-',(Tx.ngNames||[]).length?`이렇게 쓰면 안 돼요 ✕  ${Tx.ngNames.join(' / ')}`:'오타·임의 줄임말 없이 정확히 써 주세요.']];
     boxes.forEach(([t,v,note],i)=>{const x=X0+(i%2)*(cw+0.3),y=1.85+Math.floor(i/2)*(ch+0.2);card(s,x,y,cw,ch,i===1?SOFT:'FFFFFF');
-      T(s,t,{x:x+0.3,y:y+0.12,w:cw-0.6,h:0.42,fontFace:FT,bold:B,fontSize:15,color:TH});T(s,v,{x:x+0.3,y:y+0.58,w:cw-0.6,h:1.15,fontSize:15,bold:true,color:DARK,fit:'shrink'});T(s,note,{x:x+0.3,y:y+1.75,w:cw-0.6,h:0.42,fontSize:11,color:i===3&&(Tx.ngNames||[]).length?RED:MUT,fit:'shrink'})})}
+      T(s,t,{x:x+0.3,y:y+0.12,w:cw-0.6,h:0.42,fontFace:FT,bold:B,fontSize:15,color:AC});T(s,v,{x:x+0.3,y:y+0.58,w:cw-0.6,h:1.15,fontSize:15,bold:true,color:DARK,fit:'shrink'});T(s,note,{x:x+0.3,y:y+1.75,w:cw-0.6,h:0.42,fontSize:11,color:i===3&&(Tx.ngNames||[]).length?RED:MUT,fit:'shrink'})})}
 
   // 7 이렇게 말하면 안 돼요
   if((g.words||[]).length){const s=pptx.addSlide();head(s,'DO NOT SAY','이렇게 말하면 안 돼요','광고 심의·공정위 기준이에요. 왼쪽 표현은 쓰지 말고, 오른쪽처럼 바꿔 말해 주세요.');
@@ -412,8 +494,8 @@ async function guideDeck(pptx,g,imgs,PDF){
   // 8 촬영 · 업로드 주의사항
   {const SH=(g.shoot||[]).slice(0,8),UP=(g.upload||[]).slice(0,8);if(SH.length||UP.length){const s=pptx.addSlide();head(s,'CHECK LIST','촬영 · 업로드 주의사항','지키지 않으면 수정을 요청드릴 수 있어요. 촬영 전·업로드 전에 한 번씩 확인해 주세요.');
     const cols=[['📷  촬영할 때',SH],['📤  업로드할 때',UP]].filter(x=>x[1].length);const cw=(CW-(cols.length-1)*0.3)/cols.length;
-    cols.forEach(([t,L],j)=>{const x=X0+j*(cw+0.3);T(s,t,{x,y:1.85,w:cw,h:0.45,fontFace:FT,bold:B,fontSize:16,color:TH});const hh=Math.min(0.6,4.35/L.length-0.08);
-      L.forEach((t2,i)=>{const y=2.4+i*(hh+0.08);card(s,x,y,cw,hh,SOFT,null);T(s,String(i+1),{x:x+0.1,y,w:0.45,h:hh,fontFace:FT,bold:B,fontSize:14,color:TH,align:'center'});T(s,t2,{x:x+0.6,y,w:cw-0.8,h:hh,fontSize:12.5,color:DARK,fit:'shrink'})})})}}
+    cols.forEach(([t,L],j)=>{const x=X0+j*(cw+0.3);T(s,t,{x,y:1.85,w:cw,h:0.45,fontFace:FT,bold:B,fontSize:16,color:AC});const hh=Math.min(0.6,4.35/L.length-0.08);
+      L.forEach((t2,i)=>{const y=2.4+i*(hh+0.08);card(s,x,y,cw,hh,SOFT,null);T(s,String(i+1),{x:x+0.1,y,w:0.45,h:hh,fontFace:FT,bold:B,fontSize:14,color:AC,align:'center'});T(s,t2,{x:x+0.6,y,w:cw-0.8,h:hh,fontSize:12.5,color:DARK,fit:'shrink'})})})}}
 
   // 9 제출 방법
   {const s=pptx.addSlide();const Sb=g.submit||{};head(s,'HOW TO SUBMIT','제출 방법과 일정','순서대로 진행해 주세요. 업로드는 검수 승인 후에 해 주세요!');const st=(Sb.how||[]).slice(0,5);const n_=Math.max(1,st.length),gap=0.35,cw=(CW-(n_-1)*gap)/n_;
@@ -424,8 +506,8 @@ async function guideDeck(pptx,g,imgs,PDF){
     if(Sb.extra)T(s,'📌 '+Sb.extra,{x:X0,y:4.6+info.length*0.45+0.1,w:CW,h:Math.max(0.5,1.9-info.length*0.45),fontSize:12.5,color:'394253',fit:'shrink'})}
 
   // 10 E.O.D
-  {const s=pptx.addSlide();pg++;s.background={color:TH};s.addImage({data:ring,x:(W-5.2)/2,y:1.15,w:5.2,h:5.2});T(s,'E.O.D',{x:0,y:2.9,w:W,h:1.0,fontFace:FT,bold:B,fontSize:48,color:'FFFFFF',align:'center'});
-    T(s,'궁금한 점은 담당자에게 편하게 물어봐 주세요.',{x:0,y:3.9,w:W,h:0.45,fontFace:FL,fontSize:15,color:'FFFFFF',align:'center'});
+  {const s=pptx.addSlide();pg++;s.k='EOD';await gCoverBg(s,D,ring,W,H,true);T(s,D.closeTitle,{x:0,y:2.9,w:W,h:1.0,fontFace:FT,bold:B,fontSize:48,color:'FFFFFF',align:'center'});
+    T(s,D.closeSub,{x:0,y:3.9,w:W,h:0.45,fontFace:FL,fontSize:15,color:'FFFFFF',align:'center'});
     T(s,'링컴즈 MCN 사업부 광고콘텐츠팀  ·  ac@ringcoms.com',{x:0,y:H-1.1,w:W,h:0.4,fontSize:12,color:'FFFFFF',align:'center'});logo(s,true)}
 }
 async function ringLogo(color){if(!ringLogo.white){try{const b=await (await fetch('/img/ringcoms-wide.png')).blob();ringLogo.white=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r(null);fr.readAsDataURL(b)})}catch(e){ringLogo.white=null}}
@@ -434,33 +516,33 @@ async function ringLogo(color){if(!ringLogo.white){try{const b=await (await fetc
   return {white,tint}}
 /* Light 가이드: 5장 이내 (표지 · 꼭 지켜 주세요+제품 · 장면 · 꼭 넣을 것·금지·주의 · 제출 방법) */
 async function guideDeckLight(pptx,g,imgs,PDF){
-  const W=13.333,H=7.5,X0=0.6,CW=W-1.2;const hx=v=>String(v||'#7A1E2C').replace('#','').toUpperCase();const TH=hx(g.color);
+  const W=13.333,H=7.5,X0=0.6,CW=W-1.2;const D=await gDesignOf(g,imgs,PDF);const hx=v=>String(v||'#7A1E2C').replace('#','').toUpperCase();const TH=D.TH,AC=D.AC;
   const mix=(h,t)=>{const c=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16));return c.map(v=>Math.round(v+(255-v)*t).toString(16).padStart(2,'0')).join('').toUpperCase()};
   const SOFT=mix(TH,.9),DARK='1B1E27',MUT='6B7280',LINE='E3E5EA',GREEN='157A3C',RED='C22727';
-  const FT='Pretendard ExtraBold',FL='Pretendard Light',FB='Pretendard';const B=PDF;
+  const {FT,FL,FB,B}=D;
   const P=g.product||{},S=g.summary||{},Tx=g.text||{},Sb=g.submit||{};const ym=new Date();const cr=`COPYRIGHT ⓒ RINGCOMS  |  ${ym.getFullYear()}.${String(ym.getMonth()+1).padStart(2,'0')}`;let pg=0;
   const ring=ringImg('#FFFFFF');const LG=await ringLogo('#'+TH);const LW_=1.75,LH_=LW_*182/900;
   const T=(s,text,o)=>s.addText(text,{fontFace:FB,valign:'middle',margin:0,charSpacing:0,...o});
   const logo=(s,white)=>{const d=white?LG.white:LG.tint;if(d)s.addImage({data:d,x:W-0.6-LW_,y:0.42,w:LW_,h:LH_});else T(s,'RINGCOMS',{x:W-2.9,y:0.42,w:2.3,h:0.36,fontFace:FT,bold:B,fontSize:15,color:white?'FFFFFF':TH,align:'right'})};
-  const head=(s,label,title,sub)=>{pg++;s.background={color:'FFFFFF'};T(s,label,{x:X0,y:0.38,w:7,h:0.3,fontFace:FL,fontSize:12,color:TH});T(s,title,{x:X0,y:0.66,w:9.6,h:0.62,fontFace:FT,bold:B,fontSize:26,color:DARK,fit:'shrink'});
+  const head=(s,label,title,sub)=>{pg++;s.background={color:'FFFFFF'};s.k=label;if(D.bodyBg)s.addImage({data:D.bodyBg,x:0,y:0,w:W,h:H});T(s,label,{x:X0,y:0.38,w:7,h:0.3,fontFace:FL,fontSize:12,color:AC});T(s,title,{x:X0,y:0.66,w:9.6,h:0.62,fontFace:FT,bold:B,fontSize:26,color:DARK,fit:'shrink'});
     if(sub)T(s,sub,{x:X0,y:1.28,w:11.6,h:0.36,fontFace:FL,fontSize:13,color:MUT,fit:'shrink'});logo(s,false);s.addShape(pptx.ShapeType.rect,{x:0,y:H-0.06,w:W,h:0.06,fill:{color:TH},line:{color:TH,width:0}});
     T(s,cr,{x:X0,y:H-0.42,w:5,h:0.26,fontSize:8.5,color:'9AA0AA'});T(s,String(pg),{x:W-1.2,y:H-0.42,w:0.6,h:0.26,fontSize:9,color:'9AA0AA',align:'right'})};
   const card=(s,x,y,w,h,fill,line)=>s.addShape(pptx.ShapeType.roundRect,{x,y,w,h,fill:{color:fill||'FFFFFF'},line:{color:line||LINE,width:line===null?0:0.75},rectRadius:PDF?0.12:0.06});
   const put=async(s,data,x,y,w,h)=>{if(!data)return false;const d=await new Promise(r=>{const im=new Image();im.onload=()=>r([im.naturalWidth,im.naturalHeight]);im.onerror=()=>r(null);im.src=data});if(!d)return false;const k=Math.min(w/d[0],h/d[1]);s.addImage({data,x:x+(w-d[0]*k)/2,y:y+(h-d[1]*k)/2,w:d[0]*k,h:d[1]*k});return true};
   const runs=(arr,mark,color)=>(arr||[]).flatMap((t,i)=>[{text:mark+' ',options:{bold:true,color}},{text:String(t),options:{breakLine:i<arr.length-1}}]);
   // 1 표지
-  {const s=pptx.addSlide();pg++;s.background={color:TH};s.addImage({data:ring,x:W-6.4,y:0.6,w:6.3,h:6.3});logo(s,true);
+  {const s=pptx.addSlide();pg++;s.k='COVER';await gCoverBg(s,D,ring,W,H,false);logo(s,true);
     T(s,'CONTENT GUIDE · LIGHT',{x:X0+0.1,y:1.9,w:8,h:0.4,fontFace:FL,fontSize:15,color:'FFFFFF'});
-    T(s,[g.brand&&P.name&&P.name.replace(/\s/g,'').startsWith(g.brand.replace(/\s/g,''))?'':g.brand,P.name].filter(Boolean).join(' ')||g.title||'콘텐츠 가이드',{x:X0+0.1,y:2.35,w:9.2,h:1.3,fontFace:FT,bold:B,fontSize:40,color:'FFFFFF',fit:'shrink'});
+    T(s,[g.brand&&P.name&&P.name.replace(/\s/g,'').startsWith(g.brand.replace(/\s/g,''))?'':g.brand,P.name].filter(Boolean).join(' ')||g.title||'콘텐츠 가이드',{x:X0+0.1,y:2.35,w:D.coverImg?6.6:9.2,h:1.3,fontFace:FT,bold:B,fontSize:40,color:'FFFFFF',fit:'shrink'});
     T(s,`${g.platform||''} 콘텐츠 가이드`,{x:X0+0.1,y:3.7,w:9,h:0.55,fontFace:FL,fontSize:22,color:'FFFFFF'});
-    if(S.one){card(s,X0+0.1,4.5,8.6,0.8,'FFFFFF',null);T(s,[{text:'핵심 메시지   ',options:{fontSize:12,bold:true,color:TH}},{text:S.one,options:{fontSize:18,bold:true,color:DARK}}],{x:X0+0.4,y:4.5,w:8.1,h:0.8,fontFace:FT,fit:'shrink'})}
+    if(S.one){card(s,X0+0.1,4.5,D.coverImg?6.6:8.6,0.8,'FFFFFF',null);T(s,[{text:'핵심 메시지   ',options:{fontSize:12,bold:true,color:TH}},{text:S.one,options:{fontSize:18,bold:true,color:DARK}}],{x:X0+0.4,y:4.5,w:D.coverImg?6.1:8.1,h:0.8,fontFace:FT,fit:'shrink'})}
     T(s,[`영상 길이 ${g.length||'-'}`,`화면 ${g.ratio||'9:16 세로'}`,Sb.uploadDue?`업로드 ${Sb.uploadDue}`:''].filter(Boolean).join('   ·   '),{x:X0+0.1,y:5.55,w:10,h:0.4,fontSize:13,color:'FFFFFF'});
     T(s,`${today().replace(/-/g,'.')}  ·  링컴즈 MCN 사업부 광고콘텐츠팀`,{x:X0+0.1,y:H-1.0,w:9,h:0.35,fontFace:FL,fontSize:12,color:'FFFFFF'})}
   // 2 꼭 지켜 주세요 + 제품 핵심
   {const s=pptx.addSlide();head(s,'CHECK FIRST',`이것만 꼭 지켜 주세요!`,`${P.name||'제품'} · ${brk(P.intro||'').replace(/\n/g,' ')}`);
     const lw=6.9;[[S.must,'✅  꼭 해 주세요',GREEN,'✔','F3FAF5'],[S.dont,'❌  하지 말아 주세요',RED,'✕','FFF6F6']].forEach(([arr,t,col,mk,bg],i)=>{const y=1.85+i*2.45;card(s,X0,y,lw,2.3,bg,null);
       T(s,t,{x:X0+0.3,y:y+0.08,w:lw-0.6,h:0.45,fontFace:FT,bold:B,fontSize:15,color:col});T(s,(arr||[]).length?runs(arr.slice(0,i?4:5),mk,col):'-',{x:X0+0.3,y:y+0.55,w:lw-0.6,h:1.65,fontSize:12.5,color:DARK,paraSpaceAfter:4,fit:'shrink'})});
-    const px=X0+lw+0.3,pw=CW-lw-0.3;const pts=(P.points||[]).filter(x=>x.t||x.d).slice(0,3);T(s,'제품 핵심 특징',{x:px,y:1.85,w:pw,h:0.4,fontFace:FT,bold:B,fontSize:15,color:TH});
+    const px=X0+lw+0.3,pw=CW-lw-0.3;const pts=(P.points||[]).filter(x=>x.t||x.d).slice(0,3);T(s,'제품 핵심 특징',{x:px,y:1.85,w:pw,h:0.4,fontFace:FT,bold:B,fontSize:15,color:AC});
     const ph=pts.length?Math.min(1.35,(4.25-(pts.length-1)*0.12)/pts.length):1;pts.forEach((pt,i)=>{const y=2.35+i*(ph+0.12);card(s,px,y,pw,ph,SOFT,null);
       T(s,[{text:`${i+1}. ${pt.t||''}`,options:{bold:true,fontSize:14,color:DARK,breakLine:true}},{text:brk(pt.d||''),options:{fontSize:11.5,color:'394253'}}],{x:px+0.2,y,w:pw-0.4,h:ph,fit:'shrink'})});
     const pr=[P.sale?`판매가 ${P.sale}`:'',P.option?`옵션 ${P.option}`:''].filter(Boolean).join('  ·  ');if(pr)T(s,pr,{x:px,y:6.65,w:pw,h:0.35,fontSize:11,color:MUT})}
@@ -476,11 +558,11 @@ async function guideDeckLight(pptx,g,imgs,PDF){
     if(Tx.closing)T(s,`마무리 멘트 · “${Tx.closing}”`,{x:X0,y:6.72,w:CW,h:0.3,fontSize:11,bold:true,color:TH})}
   // 4 꼭 넣을 것 · 금지 표현 · 촬영/업로드 주의
   {const s=pptx.addSlide();head(s,'MUST · DO NOT','꼭 넣을 것과 주의할 것','본문·자막·멘트에 아래를 지키고, 촬영·업로드 전에 한 번 더 확인해 주세요.');const cw=(CW-0.3)/2;
-    card(s,X0,1.85,cw,2.3,SOFT,null);T(s,'꼭 넣어 주세요',{x:X0+0.3,y:1.93,w:cw-0.6,h:0.4,fontFace:FT,bold:B,fontSize:15,color:TH});
+    card(s,X0,1.85,cw,2.3,SOFT,null);T(s,'꼭 넣어 주세요',{x:X0+0.3,y:1.93,w:cw-0.6,h:0.4,fontFace:FT,bold:B,fontSize:15,color:AC});
     T(s,[{text:'키워드  ',options:{bold:true,color:TH}},{text:(Tx.keywords||[]).join(' · ')||'-',options:{breakLine:true}},{text:'해시태그  ',options:{bold:true,color:TH}},{text:(Tx.tagsMust||['#협찬']).join(' ')+'  (#협찬은 맨 앞)',options:{breakLine:true}},{text:'계정 태그  ',options:{bold:true,color:TH}},{text:Tx.account||'-',options:{breakLine:true}},{text:'바른 표기  ',options:{bold:true,color:TH}},{text:[Tx.brandName,Tx.productName].filter(Boolean).join(' / ')||'-'}],{x:X0+0.3,y:2.38,w:cw-0.6,h:1.7,fontSize:12,color:DARK,paraSpaceAfter:3,fit:'shrink'});
     const ws=(g.words||[]).slice(0,4);card(s,X0+cw+0.3,1.85,cw,2.3,'FFF6F6',null);T(s,'이렇게 말하면 안 돼요',{x:X0+cw+0.6,y:1.93,w:cw-0.6,h:0.4,fontFace:FT,bold:B,fontSize:15,color:RED});
     T(s,ws.length?ws.flatMap((w,i)=>[{text:'✕ '+(w.no||''),options:{color:RED,bold:true}},{text:'  →  ⭕ '+(w.yes||''),options:{color:GREEN,breakLine:i<ws.length-1}}]):'-',{x:X0+cw+0.6,y:2.38,w:cw-0.6,h:1.7,fontSize:12,paraSpaceAfter:4,fit:'shrink'});
-    [['📷  촬영할 때',(g.shoot||[]).slice(0,5)],['📤  업로드할 때',(g.upload||[]).slice(0,5)]].forEach(([t,L],j)=>{const x=X0+j*(cw+0.3);card(s,x,4.35,cw,2.3,'FFFFFF');T(s,t,{x:x+0.3,y:4.43,w:cw-0.6,h:0.4,fontFace:FT,bold:B,fontSize:15,color:TH});
+    [['📷  촬영할 때',(g.shoot||[]).slice(0,5)],['📤  업로드할 때',(g.upload||[]).slice(0,5)]].forEach(([t,L],j)=>{const x=X0+j*(cw+0.3);card(s,x,4.35,cw,2.3,'FFFFFF');T(s,t,{x:x+0.3,y:4.43,w:cw-0.6,h:0.4,fontFace:FT,bold:B,fontSize:15,color:AC});
       T(s,L.length?L.flatMap((x2,i)=>[{text:`${i+1}  `,options:{bold:true,color:TH}},{text:x2,options:{breakLine:i<L.length-1}}]):'-',{x:x+0.3,y:4.88,w:cw-0.6,h:1.7,fontSize:11.5,color:DARK,paraSpaceAfter:3,fit:'shrink'})})}
   // 5 제출 방법 · 마무리
   {const s=pptx.addSlide();head(s,'HOW TO SUBMIT','제출 방법과 일정','순서대로 진행해 주세요. 업로드는 검수 승인 후에 해 주세요!');const st=(Sb.how||[]).slice(0,5);const n_=Math.max(1,st.length),gap=0.35,cw=(CW-(n_-1)*gap)/n_;
@@ -496,6 +578,7 @@ async function guideExport(out){const g=curG();if(!g||guideExport.busy)return;gu
     if(!PDF&&!window.PptxGenJS)await loadScript('/vendor/pptxgen.bundle.js');
     if(PDF&&!document.getElementById('pretendard-css')){const l=document.createElement('link');l.id='pretendard-css';l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css';document.head.appendChild(l);
       const st=document.createElement('style');st.textContent="#deck-print .dk-page{font-family:'Pretendard','Malgun Gothic',sans-serif!important}";document.head.appendChild(st);await new Promise(r=>{l.onload=r;l.onerror=r;setTimeout(r,2500)})}
+    if(PDF&&gPD()&&gFontId(g)!=='pretendard'){const f=gPD().fontOf(gFontId(g));gPD().loadFontCss(f.id);let st=document.getElementById('gpdf-font');if(!st){st=document.createElement('style');st.id='gpdf-font';document.head.appendChild(st)}st.textContent=`#deck-print .dk-page{font-family:'${f.fam}','Pretendard','Malgun Gothic',sans-serif!important}`;await new Promise(r=>setTimeout(r,1200))}else{const st=document.getElementById('gpdf-font');if(st)st.remove()}
     const deck=PDF?new HtmlDeck():new PptxGenJS();deck.layout='LAYOUT_WIDE';deck.title=g.title||'Content Guide';if(!PDF)deck.author='RINGCOMS MCN';
     await (gLevel(g)==='light'?guideDeckLight:guideDeck)(deck,g,A.gimgs||{},PDF);if(PDF)await deck.print(name);else await deck.writeFile({fileName:name+'.pptx'})}
   catch(e){console.error(e);toast((PDF?'PDF':'PPT')+'를 만들지 못했습니다: '+(e.message||e),'crit')}finally{guideExport.busy=false}}

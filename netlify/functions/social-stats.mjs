@@ -8,7 +8,7 @@
 // 성과 결과에는 게시일(posted, ISO)도 들어감 → 사이트가 업로드일로 사용
 // 호출 권한: Firebase에 로그인한 링컴즈 팀원(마스터·매니저)과 광고주 계정 관리자만. Apify 토큰은 Netlify 환경변수 APIFY_TOKEN에만 보관.
 
-import { metaOn, metaStatus, metaProfile, metaPosts, handleOf } from '../lib/meta.mjs';
+import { metaOn, metaStatus, metaProfile, metaPosts, handleOf, useMetaCred } from '../lib/meta.mjs';
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'ringcoms-campaign';
 const APIFY = 'https://api.apify.com/v2';
@@ -43,7 +43,7 @@ async function checkMember(req) {
   const acct = (((d.fields || {}).acct || {}).stringValue) || 'ringcoms';
   const team = acct === 'ringcoms' && ['master', 'manager'].includes(role);
   if (!team && role !== 'clientAdmin') return { ok: false, status: 403, error: '보기 전용 권한으로는 성과를 불러올 수 없습니다.' };
-  return { ok: true, email, role, acct, team };
+  return { ok: true, email, role, acct, team, tok };
 }
 
 /* 2) 틱톡: 공개 페이지의 데이터를 바로 읽기 */
@@ -205,6 +205,7 @@ export default async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST만 지원합니다.' }, 405);
   const who = await checkMember(req);
   if (!who.ok) return json({ error: who.error }, who.status);
+  await useMetaCred(who.tok); // 연동 관리에 저장한 Meta 토큰 우선 (마스터·매니저만 읽힘, 없으면 환경변수)
   let body = {};
   try { body = await req.json(); } catch (e) { return json({ error: '요청 형식이 올바르지 않습니다.' }, 400); }
 
