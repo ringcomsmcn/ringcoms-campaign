@@ -474,6 +474,10 @@ body.pm .rp .tbl{font-size:calc(10px*var(--pk,1));width:100%} body.pm .rp .tbl t
 .layout.mini{grid-template-columns:64px minmax(0,1fr)}
 .lnb{position:sticky;top:59px;align-self:start;height:calc(100vh - 59px);overflow:auto;border-right:1px solid var(--line);background:var(--surface);padding:14px 10px 12px;display:flex;flex-direction:column;gap:16px;scrollbar-width:thin}
 .lnb .lg{display:flex;flex-direction:column;gap:2px}
+.lnb-mode{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:10px;background:var(--surface2);border:1px solid var(--line)}
+.lnb .lnb-mode button{justify-content:center;min-height:32px;padding:6px 4px;font-size:13px;border-radius:7px;color:var(--muted)}
+.lnb .lnb-mode button.on{background:var(--surface);color:var(--accent);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.lnb.mini .lnb-mode{grid-template-columns:1fr}.lnb.mini .lnb-mode span{font-size:11px}
 .lnb .lt{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--muted);padding:2px 10px 4px;white-space:nowrap}
 .lnb button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--ink2);font-weight:500;cursor:pointer;font-size:13.5px;white-space:nowrap;min-height:36px}
 .lnb button svg{width:18px;height:18px;flex:none;opacity:.8}
@@ -1147,7 +1151,7 @@ function buildReport(c,rows,admin,groupLabel,mode){
 }
 
 /* ============ 앱 상태 ============ */
-const A={lnbMini:(()=>{try{return localStorage.getItem('lnb_mini')==='1'}catch(e){return false}})(),lnbFold:(()=>{try{return new Set(JSON.parse(localStorage.getItem('lnb_fold')||'[]'))}catch(e){return new Set()}})(),logo:null,modal:null,thumbs:{},shareThumbs:{},unsubThumbs:null,role:null,ltab:'camps',csel:new Set(),listRows:{},listLoading:new Set(),gstatF:'',editName:null,lang:'ko',rlang:'ko',plang:'ko',shareFee:'',user:null,admin:false,campaigns:{},admins:{},rowsDoc:null,view:'list',cid:null,tab:'overview',gf:'',pf:{},q:'',statusF:'',hide:new Set(),sel:new Set(),stageF:'',rq:'',drawer:null,confirm:null,topMetric:null,unsubRows:null,shareView:null,err:null,pool:{},pq:'',pch:'',ptier:'',pcat:'',psort:{k:'last',dir:-1},psel:new Set()};
+const A={lnbMode:(()=>{try{return localStorage.getItem('lnb_mode')==='str'?'str':'inf'}catch(e){return 'inf'}})(),lnbMini:(()=>{try{return localStorage.getItem('lnb_mini')==='1'}catch(e){return false}})(),lnbFold:(()=>{try{return new Set(JSON.parse(localStorage.getItem('lnb_fold')||'[]'))}catch(e){return new Set()}})(),logo:null,modal:null,thumbs:{},shareThumbs:{},unsubThumbs:null,role:null,ltab:'camps',csel:new Set(),listRows:{},listLoading:new Set(),gstatF:'',editName:null,lang:'ko',rlang:'ko',plang:'ko',shareFee:'',user:null,admin:false,campaigns:{},admins:{},rowsDoc:null,view:'list',cid:null,tab:'overview',gf:'',pf:{},q:'',statusF:'',hide:new Set(),sel:new Set(),stageF:'',rq:'',drawer:null,confirm:null,topMetric:null,unsubRows:null,shareView:null,err:null,pool:{},pq:'',pch:'',ptier:'',pcat:'',psort:{k:'last',dir:-1},psel:new Set()};
 const SYNC={};
 function curC(){return A.view==='create'?A.draft:A.campaigns[A.cid]}
 function setPath(o,path,v){const ks=path.split('.');let t=o;for(let i=0;i<ks.length-1;i++){if(!isObj(t[ks[i]]))t[ks[i]]={};t=t[ks[i]]}const k=ks[ks.length-1];if(v===DB.DEL||v===undefined)delete t[k];else t[k]=clone(v)}
@@ -1247,7 +1251,7 @@ function routeOf(){const v=A.view;if(v==='campaign')return {v,c:A.cid,t:A.tab||'
 function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.v==='guides'&&r.g)return '#/guides/'+encodeURIComponent(r.g);if(r.v==='proposals'&&r.g)return '#/proposals/'+encodeURIComponent(r.g);if(r.v==='recruit'&&r.g)return '#/recruit/'+encodeURIComponent(r.g);if(r.lt==='groups'||r.lt==='ads')return `#/${r.v}/${r.lt}`;return '#/'+r.v}
 function parseHash(h){const p=String(h||'').replace(/^#\/?/,'').split('/').filter(Boolean).map(x=>{try{return decodeURIComponent(x)}catch(e){return x}});if(!p.length)return null;
   if(p[0]==='c'&&p[1])return {v:'campaign',c:p[1],t:p[2]||'overview'};if(p[0]==='new')return {v:'create',k:p[1]||'seed'};if(p[0]==='team')return {v:'team',tt:p[1]||'members'};if(p[0]==='cv'&&p[1])return {v:'cvc',c:p[1]};if(p[0]==='guides')return {v:'guides',g:p[1]||''};if(p[0]==='proposals')return {v:'proposals',g:p[1]||''};if(p[0]==='recruit')return {v:'recruit',g:p[1]||''};
-  if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':p[1]==='ads'?'ads':'camps'};if(['pool','updates','history','cv','acct','review','aivideo','stream','mhome','spool','sdata','demoadm'].includes(p[0]))return {v:p[0]};return null}
+  if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':p[1]==='ads'?'ads':'camps'};if(['pool','updates','history','cv','acct','review','aivideo','stream','viral','mhome','spool','sdata','demoadm'].includes(p[0]))return {v:p[0]};return null}
 let ROUTE_LOCK=false;
 function routeSync(){if(A.view==='share'||!A.user||!A.admin||ROUTE_LOCK)return;if(A.skipPop){clearTimeout(routeSync.t);routeSync.t=setTimeout(()=>{A.skipPop=0;routeSync()},400);return}const r=routeOf();const h=routeHash(r);const d=!!(A.drawer||A.modal||A.bellOpen||A.more);const st=history.state;
   try{if(!st||!st.h){history.replaceState({h,r,d:false},'',h);if(d)history.pushState({h,r,d:true},'',h);return}
@@ -1339,7 +1343,7 @@ function shell(){
   const lgHtml=g=>{const fold=!A.lnbMini&&g.t&&A.lnbFold.has(g.t);const items=fold?g.items.filter(onOf):g.items;
     const head=g.t?(A.lnbMini?`<div class="lt">${g.t}</div>`:`<button class="lt lt-tg${fold?' fold':''}" data-act="lnbFold" data-g="${esc(g.t)}" aria-expanded="${fold?'false':'true'}" title="${fold?'펼치기':'접기'}"><span>${g.t}</span><i aria-hidden="true">⌄</i></button>`):'';
     return `<div class="lg${fold?' folded':''}">${head}${items.map(nb).join('')}</div>`};
-  const lnb=`<aside class="lnb noprint ${A.lnbMini?'mini':''}" aria-label="메뉴">${navs.map(lgHtml).join('')}<span class="grow"></span><button class="lnb-tg" data-act="lnbMini" title="${A.lnbMini?'메뉴 펼치기':'메뉴 접기'}">${A.lnbMini?'›':'‹'}<span>${A.lnbMini?'':'메뉴 접기'}</span></button></aside>`;
+  const lnb=`<aside class="lnb noprint ${A.lnbMini?'mini':''}" aria-label="메뉴">${isClientView()?'':lnbToggle()}${navs.map(lgHtml).join('')}<span class="grow"></span><button class="lnb-tg" data-act="lnbMini" title="${A.lnbMini?'메뉴 펼치기':'메뉴 접기'}">${A.lnbMini?'›':'‹'}<span>${A.lnbMini?'':'메뉴 접기'}</span></button></aside>`;
   const flat=navs.flatMap(g=>g.items);const mainM=flat.filter(x=>x.m).slice(0,5);const moreM=flat.filter(x=>!mainM.includes(x));
   const mb=it=>`<button class="${onOf(it)?'on':''}" data-act="nav" data-v="${it.v}"${it.tt?` data-tt="${it.tt}"`:''}>${IC[it.ic||it.v]||IC.list}<span>${it.ms||it.l}</span>${it.badge?`<i class="dot"></i>`:''}</button>`;
   const moreOn=moreM.some(onOf);
@@ -1349,18 +1353,26 @@ function shell(){
   return `<div class="top noprint"><div class="wrap">${brandLink()}<span class="grow"></span><div class="who">${DB.mode==='demo'?(window.DEMO_KIND&&typeof demoWho==='function'?demoWho():'<span class="pill warn">데모 모드</span><button class="btn sm ghost" data-act="demoReset">데모 초기화</button>'):''}${A.role&&A.role!=='master'?`<span class="pill role-pill ${['viewer','client'].includes(A.role)?'warn':'accent'}" title="${esc(ROLE_DESC[A.role]||'')}">${ROLES[A.role]||A.role}</span>`:''}${typeof gnbAcct==='function'?gnbAcct():''}${bellHtml()}<span class="email">${window.DEMO_KIND?(A.role==='client'?'광고주 계정':'체험 계정'):esc(A.user.email)}</span><button class="btn sm" data-act="signOut">${window.DEMO_KIND?'체험 종료':DB.mode==='demo'?'데모 종료':'로그아웃'}</button></div></div></div>
   <div class="layout ${A.lnbMini?'mini':''}">${lnb}<main><div class="wrap">${typeof gnbAcct==='function'&&gnbAcct()?`<div class="gacct-m noprint">${gnbAcct().replace('id="gnb-acct"','id="gnb-acct-m"')}</div>`:''}${A.err?`<div class="banner">${esc(A.err)}</div>`:''}${window.DEMO_KIND&&typeof demoBanner==='function'?demoBanner():''}${typeof mSub==='function'?mSub():''}${body}</div></main></div>${(typeof mNav==='function'&&mNav())||mnav}${drawer()}${A.modal&&A.modal.type==='logo'?logoModal():A.modal&&A.modal.type==='updGo'?updGoModal():''}${bellPanel()}`;
 }
-/* 메뉴 구성 (권한별) */
+/* LNB 상단 토글: 인플루언서 / 스트리머 — 메뉴 묶음을 바꿔 보여 줌 (현재 화면이 한쪽 전용이면 자동으로 그쪽) */
+const STR_VIEWS=['stream','viral','spool','sdata'],INF_VIEWS=['list','trial','gb','live','pool','recruit'];
+function lnbMode(){if(window.DEMO_KIND)return window.DEMO_KIND==='str'?'str':'inf';let v=A.view;if(v==='campaign'||v==='create'){const c=v==='create'?A.draft:curC();v=c?kindView(kindOf(c)):''}
+  if(STR_VIEWS.includes(v))return 'str';if(INF_VIEWS.includes(v))return 'inf';return A.lnbMode==='str'?'str':'inf'}
+function lnbToggle(){const m=lnbMode();return `<div class="lnb-mode" role="tablist" aria-label="메뉴 종류"><button role="tab" class="${m==='inf'?'on':''}" data-act="lnbMode" data-k="inf" title="인플루언서 캠페인 메뉴"><span>인플루언서</span></button><button role="tab" class="${m==='str'?'on':''}" data-act="lnbMode" data-k="str" title="스트리머 광고 메뉴"><span>스트리머</span></button></div>`}
+/* 메뉴 구성 (권한별 · 인플루언서/스트리머) */
 function navItems(){
   if(isClientView())return clientNav();
-  const ads={t:'광고 관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'},{v:'stream',l:'스트리머 광고',ms:'스트리머',ic:'stream',kind:'stream'}]};
+  const mode=lnbMode();
+  const ads=mode==='str'?{t:'광고 관리',items:[{v:'stream',l:'스트리머 광고',ms:'스트리머',ic:'stream',kind:'stream',m:1},{v:'viral',l:'바이럴 캠페인',ms:'바이럴',ic:'viral',kind:'viral',m:1}]}
+    :{t:'광고 관리',items:[{v:'list',l:'시딩 캠페인',ms:'시딩',kind:'seed',m:1},{v:'trial',l:'체험단 캠페인',ms:'체험단',kind:'trial',m:1},{v:'gb',l:'공동구매',ms:'공동구매',kind:'gb'},{v:'live',l:'라이브커머스',ms:'라이브',kind:'live'}]};
+  const infl=mode==='str'?{t:'스트리머 관리',items:[{v:'spool',l:'스트리머 풀',ms:'스트리머',ic:'spool'},{v:'sdata',l:'스트리머 데이터',ms:'방송 데이터',ic:'sdata'}]}
+    :{t:'인플루언서 관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'},{v:'recruit',l:'인플루언서 모집',ms:'모집',ic:'recruit'}]};
   const tools={t:'콘텐츠 도구',items:[{v:'guides',l:'콘텐츠 가이드 생성',ms:'가이드',ic:'guide',m:1},{v:'review',l:'영상 검수',ms:'검수',ic:'review',m:1},{v:'aivideo',l:'AI 영상 제작',ic:'aivideo'}]};
   const prop={t:'제안 도구',items:[{v:'proposals',l:'광고 제안서 생성',ms:'제안서',ic:'proposal'}]};
-  const infl={t:'인플루언서 관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'},{v:'recruit',l:'인플루언서 모집',ms:'모집',ic:'recruit'},{v:'spool',l:'스트리머 풀',ms:'스트리머',ic:'spool'},{v:'sdata',l:'스트리머 데이터',ms:'방송 데이터',ic:'sdata'}]};
+  if(isMaster()&&!window.DEMO_KIND&&typeof viewDemoAdm==='function')prop.items.push({v:'demoadm',l:'체험판 관리',ic:'demo'});
   const comp={t:'구성요소 관리',items:[{v:'team',tt:'members',l:'팀원·권한',ic:'team'},{v:'team',tt:'accts',l:'광고주 계정',ic:'acct'},{v:'team',tt:'int',l:'연동 관리',ic:'int'},{v:'updates',l:'업데이트 제안',badge:updBadge()},{v:'history',l:'업데이트 이력'}]};
-  if(isMaster()&&!window.DEMO_KIND&&typeof viewDemoAdm==='function')comp.items.push({v:'demoadm',l:'체험판 관리',ic:'acct'});
   const all=[ads,infl,tools,prop,comp];return window.DEMO_KIND&&typeof demoNav==='function'?demoNav(all):all}
 function viewBody(){const v=A.view;return v==='mhome'&&typeof viewMHome==='function'?viewMHome():v==='recruit'?viewRecruit():v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='spool'&&typeof viewSpool==='function'?viewSpool():v==='sdata'&&typeof viewSdata==='function'?viewSdata():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='demoadm'&&typeof viewDemoAdm==='function'?viewDemoAdm():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
-function homeView(k){return isClientView()?'cv':(!k&&typeof isMob==='function'&&isMob()&&isTeam()?'mhome':kindView(k||'seed'))}
+function homeView(k){return isClientView()?'cv':(!k&&typeof isMob==='function'&&isMob()&&isTeam()?'mhome':kindView(k||(A.lnbMode==='str'||window.DEMO_KIND==='str'?'stream':'seed')))}
 
 /* ---- 계정·클라이언트·업데이트 기능 (아래에서 다시 정의) ---- */
 function inAcctScope(c){if(isExt())return acctOf(c)===A.acct&&!c.managed;return !A.acctF||acctOf(c)===A.acctF}
@@ -1602,7 +1614,7 @@ function langChips(cur,act){return `<div class="chips langsw" role="group" aria-
 function viewCampaign(){
   const c=curC();if(!c)return A.campsLoaded?`<div class="panel empty">캠페인을 찾을 수 없습니다. 삭제되었거나 볼 수 있는 권한이 없습니다. <button class="btn sm" data-act="nav" data-v="${homeView()}">목록으로</button></div>`:'<div class="panel empty">불러오는 중…</div>';const TRL=isTrial(c);const KD=kindOf(c),KM=KINDS[KD];
   const rows=curRows();const al=rows.filter(r=>alertOf(r,c)).length;
-  const STK=isStream(c);const tabs=[['settings','캠페인 설정'],['overview','개요'],['grid',STK?'스트리머 관리':'인플루언서 관리'],['status','진행 현황',al],['report','성과 리포트'],['track',STK?'앱 다운로드 트래킹':'링크 트래킹'],['share','광고주 공유']];
+  const STK=isStream(c);const tabs=[['settings','캠페인 설정'],['overview','개요'],['grid',STK||c.kind==='viral'?'스트리머 관리':'인플루언서 관리'],['status','진행 현황',al],['report','성과 리포트'],['track',STK?'앱 다운로드 트래킹':'링크 트래킹'],['share','광고주 공유']];
   const body={overview:tabOverview,grid:tabGrid,status:tabStatus,report:tabReport,track:STK&&typeof tabAppTrack==='function'?tabAppTrack:tabTrack,settings:tabSettings,share:tabShare}[A.tab]||tabOverview;
   return `<div class="page-h"><div><div class="row small"><button class="btn sm ghost" data-act="back" data-v="${KM.view}">← ${KM.label} 목록</button>${KM.pill?`<span class="pill ok">${KM.pill}</span>`:''}${TRL&&c.trial&&c.trial.cat?`<span class="pill">${esc(c.trial.cat)}</span>`:''}${isCom(c)&&c.com&&c.com.cat?`<span class="pill">${esc(c.com.cat)}</span>`:''}${isCom(c)?'':`<span class="pill accent">${esc(c.objective||'')}${c.objective==='전환'&&c.convType?' · '+esc(c.convType):''}</span>`}<span class="pill ${STATUS_CLS[campStatus(c)]||''}">${esc(campStatus(c))}</span>${groupsOf(c).length?`<span class="pill">그룹 ${groupsOf(c).length}개</span>`:''}${c.share&&c.share.enabled?'<span class="pill ok">광고주 공유 중</span>':''}</div>
   <h1 style="margin-top:6px">${nameEdit('c',A.cid,'',c.name||'',esc(c.name||'이름 없음'))}</h1><div class="sub">${esc(c.advertiser||'광고주 미입력')}${c.start?' · '+md(c.start)+' ~ '+md(c.end):''}</div></div>
@@ -2856,6 +2868,7 @@ const ACT={
   nav(a){const v=allowedView(a.dataset.v)?a.dataset.v:homeView();if(a.dataset.tt)A.teamTab=a.dataset.tt;if(v==='guides')A.gid='';if(v==='proposals')A.pid='';if(v==='recruit')A.rcid='';if(v==='stream')A.sid='';if(A.unsubRows&&v!=='campaign'){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}if(v!==A.view&&VIEW_KIND[v]){A.csel.clear();A.statusF='';A.ltab='camps';A.q=''}A.view=v;A.drawer=null;A.more=false;A.bellOpen=false;render();window.scrollTo(0,0)},
   back(a){ACT.nav(a)},
   lnbFold(el){const g=el.dataset.g;if(!g)return;A.lnbFold.has(g)?A.lnbFold.delete(g):A.lnbFold.add(g);try{localStorage.setItem('lnb_fold',JSON.stringify([...A.lnbFold]))}catch(e){}render()},
+  lnbMode(a){const k=a.dataset.k==='str'?'str':'inf';if(window.DEMO_KIND){if(k!==window.DEMO_KIND)location.href=location.pathname+'?demo='+k;return}A.lnbMode=k;try{localStorage.setItem('lnb_mode',k)}catch(e){}if(A.unsubRows){A.unsubRows();A.unsubRows=null;A.rowsDoc=null}A.drawer=null;A.more=false;A.view=k==='str'?'stream':'list';A.csel.clear();A.statusF='';render();window.scrollTo(0,0)},
   lnbMini(){A.lnbMini=!A.lnbMini;try{localStorage.setItem('lnb_mini',A.lnbMini?'1':'')}catch(e){}render()},
   moreToggle(){A.more=!A.more;render()},
   logoView(){A.modal={type:'logo'};render()},
@@ -3437,15 +3450,16 @@ service cloud.firestore {
   }
 }
 </script>
-<script src="/tools.js?v=0.27"></script>
-<script src="/proposal-deck.js?v=0.27"></script>
-<script src="/proposal.js?v=0.27"></script>
-<script src="/recruit.js?v=0.27"></script>
-<script src="/stream.js?v=0.27"></script>
-<script src="/msign.js?v=0.27"></script>
-<script src="/hier.js?v=0.27"></script>
-<script src="/tree.js?v=0.27"></script>
-<script src="/mobile.js?v=0.27"></script>
-<script src="/demo-kit.js?v=0.27"></script>
+<script src="/tools.js?v=0.28"></script>
+<script src="/proposal-deck.js?v=0.28"></script>
+<script src="/proposal.js?v=0.28"></script>
+<script src="/recruit.js?v=0.28"></script>
+<script src="/stream.js?v=0.28"></script>
+<script src="/viral.js?v=0.28"></script>
+<script src="/msign.js?v=0.28"></script>
+<script src="/hier.js?v=0.28"></script>
+<script src="/tree.js?v=0.28"></script>
+<script src="/mobile.js?v=0.28"></script>
+<script src="/demo-kit.js?v=0.28"></script>
 </body>
 </html>

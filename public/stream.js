@@ -200,13 +200,24 @@ function stWizardPick(rows){spWatch();const have=new Set(rows.map(([,r])=>skNorm
    <div class="tblwrap" style="max-height:360px"><table class="tbl"><thead><tr><th></th><th>스트리머</th><th>소속</th><th>채널</th><th class="n">합산 팔로워</th></tr></thead><tbody>${L.map(s=>{const on=have.has(skNorm(s.name));return `<tr><td><input type="checkbox" data-act="wsel" data-p="${esc(s.id)}" ${on?'checked disabled':A.wsel&&A.wsel.has(s.id)?'checked':''}></td><td class="nm"><b>${esc(s.name)}</b><span>${esc(s.tags||'')}</span></td><td>${esc(s.partner||'')}</td><td>${['soop','chzzk','yt'].filter(k=>((s.channels||{})[k]||{}).url).map(k=>skP(SK_PLAT_L[k])).join(' ')||'<span class="small muted">채널 없음</span>'}</td><td class="n">${spFol(s)?compact(spFol(s)):'–'}</td></tr>`}).join('')||'<tr><td colspan="5" class="empty">스트리머 풀이 비어 있습니다.</td></tr>'}</tbody></table></div></section>`}
 
 /* ============ 스트리머 데이터 (대시보드) ============ */
-function viewSdata(){spWatch();skCss();const ed=canEdit();const all=spArr().sort((a,b)=>String(a.name).localeCompare(String(b.name),'ko'));const sel=A.sk.sdSel&&A.spool&&A.spool[A.sk.sdSel]?A.sk.sdSel:(all[0]||{}).id;const s=sel?A.spool[sel]:null;
+function viewSdata(){spWatch();skCss();const ed=canEdit();const all=spArr().sort((a,b)=>String(a.name).localeCompare(String(b.name),'ko'));const sel=A.sk.sdSel&&A.spool&&A.spool[A.sk.sdSel]?A.sk.sdSel:((all.find(x=>x.partner==='링컴즈 소속')||all[0])||{}).id;const s=sel?A.spool[sel]:null;
   if(sel&&A.sk.sdFor!==sel){A.sk.sdFor=sel;A.sk.sd=undefined;DB.get('streams/sd_'+sel.slice(3)).then(d=>{A.sk.sd=d||null;scheduleRender()}).catch(()=>{A.sk.sd=null;scheduleRender()})}
   const D=A.sk.sd;const plat=A.sk.sdPlat||'all';
-  const head=`<div class="page-h"><div><div class="eyebrow">Streamer Data</div><h1>스트리머 데이터</h1><div class="sub">스트리머 풀에 등록한 채널의 방송 기록을 불러와 방송별 시청·시간·팔로워 변화를 봅니다. 불러오기는 「데이터 불러오기」를 누를 때만 진행합니다.</div></div></div>
-   <div class="row sd-pick" style="gap:8px;margin-bottom:12px"><select data-sdsel="1" style="max-width:260px">${all.map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(x.name)} · ${esc(x.partner||'')}</option>`).join('')}</select>${s?['soop','chzzk','yt'].filter(k=>((s.channels||{})[k]||{}).url).map(k=>`<a class="sk-chip ${k}" href="${esc(s.channels[k].url)}" target="_blank" rel="noopener">${SK_PLAT_L[k]} ↗</a>`).join(''):''}<span class="grow"></span>
+  const q=skNorm(A.sk.sdQ||'');const PF=A.sk.sdP||'';const PL=A.sk.sdPf||'';
+  const hasCh=(x,k)=>!!(((x.channels||{})[k]||{}).url);
+  const L=all.filter(x=>(!PF||x.partner===PF)&&(!PL||hasCh(x,PL))&&(!q||skNorm([x.name,x.tags,...Object.values(x.channels||{}).map(c=>c.name||c.id)].join(' ')).includes(q)));
+  const cnt=k=>all.filter(x=>x.partner===k).length;
+  const auto=A.sk.sdAuto||{};
+  const head=`<div class="page-h"><div><div class="eyebrow">Streamer Data</div><h1>스트리머 데이터</h1><div class="sub">스트리머 풀에 등록한 채널의 지난 방송 기록을 불러와 방송별 시청·시간·팔로워 변화를 봅니다. 스트리머를 열면 6시간이 지난 데이터는 자동으로 새로 불러옵니다.</div></div>
+    <div class="row">${ed?`<button class="btn" data-act="sdFetchAll" ${A.sk.busy.sdAll?'disabled':''} title="채널 URL이 있는 모든 스트리머의 지난 방송을 차례로 불러옵니다">${A.sk.busy.sdAll?esc(A.sk.busy.sdAll):'전체 스트리머 불러오기'}</button>`:''}</div></div>
+   <div class="panel sd-find"><div class="row" style="gap:8px;flex-wrap:wrap"><input id="sd-q" data-sdq="1" type="search" placeholder="스트리머명 · 장르 · 채널명 검색" value="${esc(A.sk.sdQ||'')}" style="flex:1;min-width:200px;max-width:340px">
+     <div class="chips">${[['','전체',all.length],...STR_PARTNERS.map(k=>[k,k,cnt(k)])].map(([k,l,c])=>`<span class="chip ${PF===k?'on':''}" data-act="sdPF" data-k="${esc(k)}">${esc(l)} <em>${c}</em></span>`).join('')}</div>
+     <div class="chips">${[['','모든 플랫폼'],['soop','SOOP'],['chzzk','치지직'],['yt','유튜브']].map(([k,l])=>`<span class="chip ${PL===k?'on':''}" data-act="sdPL" data-k="${k}">${l}</span>`).join('')}</div></div>
+     <div class="sd-list" data-keep-scroll="sdlist">${L.length?L.map(x=>{const f=spFol(x);return `<button class="sd-it ${x.id===sel?'on':''}" data-act="sdPick" data-id="${esc(x.id)}"><b>${esc(x.name)}</b><span class="small muted">${esc(x.partner||'')}${x.tags?' · '+esc(x.tags):''}</span><span class="sd-it-p">${['soop','chzzk','yt'].filter(k=>hasCh(x,k)).map(k=>skP(SK_PLAT_L[k])).join('')}${f?`<em>${compact(f)}</em>`:''}</span></button>`}).join(''):'<div class="small muted" style="padding:10px">조건에 맞는 스트리머가 없습니다.</div>'}</div></div>
+   ${s?`<div class="row sd-pick" style="gap:8px;margin:14px 0 12px;flex-wrap:wrap"><h2 style="margin:0;font-size:18px">${esc(s.name)}</h2><span class="pill">${esc(s.partner||'')}</span>${['soop','chzzk','yt'].filter(k=>hasCh(s,k)).map(k=>`<a class="sk-chip ${k}" href="${esc(s.channels[k].url)}" target="_blank" rel="noopener">${SK_PLAT_L[k]} ↗</a>`).join('')}<span class="grow"></span>
     <label class="small muted">기간<select data-sddays="1" style="width:auto;margin-left:6px">${[[30,'최근 30일'],[60,'최근 60일'],[90,'최근 90일']].map(([v,l])=>`<option value="${v}" ${(A.sk.sdDays||30)===v?'selected':''}>${l}</option>`).join('')}</select></label>
-    ${ed&&s?`<button class="btn primary" data-act="sdFetch" ${A.sk.busy.sd?'disabled':''}>${A.sk.busy.sd?esc(A.sk.busy.sd):'데이터 불러오기'}</button>`:''}${s?`<button class="btn sm ${A.sk.rec?'danger':''}" data-act="sdRec" title="이 화면을 열어 둔 동안 6분마다 라이브 시청자를 기록합니다 (방송 중일 때만)">${A.sk.rec?'● 실시간 기록 중 · 끄기':'실시간 기록'}</button>`:''}</div>`;
+    ${ed?`<button class="btn primary" data-act="sdFetch" ${A.sk.busy.sd?'disabled':''}>${A.sk.busy.sd?esc(A.sk.busy.sd):'지금 다시 불러오기'}</button>`:''}</div>`:''}`;
+  if(s&&ed&&D!==undefined&&!A.sk.busy.sd&&!auto[sel]&&!window.DEMO_KIND&&DB.mode!=='demo'&&['soop','chzzk','yt'].some(k=>hasCh(s,k))&&(!D||!D.fetchedAt||Date.now()-new Date(D.fetchedAt).getTime()>6*3600e3)){A.sk.sdAuto={...auto,[sel]:1};setTimeout(()=>sdFetch(sel,true),0)}
   if(!all.length)return head+'<div class="panel empty">스트리머 풀에 먼저 스트리머를 등록해 주세요.</div>';
   if(!s)return head;const chs=['soop','chzzk','yt'].filter(k=>((s.channels||{})[k]||{}).url);
   if(!chs.length)return head+`<div class="panel empty">${esc(s.name)}의 채널 URL이 없습니다. 스트리머 풀에서 「수정」으로 SOOP · 치지직 · 유튜브 주소를 넣어 주세요.</div>`;
@@ -218,37 +229,37 @@ function viewSdata(){spWatch();skCss();const ed=canEdit();const all=spArr().sort
   const live=Object.entries(P).map(([k,p])=>p&&p.live?{k,...p.live}:null).filter(Boolean)[0];
   const bc=A.sk.sdBc&&bcs.find(b=>b.id===A.sk.sdBc);
   return head+`<div class="sd-prof">${['soop','chzzk','yt'].filter(k=>P[k]).map(k=>{const p=P[k];return `<div class="sd-pc"><div class="row" style="gap:8px">${p.img?`<img src="${esc(p.img)}" alt="" referrerpolicy="no-referrer">`:''}<div><div class="small muted">${SK_PLAT_L[k]}</div><b>${esc(p.name||'')}</b></div></div><div class="sd-pk"><div><span>${k==='yt'?'구독자':'팔로워'}</span><b>${p.fol!=null?compact(p.fol):'–'}</b></div>${p.subs!=null?`<div><span>구독(유료)</span><b>${fmt(p.subs)}</b></div>`:''}${p.views!=null?`<div><span>누적 조회</span><b>${compact(p.views)}</b></div>`:''}${p.live?`<div><span>지금</span><b class="sd-live">LIVE ${p.live.viewers!=null?fmt(p.live.viewers):''}</b></div>`:''}</div></div>`}).join('')}</div>
-   ${live?`<div class="banner info" style="margin:0 0 12px"><b>● 방송 중</b> ${esc(live.title||'')} · 시청자 ${live.viewers!=null?fmt(live.viewers):'–'}${A.sk.rec?' · 6분마다 기록 중':' · 「실시간 기록」을 켜면 이 방송의 시청자 그래프가 쌓입니다'}</div>`:''}
-   <div class="tiles" style="margin-bottom:12px">${tile('방송 수',fmt(bcs.length),`최근 ${A.sk.sdDays||30}일 · ${plat==='all'?'전체 플랫폼':SK_PLAT_L[plat]}`)}${tile('총 방송 시간',fmtH(tot.mins),bcs.length?'방송당 '+fmtH(tot.mins/bcs.length):'')}${tile('누적 시청 · 조회',compact(tot.views),bcs.length?'방송당 '+compact(tot.views/bcs.length):'')}${tile('최고 시청자',tot.peak?fmt(tot.peak):'–',tot.avgN?'평균 시청자 '+fmt(tot.avgS/tot.avgN):'실시간 기록·입력 값 기준')}${tile('팔로워',folNow?compact(folNow):'–',fol0!=null?`${folNow-fol0>=0?'+':''}${fmt(folNow-fol0)} (기록 시작 이후)`:'불러올 때마다 기록')}</div>
-   <div class="chips" style="margin-bottom:10px">${[['all','전체'],...chs.map(k=>[k,SK_PLAT_L[k]])].map(([k,l])=>`<span class="chip ${plat===k?'on':''}" data-act="sdPlat" data-k="${k}">${l}</span>`).join('')}<span class="small muted" style="margin-left:6px">${fmtDT(D.fetchedAt)} 불러옴</span></div>
-   <div class="sd-charts"><section class="panel"><div class="panel-h"><div><h2>방송별 누적 시청</h2><div class="sub">막대를 누르면 그 방송을 자세히 봅니다</div></div></div>${sdBar(bcs.slice(0,40).reverse())}</section>
-    <section class="panel"><div class="panel-h"><div><h2>팔로워 추이</h2><div class="sub">데이터를 불러올 때마다 기록한 값</div></div></div>${sdFolLine(fh)}</section></div>
+   ${live?`<div class="banner info" style="margin:0 0 12px"><b>● 방송 중</b> ${esc(live.title||'')} · 시청자 ${live.viewers!=null?fmt(live.viewers):'–'} · 방송이 끝나면 다시보기 기록으로 자동 반영됩니다</div>`:''}
+   <div class="tiles" style="margin-bottom:12px">${tile('방송 수',fmt(bcs.length),`최근 ${A.sk.sdDays||30}일 · ${plat==='all'?'전체 플랫폼':SK_PLAT_L[plat]}`)}${tile('총 방송 시간',fmtH(tot.mins),bcs.length?'방송당 '+fmtH(tot.mins/bcs.length):'')}${tile('누적 시청 · 조회',compact(tot.views),bcs.length?'방송당 '+compact(tot.views/bcs.length):'')}${tile('최고 시청자',tot.peak?fmt(tot.peak):'–',tot.avgN?'평균 시청자 '+fmt(tot.avgS/tot.avgN):'방송 상세에서 입력한 값 기준')}${tile('팔로워',folNow?compact(folNow):'–',fol0!=null?`${folNow-fol0>=0?'+':''}${fmt(folNow-fol0)} (기록 시작 이후)`:'불러올 때마다 기록')}</div>
+   <div class="chips" style="margin-bottom:10px">${[['all','전체'],...chs.map(k=>[k,SK_PLAT_L[k]])].map(([k,l])=>`<span class="chip ${plat===k?'on':''}" data-act="sdPlat" data-k="${k}">${l}</span>`).join('')}<span class="small muted" style="margin-left:6px">${fmtDT(D.fetchedAt)} 불러옴 · 6시간마다 자동 갱신</span></div>
+   <div class="sd-charts"><section class="panel"><div class="panel-h"><div><h2>방송별 누적 시청</h2><div class="sub">막대 위 숫자 = 방송별 누적 시청 · 막대를 누르면 그 방송을 자세히 봅니다</div></div></div>${sdBar(bcs.slice(0,40).reverse())}</section>
+    <section class="panel"><div class="panel-h"><div><h2>팔로워 추이</h2><div class="sub">점 위 숫자 = 그 시점의 합산 팔로워 · 데이터를 불러올 때마다 기록</div></div></div>${sdFolLine(fh)}</section></div>
    ${bc?sdDetail(bc,D):''}
    <section class="panel"><div class="panel-h"><div><h2>방송 기록</h2><div class="sub">${bcs.length}개 · 방송 제목 · 기간 · 방송 시간 · 최고/평균 시청자 · 채팅 · 팔로워 증감</div></div></div>
     <div class="tblwrap"><table class="tbl sd-tbl"><thead><tr><th>플랫폼</th><th>방송 제목</th><th>기간</th><th class="n">방송 시간</th><th class="n">최고 시청자</th><th class="n">평균 시청자</th><th class="n">누적 시청</th><th class="n">채팅</th><th class="n">팔로워 증감</th></tr></thead><tbody>
     ${bcs.map(b=>`<tr class="click ${A.sk.sdBc===b.id?'sel':''}" data-act="sdBc" data-id="${esc(b.id)}"><td>${skP(SK_PLAT_L[b.plat])}</td><td><b class="sd-ttl">${esc(b.title||'')}</b></td><td class="small" style="white-space:nowrap">${kstT(b.start)}${b.end?' ~ '+kstT(b.end).slice(6):''}</td><td class="n">${fmtH(b.durMin)}</td><td class="n">${b.peak!=null?fmt(b.peak):'–'}</td><td class="n">${b.avg!=null?fmt(b.avg):'–'}</td><td class="n">${b.views!=null?fmt(b.views):'–'}</td><td class="n">${b.chats!=null?fmt(b.chats):'–'}</td><td class="n">${b.folDelta!=null?`<span style="color:${b.folDelta>=0?'var(--ok)':'var(--crit)'}">${b.folDelta>=0?'+':''}${fmt(b.folDelta)}</span>`:'–'}</td></tr>`).join('')}</tbody></table></div>
-    <p class="small muted" style="margin:8px 0 0">누적 시청·방송 시간은 플랫폼 다시보기 기준입니다. 최고·평균 시청자와 시청자 그래프는 「실시간 기록」으로 쌓은 값이나 방송 상세에서 직접 넣은 값으로 계산합니다. 채팅 수는 방송 상세에서 입력합니다.</p></section>`}
+    <p class="small muted" style="margin:8px 0 0">누적 시청·방송 시간은 플랫폼 다시보기 기준입니다. SOOP·치지직은 지난 방송의 최고·평균 시청자와 채팅 수를 공개하지 않아, 방송 상세에서 직접 넣은 값으로 계산합니다 (유료 통계 API를 연동하면 자동으로 채울 수 있습니다).</p></section>`}
 /* 막대 그래프 (방송별 누적 시청) */
-function sdBar(L){if(!L.length)return '<div class="empty small">방송이 없습니다.</div>';const W=720,H=200,pad=44,bw=Math.max(4,(W-pad*2)/L.length-3);const mx=Math.max(1,...L.map(b=>n(b.views)));
-  return `<svg class="sd-svg" viewBox="0 0 ${W} ${H+24}" role="img" aria-label="방송별 누적 시청">${[0,.5,1].map(f=>`<line x1="${pad}" x2="${W-pad}" y1="${H-f*(H-20)}" y2="${H-f*(H-20)}" class="gl"/><text x="${pad-4}" y="${H-f*(H-20)+3}" text-anchor="end" class="ax">${compact(mx*f)}</text>`).join('')}
-   ${L.map((b,i)=>{const x=pad+i*((W-pad*2)/L.length)+1.5;const h=Math.max(1,n(b.views)/mx*(H-20));return `<g data-act="sdBc" data-id="${esc(b.id)}" class="bar ${A.sk.sdBc===b.id?'on':''}"><rect x="${x}" y="${H-h}" width="${bw}" height="${h}" rx="2"><title>${esc(b.title||'')} · ${kstT(b.start)} · ${fmt(b.views)}</title></rect></g>`}).join('')}
+function sdBar(L){if(!L.length)return '<div class="empty small">방송이 없습니다.</div>';const W=720,H=200,pad=44,bw=Math.max(4,(W-pad*2)/L.length-3);const mx=Math.max(1,...L.map(b=>n(b.views)))*1.12;
+  return `<svg class="sd-svg" viewBox="0 -14 ${W} ${H+38}" role="img" aria-label="방송별 누적 시청">${[0,.5,1].map(f=>`<line x1="${pad}" x2="${W-pad}" y1="${H-f*(H-20)}" y2="${H-f*(H-20)}" class="gl"/><text x="${pad-4}" y="${H-f*(H-20)+3}" text-anchor="end" class="ax">${compact(mx*f)}</text>`).join('')}
+   ${L.map((b,i)=>{const x=pad+i*((W-pad*2)/L.length)+1.5;const h=Math.max(1,n(b.views)/mx*(H-20));const lb=L.length<=45?`<text x="${x+bw/2}" y="${H-h-4}" text-anchor="middle" class="vl"${L.length>24?` transform="rotate(-60 ${x+bw/2} ${H-h-4})" style="text-anchor:start"`:''}>${compact(b.views)}</text>`:'';return `<g data-act="sdBc" data-id="${esc(b.id)}" class="bar ${A.sk.sdBc===b.id?'on':''}"><rect x="${x}" y="${H-h}" width="${bw}" height="${h}" rx="2"><title>${esc(b.title||'')} · ${kstT(b.start)} · ${fmt(b.views)}</title></rect>${lb}</g>`}).join('')}
    <text x="${pad}" y="${H+16}" class="ax">${kstT(L[0].start).slice(0,5)}</text><text x="${W-pad}" y="${H+16}" text-anchor="end" class="ax">${kstT(L[L.length-1].start).slice(0,5)}</text></svg>`}
 function sdFolLine(fh){if(fh.length<2)return '<div class="empty small">두 번 이상 불러오면 팔로워 변화가 그려집니다.</div>';const W=720,H=200,pad=34;const v=fh.map(x=>['soop','chzzk','yt'].reduce((t,k)=>t+n(x[k]),0));const mn=Math.min(...v),mx=Math.max(...v),rg=Math.max(1,mx-mn);
-  const pts=v.map((y,i)=>[pad+i*(W-pad*2)/(v.length-1),H-10-(y-mn)/rg*(H-30)]);
-  return `<svg class="sd-svg" viewBox="0 0 ${W} ${H+24}" role="img" aria-label="팔로워 추이"><polyline class="ln" points="${pts.map(p=>p.join(',')).join(' ')}"/>${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" class="pt"><title>${kstT(fh[i].at)} · ${fmt(v[i])}</title></circle>`).join('')}<text x="${pad-4}" y="${H-10}" text-anchor="end" class="ax">${compact(mn)}</text><text x="${pad-4}" y="${20}" text-anchor="end" class="ax">${compact(mx)}</text><text x="${pad}" y="${H+16}" class="ax">${kstT(fh[0].at).slice(0,5)}</text><text x="${W-pad}" y="${H+16}" text-anchor="end" class="ax">${kstT(fh[fh.length-1].at).slice(0,5)}</text></svg>`}
+  const pts=v.map((y,i)=>[pad+i*(W-pad*2)/(v.length-1),H-10-(y-mn)/rg*(H-40)]);
+  return `<svg class="sd-svg" viewBox="0 -6 ${W} ${H+30}" role="img" aria-label="팔로워 추이"><polyline class="ln" points="${pts.map(p=>p.join(',')).join(' ')}"/>${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" class="pt"><title>${kstT(fh[i].at)} · ${fmt(v[i])}</title></circle>${v.length<=20||i%Math.ceil(v.length/20)===0||i===v.length-1?`<text x="${p[0]}" y="${p[1]-8}" text-anchor="middle" class="vl">${compact(v[i])}</text>`:''}`).join('')}<text x="${pad-4}" y="${H-10}" text-anchor="end" class="ax">${compact(mn)}</text><text x="${pad-4}" y="${20}" text-anchor="end" class="ax">${compact(mx)}</text><text x="${pad}" y="${H+16}" class="ax">${kstT(fh[0].at).slice(0,5)}</text><text x="${W-pad}" y="${H+16}" text-anchor="end" class="ax">${kstT(fh[fh.length-1].at).slice(0,5)}</text></svg>`}
 /* 방송 상세: 시청자 그래프 + 요약 표 */
 function sdDetail(b,D){const S=b.samples||[];const ed=canEdit();const W=720,H=220,pad=40;
   let g='';if(S.length>=2){const t0=S[0][0],t1=S[S.length-1][0];const mx=Math.max(1,...S.map(x=>x[1]));const X=t=>pad+(t-t0)/Math.max(1,t1-t0)*(W-pad*2),Y=v=>H-10-v/mx*(H-30);const avg=S.reduce((t,x)=>t+x[1],0)/S.length;
     g=`<svg class="sd-svg" viewBox="0 0 ${W} ${H+24}" role="img" aria-label="방송 시청자 그래프"><polygon class="ar" points="${X(t0)},${H-10} ${S.map(x=>X(x[0])+','+Y(x[1])).join(' ')} ${X(t1)},${H-10}"/><polyline class="ln" points="${S.map(x=>X(x[0])+','+Y(x[1])).join(' ')}"/><line class="avg" x1="${pad}" x2="${W-pad}" y1="${Y(avg)}" y2="${Y(avg)}"/><text x="${pad+4}" y="${Y(avg)-4}" class="ax">평균 ${fmt(avg)}명</text><text x="${pad-4}" y="${Y(mx)+3}" text-anchor="end" class="ax">${compact(mx)}</text><text x="${pad}" y="${H+16}" class="ax">${kstT(new Date(t0).toISOString()).slice(6)}</text><text x="${W-pad}" y="${H+16}" text-anchor="end" class="ax">${kstT(new Date(t1).toISOString()).slice(6)}</text></svg>`}
-  else g=`<div class="empty small">이 방송은 실시간 기록이 없어 시청자 그래프를 그릴 수 없습니다. 방송 중에 「실시간 기록」을 켜 두면 6분마다 시청자가 쌓여 그래프가 그려집니다.</div>`;
+  else g=`<div class="empty small">이 방송은 시간대별 시청자 기록이 없습니다. 플랫폼이 지난 방송의 시청자 그래프를 공개하지 않아, 최고·평균 시청자는 아래에 직접 넣거나 유료 통계 API 연동으로 채울 수 있습니다.</div>`;
   const at=f=>ed?`<input type="text" inputmode="decimal" data-sdbc="${esc(b.id)}" data-f="${f}" value="${has(b[f])?b[f]:''}" placeholder="입력" style="width:110px;text-align:right">`:has(b[f])?fmt(b[f]):'–';
   const vs=b.avg&&b.durMin?Math.round(b.avg*b.durMin/60):null;
   return `<section class="panel sd-det"><div class="panel-h"><div><h2>${esc(b.title||'방송')}</h2><div class="sub">${SK_PLAT_L[b.plat]} · ${kstT(b.start)}${b.url?` · <a href="${esc(b.url)}" target="_blank" rel="noopener">다시보기 ↗</a>`:''}</div></div><button class="btn sm ghost" data-act="sdBc" data-id="">닫기</button></div>
    <div class="sd-dg"><div><div class="small bold" style="margin-bottom:6px">방송 데이터 그래프</div>${g}</div>
     <table class="tbl sd-sum"><tbody><tr><th>총 방송 시간</th><td>${fmtH(b.durMin)}</td></tr><tr><th>시작</th><td>${kstT(b.start)}</td></tr><tr><th>마지막</th><td>${b.end?kstT(b.end):'–'}</td></tr><tr><th>최고 시청자</th><td>${at('peak')}</td></tr><tr><th>평균 시청자</th><td>${at('avg')}</td></tr><tr><th>뷰어십 (평균 × 방송 시간)</th><td>${vs!=null?fmt(vs)+'명':'–'}</td></tr><tr><th>누적 시청 · 조회</th><td>${b.views!=null?fmt(b.views):'–'}</td></tr><tr><th>VOD 조회</th><td>${b.vodViews!=null?fmt(b.vodViews):'–'}</td></tr><tr><th>채팅 수</th><td>${at('chats')}</td></tr><tr><th>팔로워 증감</th><td>${b.folDelta!=null?(b.folDelta>=0?'+':'')+fmt(b.folDelta):'–'}</td></tr><tr><th>기록 표본</th><td>${S.length?S.length+'개 (6분 간격)':'없음'}</td></tr></tbody></table></div></section>`}
-async function sdFetch(){const id=A.sk.sdSel||(spArr()[0]||{}).id;const s=(A.spool||{})[id];if(!s)return;const days=A.sk.sdDays||30;const from=new Date(Date.now()-days*864e5+9*3600e3).toISOString().slice(0,10);
-  const prev=A.sk.sd||{};const old=new Map((prev.bcs||[]).map(b=>[b.id,b]));const profile={...(prev.profile||{})};const bcs=[];const errs=[];
-  for(const k of ['soop','chzzk','yt']){const u=((s.channels||{})[k]||{}).url;if(!u)continue;A.sk.busy.sd=`${SK_PLAT_L[k]} 불러오는 중…`;scheduleRender();
+async function sdFetch(idArg,quiet){const id=idArg||A.sk.sdSel||(spArr()[0]||{}).id;const s=(A.spool||{})[id];if(!s)return;const cur=id===(A.sk.sdFor||A.sk.sdSel);const days=A.sk.sdDays||30;const from=new Date(Date.now()-days*864e5+9*3600e3).toISOString().slice(0,10);
+  const prev=(cur&&A.sk.sd)||(await DB.get('streams/sd_'+id.slice(3)).catch(()=>null))||{};const old=new Map((prev.bcs||[]).map(b=>[b.id,b]));const profile={...(prev.profile||{})};const bcs=[];const errs=[];
+  for(const k of ['soop','chzzk','yt']){const u=((s.channels||{})[k]||{}).url;if(!u)continue;if(cur){A.sk.busy.sd=`${SK_PLAT_L[k]} 불러오는 중…`;scheduleRender()}
     try{let ch,items;if(k==='yt'){const c=await skYtChannel(u);ch={id:c.id,name:c.name,img:c.img,fol:c.fol,views:c.views};items=await skYtVods(c,from,'',true);const lv=items.find(x=>x.nowLive);if(lv)ch.live={title:lv.title,viewers:lv.concurrent,id:lv.id}}
       else{const r=await skVods(SK_PLAT_L[k],u,from,'');ch=r.ch||{};items=r.items}
       profile[k]={...(profile[k]||{}),...ch,at:T_NOW()};
@@ -258,16 +269,20 @@ async function sdFetch(){const id=A.sk.sdSel||(spArr()[0]||{}).id;const s=(A.spo
   const now={at:T_NOW(),...Object.fromEntries(['soop','chzzk','yt'].map(k=>[k,profile[k]&&has(profile[k].fol)?profile[k].fol:null]))};const fh=[...(prev.folHist||[]),now].slice(-120);
   bcs.forEach(b=>{if(b.folDelta!=null||!b.start)return;const before=[...fh].reverse().find(x=>x.at<=b.start),after=fh.find(x=>b.end&&x.at>=b.end);if(before&&after&&before[b.plat]!=null&&after[b.plat]!=null)b.folDelta=after[b.plat]-before[b.plat]});
   const doc={type:'sdata',spId:id,fetchedAt:T_NOW(),profile,folHist:fh,bcs:bcs.sort((a,b)=>String(b.start).localeCompare(String(a.start))).slice(0,300)};
-  try{await DB.set('streams/sd_'+id.slice(3),doc);A.sk.sd=doc;const up={channels:{...(s.channels||{})},fetchedAt:T_NOW()};['soop','chzzk','yt'].forEach(k=>{if(profile[k]&&up.channels[k])up.channels[k]={...up.channels[k],fol:profile[k].fol??up.channels[k].fol,name:profile[k].name||up.channels[k].name,img:profile[k].img||up.channels[k].img,id:profile[k].id||up.channels[k].id}});await DB.update('streams/'+id,up);Object.assign(s,up)}
+  try{await DB.set('streams/sd_'+id.slice(3),doc);if(id===(A.sk.sdFor||A.sk.sdSel))A.sk.sd=doc;const up={channels:{...(s.channels||{})},fetchedAt:T_NOW()};['soop','chzzk','yt'].forEach(k=>{if(profile[k]&&up.channels[k])up.channels[k]={...up.channels[k],fol:profile[k].fol??up.channels[k].fol,name:profile[k].name||up.channels[k].name,img:profile[k].img||up.channels[k].img,id:profile[k].id||up.channels[k].id}});await DB.update('streams/'+id,up);Object.assign(s,up)}
   catch(e){saveErr(e)}
-  delete A.sk.busy.sd;toast(errs.length?'일부 채널을 불러오지 못했습니다 · '+errs[0]:`${s.name} 방송 ${bcs.length}개를 불러왔습니다.`,errs.length?'crit':undefined);scheduleRender()}
+  if(cur)delete A.sk.busy.sd;if(!quiet||errs.length)toast(errs.length?`${s.name} · 일부 채널을 불러오지 못했습니다 · `+errs[0]:`${s.name} 방송 ${bcs.length}개를 불러왔습니다.`,errs.length?'crit':undefined);scheduleRender();return {n:bcs.length,errs}}
+/* 전체 스트리머 지난 방송 불러오기 (차례로) */
+async function sdFetchAll(){if(A.sk.busy.sdAll)return;const L=spArr().filter(x=>['soop','chzzk','yt'].some(k=>((x.channels||{})[k]||{}).url));if(!L.length)return toast('채널 URL이 있는 스트리머가 없습니다.','crit');let ok=0,bad=0;
+  for(let i=0;i<L.length;i++){A.sk.busy.sdAll=`불러오는 중 ${i+1}/${L.length}`;scheduleRender();try{const r=await sdFetch(L[i].id,true);if(r&&!r.errs.length)ok++;else bad++}catch(e){bad++}}
+  delete A.sk.busy.sdAll;A.sk.sdAuto=Object.fromEntries(L.map(x=>[x.id,1]));toast(`스트리머 ${ok}명의 지난 방송을 불러왔습니다${bad?` · ${bad}명은 일부 실패`:''}.`,bad?'crit':undefined);scheduleRender()}
 /* 실시간 기록: 화면을 열어 둔 동안 6분마다 라이브 시청자 표본 추가 */
 async function sdTick(){if(!A.sk.rec||A.view!=='sdata')return;const id=A.sk.sdSel||(spArr()[0]||{}).id;const s=(A.spool||{})[id];const D=A.sk.sd;if(!s||!D)return;let changed=false;
   for(const k of ['soop','chzzk']){const u=((s.channels||{})[k]||{}).url;if(!u||DB.mode==='demo')continue;try{const j=await aiFetch('/api/stream',{action:'channel',plat:k,ch:u});const lv=j.live;D.profile=D.profile||{};D.profile[k]={...(D.profile[k]||{}),...(j.channel||{}),live:lv||null};
     if(lv&&lv.viewers!=null){const bid=k+':live_'+(lv.id||String(lv.start||'').slice(0,13));let b=(D.bcs||[]).find(x=>x.id===bid);if(!b){b={id:bid,plat:k,title:lv.title||'',start:lv.start||T_NOW(),end:'',durMin:null,views:null,vodViews:null,url:u,peak:null,avg:null,chats:null,samples:[],folDelta:null,live:true};D.bcs=[b,...(D.bcs||[])]}
       b.samples=[...(b.samples||[]),[Date.now(),lv.viewers]].slice(-400);b.peak=Math.max(n(b.peak),lv.viewers);b.avg=Math.round(b.samples.reduce((t,x)=>t+x[1],0)/b.samples.length);b.title=lv.title||b.title;b.durMin=Math.round((Date.now()-new Date(b.start).getTime())/60000);changed=true}}catch(e){}}
   if(changed){try{await DB.set('streams/sd_'+id.slice(3),D)}catch(e){}scheduleRender()}}
-setInterval(()=>{sdTick()},6*60*1000);
+/* 실시간 기록(6분 표본)은 화면을 열어 둬야 해서 제거 — 지난 방송 자동 불러오기로 대체 */
 
 
 
@@ -357,10 +372,13 @@ Object.assign(ACT,{
   async spDel(a){if(A.confirm!=='spDel'){A.confirm='spDel';render();return}A.confirm=null;const id=a.dataset.id;try{await DB.del('streams/'+id);delete A.spool[id];A.sk.spEdit=null;render();toast('삭제했습니다.')}catch(e){saveErr(e)}},
   spFetch(a){spFetch(a.dataset.id)},
   sdOpen(a){A.sk.sdSel=a.dataset.id;A.sk.sdBc='';ACT.nav({dataset:{v:'sdata'}})},
-  sdFetch(){sdFetch()},
+  sdFetch(){sdFetch(A.sk.sdSel||A.sk.sdFor)},
   sdPlat(a){A.sk.sdPlat=a.dataset.k;render()},
   sdBc(a){A.sk.sdBc=A.sk.sdBc===a.dataset.id?'':a.dataset.id;render();if(A.sk.sdBc)setTimeout(()=>{const el=document.querySelector('.sd-det');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},60)},
-  sdRec(){A.sk.rec=!A.sk.rec;toast(A.sk.rec?'실시간 기록을 켰습니다. 이 화면을 열어 둔 동안 6분마다 라이브 시청자를 기록합니다.':'실시간 기록을 껐습니다.');if(A.sk.rec)sdTick();render()},
+  sdFetchAll(){sdFetchAll()},
+  sdPick(a){A.sk.sdSel=a.dataset.id;A.sk.sdBc='';render()},
+  sdPF(a){A.sk.sdP=a.dataset.k;render()},
+  sdPL(a){A.sk.sdPf=a.dataset.k;render()},
   spPickAdd(){const R=draftRows();let o=Object.values(R).reduce((t,r)=>Math.max(t,r.order||0),0);let k=0;[...(A.wsel||[])].forEach(id=>{const s=(A.spool||{})[id];if(!s)return;const chs=['soop','chzzk','yt'].filter(x=>((s.channels||{})[x]||{}).url);(chs.length?chs:['']).forEach(x=>{const ch=x?s.channels[x]:{};R[uid()]={order:++o,name:s.name,ch:x?SK_PLAT_L[x]:'',chlink:ch.url||'',acct:ch.id||'',fol:ch.fol??null,partner:s.partner||'',...(A.gf&&A.gf!=='__none'?{group:A.gf}:{})};k++})});A.wsel=new Set();A.wpick=false;render();toast(`${k}줄을 추가했습니다.`)}
 });
 /* 입력 */
@@ -368,6 +386,7 @@ document.addEventListener('change',e=>{const t=e.target;if(!t.dataset)return;
   if(t.dataset.skkw){const c=curC();if(!c)return;patchC('st.keywords',String(t.value).split(/[,\n]/).map(x=>x.trim()).filter(Boolean));return}
   if(t.dataset.ska){const [rid,ak]=t.dataset.ska.split('.');const f=t.dataset.f;const c=curC();skSaveAir(rid,airs=>{const a=airs[ak];if(!a)return;if(f==='inc'){const m=skMatch(c,a);if(t.checked===(m.title||m.soft))delete a.inc;else a.inc=t.checked}else if(f==='title')a.title=t.value;else{const v=parseNum(t.value);if(v==null)delete a[f];else a[f]=v}});return}
   if(t.dataset.sdsel){A.sk.sdSel=t.value;A.sk.sdBc='';render();return}
+  if(t.dataset.sdq){A.sk.sdQ=t.value;render();return}
   if(t.dataset.sddays){A.sk.sdDays=+t.value||30;return}
   if(t.dataset.sdbc){const D=A.sk.sd;if(!D||!canEdit())return;const b=(D.bcs||[]).find(x=>x.id===t.dataset.sdbc);if(!b)return;const v=parseNum(t.value);b[t.dataset.f]=v;const id=A.sk.sdSel||(spArr()[0]||{}).id;DB.set('streams/sd_'+id.slice(3),D).then(()=>render()).catch(saveErr);return}
   /* 캠페인 만들기: 채널 URL을 넣으면 플랫폼·채널 ID 자동 */
@@ -399,3 +418,12 @@ function skCss(){if(skCss.done)return;skCss.done=1;document.head.insertAdjacentH
 .sd-tbl tr.sel td{background:var(--accent-soft)}.sd-ttl{display:block;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 .sd-dg{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);gap:14px;align-items:start}@media(max-width:1000px){.sd-dg{grid-template-columns:1fr}}.sd-sum th{text-align:left;font-weight:500;color:var(--muted);white-space:nowrap}.sd-sum td{text-align:right;font-weight:600}
 </style>`)}
+
+document.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.sdq){A.sk.sdQ=t.value;clearTimeout(window.__sdq);window.__sdq=setTimeout(render,150)}});
+(function(){const st=document.createElement('style');st.textContent=`
+.sd-find{padding:12px 14px;margin-bottom:4px}.sd-find .chips em{font-style:normal;color:var(--muted);font-size:11px;margin-left:2px}
+.sd-list{display:flex;gap:8px;overflow-x:auto;padding:12px 2px 4px;scrollbar-width:thin}
+.sd-it{all:unset;box-sizing:border-box;flex:none;min-width:150px;max-width:200px;display:flex;flex-direction:column;gap:3px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
+.sd-it:hover{border-color:var(--accent)}.sd-it.on{border-color:var(--accent);background:var(--accent-soft)}.sd-it b{font-size:14px}.sd-it .small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sd-it-p{display:flex;gap:4px;align-items:center;flex-wrap:wrap}.sd-it-p em{font-style:normal;margin-left:auto;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.sd-svg .vl{font-size:10px;fill:var(--ink2);font-weight:600;font-variant-numeric:tabular-nums;pointer-events:none}`;document.head.appendChild(st)})();

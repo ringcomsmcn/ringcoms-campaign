@@ -9,7 +9,7 @@ if(MQ){const f=()=>{if(typeof render==='function'&&A.user)render()};MQ.addEventL
 A.mLast=A.mLast||{camp:'list',infl:'pool',tool:'guides'};
 
 const M_SEC={
-  camp:{l:'캠페인',items:[['list','시딩'],['trial','체험단'],['gb','공동구매'],['live','라이브커머스'],['stream','스트리머']]},
+  camp:{l:'캠페인',items:[['list','시딩'],['trial','체험단'],['gb','공동구매'],['live','라이브커머스'],['stream','스트리머 광고'],['viral','바이럴']]},
   infl:{l:'인플루언서',items:[['pool','인플루언서 풀'],['recruit','인플루언서 모집'],['spool','스트리머 풀'],['sdata','스트리머 데이터']]},
   tool:{l:'도구',items:[['guides','콘텐츠 가이드'],['review','영상 검수'],['proposals','광고 제안서'],['aivideo','AI 영상']]}};
 const M_IC={
@@ -18,8 +18,12 @@ const M_IC={
   infl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8.3 5 2.6 5 5.8"/></svg>',
   tool:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
   more:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>'};
+/* 인플루언서 / 스트리머 토글에 맞춰 캠페인·인플루언서 탭 항목을 바꿔 보여 줌 */
+{const MODE_V=['stream','viral','spool','sdata'];['camp','infl'].forEach(k=>{const all=M_SEC[k].items;Object.defineProperty(M_SEC[k],'items',{get(){const m=typeof lnbMode==='function'?lnbMode():'inf';return all.filter(([v])=>m==='str'?MODE_V.includes(v):!MODE_V.includes(v))}})});
+  M_SEC.infl.l='인플루언서';}
+function mToggle(){return typeof lnbToggle==='function'&&!(typeof isClientView==='function'&&isClientView())?`<div class="m-mode noprint">${lnbToggle()}</div>`:''}
 /* 지금 화면이 어느 탭인지 */
-function mSecOf(){const v=A.view;if(v==='mhome')return 'home';if(['list','trial','gb','live','stream','campaign','create'].includes(v))return 'camp';if(['pool','recruit','spool','sdata'].includes(v))return 'infl';if(['guides','review','proposals','aivideo'].includes(v))return 'tool';return 'more'}
+function mSecOf(){const v=A.view;if(v==='mhome')return 'home';if(['list','trial','gb','live','stream','viral','campaign','create'].includes(v))return 'camp';if(['pool','recruit','spool','sdata'].includes(v))return 'infl';if(['guides','review','proposals','aivideo'].includes(v))return 'tool';return 'more'}
 function mCnt(v){return ''}
 
 /* ---- 하단 탭 ---- */
@@ -35,8 +39,8 @@ function mMore(){const it=(v,l,tt,extra)=>`<button data-act="nav" data-v="${v}"$
    <p class="small muted" style="margin:6px 12px 2px">표 편집 · 제안서 · 디자인 작업은 PC 화면이 더 편해요.</p>`}
 
 /* ---- 섹션 안 상단 칩 ---- */
-function mSub(){if(!isMob())return '';const sec=mSecOf();const S=M_SEC[sec];if(!S)return '';if(A.view==='campaign'||A.view==='create'||(A.view==='guides'&&A.gid)||(A.view==='proposals'&&A.pid)||(A.view==='recruit'&&A.rcid))return '';
-  return `<div class="msub noprint">${S.items.map(([v,l])=>{const k=mCnt(v);const pc=v==='aivideo';return `<button class="${A.view===v?'on':''}" data-act="nav" data-v="${v}">${l}${k!==''&&k!=null&&sec==='camp'?` <em>${k}</em>`:''}${pc?' <i>PC</i>':''}</button>`}).join('')}</div>`}
+function mSub(){if(!isMob())return '';const sec=mSecOf();if(sec==='home')return mToggle();const S=M_SEC[sec];if(!S)return '';if(A.view==='campaign'||A.view==='create'||(A.view==='guides'&&A.gid)||(A.view==='proposals'&&A.pid)||(A.view==='recruit'&&A.rcid))return '';
+  return `${sec==='camp'||sec==='infl'?mToggle():''}<div class="msub noprint">${S.items.map(([v,l])=>{const k=mCnt(v);const pc=v==='aivideo';return `<button class="${A.view===v?'on':''}" data-act="nav" data-v="${v}">${l}${k!==''&&k!=null&&sec==='camp'?` <em>${k}</em>`:''}${pc?' <i>PC</i>':''}</button>`}).join('')}</div>`}
 
 /* ---- 홈 ---- */
 function viewMHome(){const camps=Object.entries(A.campaigns||{}).filter(([,c])=>inAcctScope(c));const run=camps.filter(([,c])=>campStatus(c)==='진행 중');
@@ -49,7 +53,7 @@ function viewMHome(){const camps=Object.entries(A.campaigns||{}).filter(([,c])=>
   return `${mCss()}<div class="mh-hello"><div class="small muted">${new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'})}</div><h1>${nm?esc(nm)+'님, ':''}안녕하세요</h1></div>
    <div class="mh-tiles"><button data-act="mGoRun"><span>진행 중 캠페인</span><b>${fmt(run.length)}</b></button><button data-act="mGoAlert" class="${alN?'crit':''}"><span>확인 필요</span><b>${fmt(alN)}</b></button></div>
    ${al.length?`<div class="mh-h">확인이 필요한 캠페인</div><div class="mh-list">${al.slice(0,4).map(([id,c])=>`<button class="mh-row" data-act="mOpenStatus" data-id="${id}"><b>${esc(c.name||'')}</b><span class="pill crit">${c.summary.alerts}</span></button>`).join('')}</div>`:''}
-   <div class="mh-h">바로가기</div><div class="mh-qs">${q('list','시딩 캠페인','📣')}${q('trial','체험단','🎁')}${q('pool','인플루언서 풀','👥')}${q('recruit','인플루언서 모집','🧵')}${q('review','영상 검수','🎬')}${q('stream','스트리머 광고','📺')}</div>
+   <div class="mh-h">바로가기</div><div class="mh-qs">${(typeof lnbMode==='function'&&lnbMode()==='str')?`${q('stream','스트리머 광고','📺')}${q('viral','바이럴 캠페인','📱')}${q('spool','스트리머 풀','🎮')}${q('sdata','스트리머 데이터','📊')}${q('guides','콘텐츠 가이드','📝')}${q('review','영상 검수','🎬')}`:`${q('list','시딩 캠페인','📣')}${q('trial','체험단','🎁')}${q('pool','인플루언서 풀','👥')}${q('recruit','인플루언서 모집','🧵')}${q('guides','콘텐츠 가이드','📝')}${q('review','영상 검수','🎬')}`}</div>
    <div class="mh-h">최근 캠페인</div><div class="mh-cards">${recent.map(card).join('')||'<div class="panel empty">아직 캠페인이 없습니다.</div>'}</div>`}
 
 /* ---- PC 전용 안내 ---- */
@@ -66,7 +70,7 @@ function mGate(){if(!isMob()||!A.user||(typeof isClientView==='function'&&isClie
   return null}
 
 Object.assign(ACT,{
-  mTab(a){const k=a.dataset.k;A.more=false;if(k==='more'){A.more=true;render();return}const v=k==='home'?'mhome':A.mLast[k]||M_SEC[k].items[0][0];
+  mTab(a){const k=a.dataset.k;A.more=false;if(k==='more'){A.more=true;render();return}const IT=M_SEC[k]&&M_SEC[k].items;const v=k==='home'?'mhome':(IT.some(x=>x[0]===A.mLast[k])?A.mLast[k]:IT[0][0]);
     if(k===mSecOf()&&k!=='home'){/* 같은 탭을 다시 누르면 그 섹션 첫 화면으로 */const first=M_SEC[k].items.find(x=>x[0]===A.mLast[k])?A.mLast[k]:M_SEC[k].items[0][0];if(A.view===first){A.rcid='';A.gid='';A.pid='';A.sid=''}ACT.nav({dataset:{v:first}});return}
     ACT.nav({dataset:{v}})},
   mGoRun(){A.statusF='진행 중';ACT.nav({dataset:{v:A.mLast.camp||'list'}});A.statusF='진행 중';render()},
@@ -105,3 +109,6 @@ function mCss(){if(mCss.done)return '';mCss.done=1;document.head.insertAdjacentH
 .pc-only{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:40px 18px;background:var(--surface);border:1px solid var(--line);border-radius:16px;margin-top:8px}.pc-only .pc-ic{font-size:40px}.pc-only h2{font-size:17px;margin:0}.pc-only p{margin:0;color:var(--ink2);font-size:13.5px;line-height:1.6}
 </style>`);return ''}
 mCss();
+
+(function(){const st=document.createElement('style');st.textContent=`.m-mode{margin:0 0 10px}.m-mode .lnb-mode{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:10px;background:var(--surface2);border:1px solid var(--line)}
+.m-mode .lnb-mode button{all:unset;box-sizing:border-box;text-align:center;padding:8px 4px;border-radius:7px;font-size:13.5px;color:var(--muted);cursor:pointer}.m-mode .lnb-mode button.on{background:var(--surface);color:var(--accent);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}`;document.head.appendChild(st)})();

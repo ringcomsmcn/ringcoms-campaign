@@ -10,7 +10,7 @@ const DEMO_META={
   inf:{l:'인플루언서 캠페인',who:'인플루언서 캠페인 광고주 · 대행사',home:'list',infl:'pool',
     tour:[['캠페인 목록','nav','list'],['캠페인 개요','c','inf_seed1:overview'],['인플루언서 관리','c','inf_seed1:grid'],['성과 리포트','c','inf_seed1:report'],['링크 트래킹','c','inf_seed1:track'],['광고주 공유','c','inf_seed1:share'],['콘텐츠 가이드','g','gd_lumi_g1'],['체험단','nav','trial'],['인플루언서 풀','nav','pool'],['광고 제안서','p','pp_moabebe']]},
   str:{l:'스트리머 광고',who:'스트리머 광고 광고주 · 대행사',home:'stream',infl:'spool',
-    tour:[['스트리머 광고 목록','nav','stream'],['캠페인 개요','c','str_ppl1:overview'],['스트리머 관리','c','str_ppl1:grid'],['성과 리포트','c','str_ppl1:report'],['광고주 공유','c','str_ppl1:share'],['스트리머 풀','nav','spool'],['방송 데이터','nav','sdata'],['PPL 가이드','g','gd_astra_ppl'],['광고 제안서','p','pp_eden']]}};
+    tour:[['스트리머 광고 목록','nav','stream'],['캠페인 개요','c','str_ppl1:overview'],['스트리머 관리','c','str_ppl1:grid'],['성과 리포트','c','str_ppl1:report'],['바이럴 · 패키지','c','str_viral1:overview'],['광고주 공유','c','str_ppl1:share'],['스트리머 풀','nav','spool'],['방송 데이터','nav','sdata'],['PPL 가이드','g','gd_astra_ppl'],['광고 제안서','p','pp_eden']]}};
 function demoKind(){try{const p=new URLSearchParams(location.search).get('demo');return DEMO_META[p]?p:''}catch(e){return ''}}
 window.DEMO_KIND=demoKind();
 const DEMO_EDIT=(()=>{try{return !!window.DEMO_KIND&&new URLSearchParams(location.search).get('edit')==='1'}catch(e){return false}})();
@@ -50,35 +50,49 @@ if(window.DEMO_KIND){const of=window.fetch.bind(window);
 
 /* ---- 체험판 제한 기능: 실제 데이터 수집 · AI · 발송 · 연동 설정 버튼은 눌러도 실행하지 않고 안내만 ---- */
 const DEMO_LOCK={
-  data:['chFetch','ytFetch','skFetchAll','skFetchOne','spFetch','sdFetch','sdRec','rqSync','rqSheetCheck'],
+  data:['chFetch','ytFetch','skFetchAll','skFetchOne','spFetch','sdFetch','sdFetchAll','rqSync','rqSheetCheck'],
   ai:['guideAi','ppAi','ppDisc','rqAi','revRun','revRetry','canvaGo','ppCanva'],
   send:['rqThPost','rqThConnect','rqForm','msSend','msRemind','msSyncBtn','inviteClient','addAdmin'],
   set:['msSave','metaSave','saveYtKey','intCheck','metaRecheck','msRecheck','aiRecheck','updGo','opsRefresh']};
 const DEMO_LOCK_MSG={data:'성과 데이터 업데이트(조회수·방송 불러오기 등)는 체험판에서 실행되지 않습니다. 화면의 수치는 미리 넣어 둔 가상 데이터입니다.',
   ai:'AI 생성·검수 기능은 체험판에서 실행되지 않습니다. 미리 만들어 둔 결과를 둘러보세요.',
   send:'발송·게시·초대 기능은 체험판에서 실행되지 않습니다.',set:'연동 설정은 체험판에서 바꿀 수 없습니다.'};
+/* 잠긴 버튼에 마우스를 올리면 보이는 설명 (실제 플랫폼에서 하는 일) */
+const DEMO_LOCK_DESC={chFetch:'채널 링크로 계정 ID·팔로워·카테고리를 자동으로 채웁니다.',ytFetch:'유튜브·인스타그램·틱톡 콘텐츠의 조회수·좋아요·댓글을 지금 불러와 리포트를 갱신합니다.',
+  skFetchAll:'캠페인 기간의 SOOP·치지직·유튜브 방송을 불러와 방송 제목 키워드·소프트콘으로 광고 방송을 자동 매칭합니다.',skFetchOne:'이 스트리머의 캠페인 기간 방송을 불러와 광고 방송을 매칭합니다.',spFetch:'SOOP·치지직·유튜브 채널의 팔로워·구독자 수를 불러옵니다.',
+  sdFetch:'이 스트리머의 지난 방송 기록(방송 시간·누적 시청·팔로워 변화)을 불러옵니다.',sdFetchAll:'스트리머 풀 전체의 지난 방송 기록을 한 번에 불러옵니다.',rqSync:'구글폼 신청자를 불러와 신청 인플루언서 목록에 추가합니다.',rqSheetCheck:'신청자 구글시트 연결 상태를 확인합니다.',
+  guideAi:'광고주 홈페이지·상품 링크를 AI가 읽고 콘텐츠 가이드 초안을 채워 줍니다.',ppAi:'상품소개서·예산을 바탕으로 AI가 시장 조사부터 제안서 문구까지 작성합니다.',ppDisc:'조건에 맞는 인플루언서를 유튜브·틱톡·인스타그램에서 찾아 섭외 후보로 추천합니다.',rqAi:'AI가 스레드 모집 글과 구글폼 문항을 작성합니다.',
+  revRun:'업로드 전 영상을 AI가 보고 가이드 준수 여부·수정 요청 사항을 정리합니다.',revRetry:'영상 검수를 다시 실행합니다.',canvaGo:'Canva에서 장면 이미지를 만들어 가이드에 넣습니다.',ppCanva:'Canva로 제안서 디자인을 이어서 편집합니다.',
+  rqThPost:'작성한 모집 글을 연결된 스레드 계정에 바로 게시합니다.',rqThConnect:'팀원 개인 스레드 계정을 연결합니다.',rqForm:'구글폼과 신청 축약 링크를 자동으로 만듭니다.',msSend:'모두싸인으로 인플루언서 계약서를 발송합니다.',msRemind:'서명하지 않은 인플루언서에게 알림을 다시 보냅니다.',msSyncBtn:'모두싸인 계약 진행 상태를 불러옵니다.',
+  inviteClient:'광고주 담당자를 초대해 진행 현황을 직접 보게 합니다.',addAdmin:'팀원을 추가하고 권한을 줍니다.',msSave:'모두싸인 API 키를 저장합니다.',metaSave:'Meta(인스타그램) 토큰을 저장합니다.',saveYtKey:'YouTube API 키를 저장합니다.',intCheck:'연동된 외부 서비스 상태를 확인합니다.',
+  metaRecheck:'Meta 연결 상태를 다시 확인합니다.',msRecheck:'모두싸인 연결 상태를 다시 확인합니다.',aiRecheck:'AI 연결 상태를 다시 확인합니다.',updGo:'승인한 플랫폼 업데이트를 진행합니다.',opsRefresh:'업데이트 제안을 새로 불러옵니다.'};
 const DEMO_LOCK_OF={};for(const k in DEMO_LOCK)DEMO_LOCK[k].forEach(a=>DEMO_LOCK_OF[a]=k);
 if(window.DEMO_KIND){
+  /* 잠긴 버튼 설명 말풍선 */
+  let tip=null,tipFor=null;const hideTip=()=>{if(tip)tip.style.display='none';tipFor=null};
+  document.addEventListener('mouseover',e=>{const a=e.target.closest&&e.target.closest('[data-act]');if(!a||!DEMO_LOCK_OF[a.dataset.act]){if(tipFor&&!(a&&a===tipFor))hideTip();return}if(a===tipFor)return;tipFor=a;a.removeAttribute('title');
+    if(!tip){tip=document.createElement('div');tip.className='dm-tip';document.body.appendChild(tip)}
+    tip.innerHTML=`<b>🔒 체험판에서는 실행되지 않는 기능</b><span>${esc(DEMO_LOCK_DESC[a.dataset.act]||'실제 플랫폼에서 쓸 수 있는 기능입니다.')}</span>`;tip.style.display='block';
+    const r=a.getBoundingClientRect(),tw=Math.min(300,window.innerWidth-16);tip.style.width=tw+'px';let x=r.left+r.width/2-tw/2;x=Math.max(8,Math.min(window.innerWidth-tw-8,x));tip.style.left=x+'px';
+    const th=tip.offsetHeight;tip.style.top=(r.top-th-8>8?r.top-th-8:r.bottom+8)+'px'},true);
+  document.addEventListener('scroll',hideTip,true);
   window.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('[data-act]');if(!a)return;const k=DEMO_LOCK_OF[a.dataset.act];if(!k)return;
     e.preventDefault();e.stopImmediatePropagation();toast(DEMO_LOCK_MSG[k])},true);
   const st=document.createElement('style');st.textContent=Object.keys(DEMO_LOCK_OF).map(a=>`[data-act="${a}"]`).join(',')+`{opacity:.55;cursor:not-allowed!important}`+
-    Object.keys(DEMO_LOCK_OF).map(a=>`button[data-act="${a}"]::after`).join(',')+`{content:" 🔒";font-size:.85em}`;document.head.appendChild(st)}
+    Object.keys(DEMO_LOCK_OF).map(a=>`button[data-act="${a}"]::after`).join(',')+`{content:" 🔒";font-size:.85em}.dm-tip{position:fixed;z-index:9999;display:none;pointer-events:none;background:#161B26;color:#fff;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.25)}.dm-tip b{display:block;font-size:12px;color:#FFD48A;margin-bottom:2px}.dm-tip span{display:block}`;document.head.appendChild(st)}
 
 /* ---- 메뉴: 체험판 유형에 맞는 메뉴만 ---- */
 function demoNav(groups){const k=window.DEMO_KIND;
-  const keep=k==='str'?new Set(['stream','spool','sdata','guides','proposals','team:accts']):new Set(['list','trial','gb','live','pool','recruit','guides','review','aivideo','proposals','team:accts']);
+  const keep=k==='str'?new Set(['stream','viral','spool','sdata','guides','review','aivideo','proposals','team:accts']):new Set(['list','trial','gb','live','pool','recruit','guides','review','aivideo','proposals','team:accts']);
   return groups.map(g=>({...g,items:g.items.filter(it=>keep.has(it.tt?it.v+':'+it.tt:it.v)).map(it=>it.tt==='accts'?{...it,l:'광고주 계정'}:it)})).filter(g=>g.items.length).map(g=>g.t==='구성요소 관리'?{...g,t:'계정 관리'}:g)}
 if(window.DEMO_KIND&&typeof M_SEC!=='undefined'){const k=window.DEMO_KIND;
-  M_SEC.camp.items=M_SEC.camp.items.filter(([v])=>k==='str'?v==='stream':v!=='stream');
-  M_SEC.infl.items=M_SEC.infl.items.filter(([v])=>k==='str'?['spool','sdata'].includes(v):['pool','recruit'].includes(v));
-  M_SEC.tool.items=M_SEC.tool.items.filter(([v])=>k==='str'?['guides','proposals'].includes(v):true);
   A.mLast={camp:DEMO_META[k].home,infl:DEMO_META[k].infl,tool:'guides'};
   window.mMore=function(){return `<div class="ms-who"><b>${esc(DEMO_META[k].l)} 체험판</b><span class="small muted">가상 데이터 · 이 브라우저에만 저장</span></div>
     <div class="ms-sec">계정 관리</div><button data-act="nav" data-v="team" data-tt="accts"><span>광고주 계정</span></button>
     <div class="ms-sec">체험판</div><button data-act="demoAs" data-k="${A.role==='client'?'team':'client'}"><span>${A.role==='client'?'운영사 화면으로':'광고주 화면으로 보기'}</span></button><button data-act="demoReset"><span>처음 상태로</span></button><button data-act="signOut"><span>체험 종료</span></button>`}}
 if(window.DEMO_KIND==='str'&&A.sk&&!A.sk.sdSel)A.sk.sdSel='sp_demo001';
 /* 체험판에서 열 수 있는 화면 */
-function demoAllowed(v){const k=window.DEMO_KIND;if(!k)return true;const ok=k==='str'?['stream','spool','sdata','guides','proposals','team','campaign','create','mhome','cv','cvc','acct','demoadm']:['list','trial','gb','live','pool','recruit','guides','review','aivideo','proposals','team','campaign','create','mhome','cv','cvc','acct'];return ok.includes(v)}
+function demoAllowed(v){const k=window.DEMO_KIND;if(!k)return true;const ok=k==='str'?['stream','viral','spool','sdata','guides','review','aivideo','proposals','team','campaign','create','mhome','cv','cvc','acct']:['list','trial','gb','live','pool','recruit','guides','review','aivideo','proposals','team','campaign','create','mhome','cv','cvc','acct'];return ok.includes(v)}
 
 /* ---- 상단 바 · 안내 띠 ---- */
 function demoWho(){const k=window.DEMO_KIND;const cl=A.role==='client';
