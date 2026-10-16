@@ -53,7 +53,7 @@ async function skYtVods(ch,from,to,onlyLive){const ids=[];let pt='',older=false;
 /* 플랫폼 공통: 방송 목록 + 채널 요약 */
 async function skVods(plat,url,from,to){const p=typeof parseChLink==='function'?parseChLink(url):null;
   if(plat==='유튜브'||(p&&p.ch==='유튜브')){const ch=await skYtChannel(url);return {ch:{plat:'유튜브',...ch},items:await skYtVods(ch,from,to,false)}}
-  const k=plat==='치지직'||(p&&p.ch==='치지직')?'chzzk':'soop';if(DB.mode==='demo')return skDemo(k,url,from);
+  const k=plat==='치지직'||(p&&p.ch==='치지직')?'chzzk':'soop';if(window.DEMO_KIND)throw new Error(DEMO_BLOCK_MSG);if(DB.mode==='demo')return skDemo(k,url,from);
   const [v,c]=await Promise.all([aiFetch('/api/stream',{action:'vods',plat:k,ch:url,from,to}),aiFetch('/api/stream',{action:'channel',plat:k,ch:url}).catch(()=>({}))]);
   return {ch:{plat:SK_PLAT_L[k],...(c.channel||{}),live:c.live||null},items:v.items||[]}}
 function skDemo(k,url,from){const d0=new Date((from||today())+'T19:00:00+09:00');const T=['저챗 + 게임','오늘은 신작 리뷰 방송!','[광고] 신작 게임 같이 해요','[PPL] 이벤트 진행중 🎁','합방 데이','새벽 수다방','[광고] 레이드 공략'];
@@ -148,7 +148,7 @@ async function skLegacy(){if(skLegacy.done||!canEdit()||DB.mode==='demo')return;
 
 /* ============ 스트리머 풀 ============ */
 function spWatch(){if(spWatch.on||!isTeam())return;spWatch.on=true;const load=()=>DB.query('streams','type','streamer').then(m=>{A.spool=m;A.spLoaded=true;spSeed();scheduleRender()}).catch(()=>{A.spLoaded=true;A.spErr=true;scheduleRender()});load();spWatch.reload=load}
-async function spSeed(){if(spSeed.done||!canEdit())return;spSeed.done=true;const have=new Set(Object.values(A.spool||{}).map(s=>skNorm(s.name)));
+async function spSeed(){if(spSeed.done||!canEdit()||window.DEMO_KIND)return;spSeed.done=true;const have=new Set(Object.values(A.spool||{}).map(s=>skNorm(s.name)));
   for(const r of SK_ROSTER){if(have.has(skNorm(r.name)))continue;const id='sp_'+uid().slice(0,10);const d={type:'streamer',name:r.name,partner:r.partner,tags:r.tags,memo:'',channels:{},camps:{},createdAt:T_NOW(),by:A.user.email};try{await DB.set('streams/'+id,d);A.spool[id]=d}catch(e){}}scheduleRender()}
 const spArr=()=>Object.entries(A.spool||{}).map(([id,s])=>({id,...s}));
 function spFol(s){return ['soop','chzzk','yt'].reduce((t,k)=>t+n(((s.channels||{})[k]||{}).fol),0)}
@@ -177,6 +177,7 @@ function spForm(){const e=A.sk.spEdit;const s=e.id?(A.spool||{})[e.id]||{}:e;con
    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px">${e.id?`<button class="btn danger" data-act="spDel" data-id="${e.id}">${A.confirm==='spDel'?'한 번 더 누르면 삭제':'삭제'}</button><span class="grow"></span>`:''}<button class="btn" data-act="spX">취소</button><button class="btn primary" data-act="spSave">저장하고 채널 정보 불러오기</button></div></section>`}
 /* 채널 URL → 채널 정보 (팔로워 · 구독 · 프로필) */
 async function skChannel(k,url){if(k==='yt'){const c=await skYtChannel(url);return {id:c.id,name:c.name,img:c.img,fol:c.fol,views:c.views,videos:c.videos,url:c.url,at:T_NOW()}}
+  if(window.DEMO_KIND)throw new Error(DEMO_BLOCK_MSG);
   if(DB.mode==='demo')return {id:'demo',name:'데모 채널',fol:50000+url.length*13,subs:300,img:'',url,at:T_NOW()};const j=await aiFetch('/api/stream',{action:'channel',plat:k,ch:url});return {...(j.channel||{}),url,at:T_NOW(),...(j.live?{live:j.live}:{})}}
 async function spFetch(id){const s=(A.spool||{})[id];if(!s)return;A.sk.busy['sp'+id]=true;scheduleRender();const C={...(s.channels||{})};const errs=[];
   for(const k of ['soop','chzzk','yt']){const u=(C[k]||{}).url;if(!u)continue;try{C[k]={...C[k],...(await skChannel(k,u)),url:u}}catch(e){errs.push(SK_PLAT_L[k]+': '+e.message)}}

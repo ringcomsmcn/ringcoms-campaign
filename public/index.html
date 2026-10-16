@@ -936,14 +936,14 @@ async function firebaseStore(){
     signIn:()=>au.signInWithPopup(new firebase.auth.GoogleAuthProvider()),
     signOut:()=>au.signOut(),idToken:()=>au.currentUser?au.currentUser.getIdToken():Promise.reject(new Error('로그인이 필요합니다.'))};
 }
-function demoStore(){
-  const K='ringcoms_campaign_demo_v1';let data={};const subs=new Set();
+function demoStore(opt){
+  const K=(opt&&opt.key)||'ringcoms_campaign_demo_v1';let data={};const subs=new Set();
   const load=()=>{try{data=JSON.parse(localStorage.getItem(K)||'{}')||{}}catch(e){data={}}};load();
   const fire=()=>setTimeout(()=>subs.forEach(s=>s()),0);
   const save=()=>{try{localStorage.setItem(K,JSON.stringify(data))}catch(e){}fire()};
   window.addEventListener('storage',e=>{if(e.key===K){load();fire()}});
   const DEL={__del:1};
-  const api={mode:'demo',DEL,
+  const api={mode:'demo',DEL,dump:()=>clone(data),
     watchCol(c,cb){const s=()=>{const m={};for(const p in data){const i=p.indexOf('/');if(p.slice(0,i)===c)m[p.slice(i+1)]=clone(data[p])}cb(m)};subs.add(s);setTimeout(s,0);return()=>subs.delete(s)},
     watchDoc(p,cb){const s=()=>cb(data[p]?clone(data[p]):null);subs.add(s);setTimeout(s,0);return()=>subs.delete(s)},
     watchQuery(c,fld,val,cb,err,f2,v2){const s=()=>{const m={};for(const p in data){const i=p.indexOf('/');if(p.slice(0,i)===c&&data[p]&&data[p][fld]===val&&(!f2||data[p][f2]===v2))m[p.slice(i+1)]=clone(data[p])}cb(m)};subs.add(s);setTimeout(s,0);return()=>subs.delete(s)},
@@ -955,8 +955,9 @@ function demoStore(){
     del(p){delete data[p];save();return Promise.resolve()},
     onAuth(cb){let as='';try{as=new URLSearchParams(location.search).get('as')||sessionStorage.getItem('ring_demo_as')||'';if(as)sessionStorage.setItem('ring_demo_as',as)}catch(e){}
       const em=as==='client'?'client@demo.client':as==='clientAdmin'?'admin@demo.client':'demo@ringcoms.demo';setTimeout(()=>cb({email:em,name:'데모 사용자'}),0)},
-    idToken(){return Promise.resolve('demo')},signIn(){return Promise.resolve()},signOut(){try{sessionStorage.removeItem('ring_demo');sessionStorage.removeItem('ring_demo_as')}catch(e){}location.href=location.pathname},
-    reset(){data={};save();seedDemo(api,true)}};
+    idToken(){return Promise.resolve('demo')},signIn(){return Promise.resolve()},signOut(){try{sessionStorage.removeItem('ring_demo');sessionStorage.removeItem('ring_demo_as')}catch(e){}location.href=opt&&opt.snap?'/demo/':location.pathname},
+    reset(){if(opt&&opt.snap){data=clone(opt.snap.data);save();return}data={};save();seedDemo(api,true)}};
+  if(opt&&opt.snap){let v='';try{v=localStorage.getItem(K+'_v')||''}catch(e){}if(v!==opt.snap.v||!Object.keys(data).length){data=clone(opt.snap.data);save();try{localStorage.setItem(K+'_v',opt.snap.v)}catch(e){}}return api}
   seedDemo(api,false);return api;
 }
 function seedDemo(api,force){
@@ -1185,9 +1186,9 @@ function newCampaignData(kind){if(!KINDS[kind])kind='seed';const tr=kind==='tria
 /* ============ 시작 ============ */
 async function boot(){
   const params=new URLSearchParams(location.search);const r=params.get('r');
-  const demo=!CONFIGURED;
-  if(demo&&!r){let on=false;try{on=sessionStorage.getItem('ring_demo')==='1'}catch(e){}if(!on&&!params.has('demo')){renderSetup();return}try{sessionStorage.setItem('ring_demo','1')}catch(e){}}
-  try{DB=demo?demoStore():await firebaseStore()}catch(e){document.getElementById('app').innerHTML=`<div class="center"><div class="card"><h2>서버에 연결하지 못했습니다</h2><p class="sub">인터넷 연결을 확인하고 새로고침하세요.</p></div></div>`;return}
+  const dk=window.DEMO_KIND||'';const demo=!CONFIGURED||!!dk;
+  if(demo&&!r&&!dk){let on=false;try{on=sessionStorage.getItem('ring_demo')==='1'}catch(e){}if(!on&&!params.has('demo')){renderSetup();return}try{sessionStorage.setItem('ring_demo','1')}catch(e){}}
+  try{DB=dk?await demoKitStore(dk):demo?demoStore():await firebaseStore()}catch(e){document.getElementById('app').innerHTML=`<div class="center"><div class="card"><h2>서버에 연결하지 못했습니다</h2><p class="sub">인터넷 연결을 확인하고 새로고침하세요.</p></div></div>`;return}
   if(r){startShare(r);watchBrand();return}
   watchBrand();
   DB.onAuth(async u=>{
@@ -1246,7 +1247,7 @@ function routeOf(){const v=A.view;if(v==='campaign')return {v,c:A.cid,t:A.tab||'
 function routeHash(r){if(r.v==='campaign')return `#/c/${r.c}/${r.t}`;if(r.v==='create')return `#/new/${r.k}`;if(r.v==='team')return '#/team'+(r.tt!=='members'?'/'+r.tt:'');if(r.v==='cvc')return `#/cv/${r.c}`;if(r.v==='guides'&&r.g)return '#/guides/'+encodeURIComponent(r.g);if(r.v==='proposals'&&r.g)return '#/proposals/'+encodeURIComponent(r.g);if(r.v==='recruit'&&r.g)return '#/recruit/'+encodeURIComponent(r.g);if(r.lt==='groups'||r.lt==='ads')return `#/${r.v}/${r.lt}`;return '#/'+r.v}
 function parseHash(h){const p=String(h||'').replace(/^#\/?/,'').split('/').filter(Boolean).map(x=>{try{return decodeURIComponent(x)}catch(e){return x}});if(!p.length)return null;
   if(p[0]==='c'&&p[1])return {v:'campaign',c:p[1],t:p[2]||'overview'};if(p[0]==='new')return {v:'create',k:p[1]||'seed'};if(p[0]==='team')return {v:'team',tt:p[1]||'members'};if(p[0]==='cv'&&p[1])return {v:'cvc',c:p[1]};if(p[0]==='guides')return {v:'guides',g:p[1]||''};if(p[0]==='proposals')return {v:'proposals',g:p[1]||''};if(p[0]==='recruit')return {v:'recruit',g:p[1]||''};
-  if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':p[1]==='ads'?'ads':'camps'};if(['pool','updates','history','cv','acct','review','aivideo','stream','mhome','spool','sdata'].includes(p[0]))return {v:p[0]};return null}
+  if(VIEW_KIND[p[0]])return {v:p[0],lt:p[1]==='groups'?'groups':p[1]==='ads'?'ads':'camps'};if(['pool','updates','history','cv','acct','review','aivideo','stream','mhome','spool','sdata','demoadm'].includes(p[0]))return {v:p[0]};return null}
 let ROUTE_LOCK=false;
 function routeSync(){if(A.view==='share'||!A.user||!A.admin||ROUTE_LOCK)return;if(A.skipPop){clearTimeout(routeSync.t);routeSync.t=setTimeout(()=>{A.skipPop=0;routeSync()},400);return}const r=routeOf();const h=routeHash(r);const d=!!(A.drawer||A.modal||A.bellOpen||A.more);const st=history.state;
   try{if(!st||!st.h){history.replaceState({h,r,d:false},'',h);if(d)history.pushState({h,r,d:true},'',h);return}
@@ -1254,7 +1255,7 @@ function routeSync(){if(A.view==='share'||!A.user||!A.admin||ROUTE_LOCK)return;i
     if(st.d&&!d){history.replaceState({h,r,d:false},'',h);return}
     history.pushState({h,r,d:false},'',h);if(d)history.pushState({h,r,d:true},'',h)}catch(e){}}
 /* 권한별로 열 수 있는 화면 */
-function allowedView(v){if(A.role==='client')return ['cv','cvc','acct'].includes(v);if(A.role==='clientAdmin')return ['cv','cvc','acct','campaign','create',...Object.keys(VIEW_KIND)].includes(v);return !['cv','cvc','acct'].includes(v)}
+function allowedView(v){if(window.DEMO_KIND&&typeof demoAllowed==='function'&&!demoAllowed(v))return false;if(A.role==='client')return ['cv','cvc','acct'].includes(v);if(A.role==='clientAdmin')return ['cv','cvc','acct','campaign','create',...Object.keys(VIEW_KIND)].includes(v);return !['cv','cvc','acct'].includes(v)}
 function applyRoute(r){if(!r)return;if(!allowedView(r.v))r={v:homeView()};ROUTE_LOCK=true;try{A.drawer=null;A.modal=null;A.bellOpen=false;A.more=false;A.confirm=null;A.editName=null;
   if(r.v==='campaign'){if(A.cid!==r.c||A.view!=='campaign')openCampaign(r.c,r.t);else{A.tab=r.t;render()}}
   else if(r.v==='create'){if(A.draft&&A.view==='create')render();else{A.view=homeView(r.k);render()}}
@@ -1345,8 +1346,8 @@ function shell(){
   const mnav=`<nav class="mnav noprint" style="grid-template-columns:repeat(${mainM.length+(moreM.length?1:0)},1fr)">${mainM.map(mb).join('')}${moreM.length?`<button class="${moreOn||A.more?'on':''}" data-act="moreToggle">${IC.more}<span>더보기</span>${moreM.some(x=>x.badge)?'<i class="dot"></i>':''}</button>`:''}</nav>
    ${A.more&&moreM.length?`<div class="msheet-bg noprint" data-act="moreToggle"></div><div class="msheet noprint">${moreM.map(it=>`<button class="${onOf(it)?'on':''}" data-act="nav" data-v="${it.v}"${it.tt?` data-tt="${it.tt}"`:''}>${IC[it.ic||it.v]||IC.list}<span>${it.l}</span>${it.badge?`<em class="nw">${it.badge}</em>`:''}</button>`).join('')}</div>`:''}`;
   let body=(typeof mGate==='function'&&mGate())||viewBody();
-  return `<div class="top noprint"><div class="wrap">${brandLink()}<span class="grow"></span><div class="who">${DB.mode==='demo'?'<span class="pill warn">데모 모드</span><button class="btn sm ghost" data-act="demoReset">데모 초기화</button>':''}${A.role&&A.role!=='master'?`<span class="pill role-pill ${['viewer','client'].includes(A.role)?'warn':'accent'}" title="${esc(ROLE_DESC[A.role]||'')}">${ROLES[A.role]||A.role}</span>`:''}${typeof gnbAcct==='function'?gnbAcct():''}${bellHtml()}<span class="email">${esc(A.user.email)}</span><button class="btn sm" data-act="signOut">${DB.mode==='demo'?'데모 종료':'로그아웃'}</button></div></div></div>
-  <div class="layout ${A.lnbMini?'mini':''}">${lnb}<main><div class="wrap">${typeof gnbAcct==='function'&&gnbAcct()?`<div class="gacct-m noprint">${gnbAcct().replace('id="gnb-acct"','id="gnb-acct-m"')}</div>`:''}${A.err?`<div class="banner">${esc(A.err)}</div>`:''}${typeof mSub==='function'?mSub():''}${body}</div></main></div>${(typeof mNav==='function'&&mNav())||mnav}${drawer()}${A.modal&&A.modal.type==='logo'?logoModal():A.modal&&A.modal.type==='updGo'?updGoModal():''}${bellPanel()}`;
+  return `<div class="top noprint"><div class="wrap">${brandLink()}<span class="grow"></span><div class="who">${DB.mode==='demo'?(window.DEMO_KIND&&typeof demoWho==='function'?demoWho():'<span class="pill warn">데모 모드</span><button class="btn sm ghost" data-act="demoReset">데모 초기화</button>'):''}${A.role&&A.role!=='master'?`<span class="pill role-pill ${['viewer','client'].includes(A.role)?'warn':'accent'}" title="${esc(ROLE_DESC[A.role]||'')}">${ROLES[A.role]||A.role}</span>`:''}${typeof gnbAcct==='function'?gnbAcct():''}${bellHtml()}<span class="email">${window.DEMO_KIND?(A.role==='client'?'광고주 계정':'체험 계정'):esc(A.user.email)}</span><button class="btn sm" data-act="signOut">${window.DEMO_KIND?'체험 종료':DB.mode==='demo'?'데모 종료':'로그아웃'}</button></div></div></div>
+  <div class="layout ${A.lnbMini?'mini':''}">${lnb}<main><div class="wrap">${typeof gnbAcct==='function'&&gnbAcct()?`<div class="gacct-m noprint">${gnbAcct().replace('id="gnb-acct"','id="gnb-acct-m"')}</div>`:''}${A.err?`<div class="banner">${esc(A.err)}</div>`:''}${window.DEMO_KIND&&typeof demoBanner==='function'?demoBanner():''}${typeof mSub==='function'?mSub():''}${body}</div></main></div>${(typeof mNav==='function'&&mNav())||mnav}${drawer()}${A.modal&&A.modal.type==='logo'?logoModal():A.modal&&A.modal.type==='updGo'?updGoModal():''}${bellPanel()}`;
 }
 /* 메뉴 구성 (권한별) */
 function navItems(){
@@ -1356,8 +1357,9 @@ function navItems(){
   const prop={t:'제안 도구',items:[{v:'proposals',l:'광고 제안서 생성',ms:'제안서',ic:'proposal'}]};
   const infl={t:'인플루언서 관리',items:[{v:'pool',l:'인플루언서 풀',ms:'풀',ic:'pool'},{v:'recruit',l:'인플루언서 모집',ms:'모집',ic:'recruit'},{v:'spool',l:'스트리머 풀',ms:'스트리머',ic:'spool'},{v:'sdata',l:'스트리머 데이터',ms:'방송 데이터',ic:'sdata'}]};
   const comp={t:'구성요소 관리',items:[{v:'team',tt:'members',l:'팀원·권한',ic:'team'},{v:'team',tt:'accts',l:'광고주 계정',ic:'acct'},{v:'team',tt:'int',l:'연동 관리',ic:'int'},{v:'updates',l:'업데이트 제안',badge:updBadge()},{v:'history',l:'업데이트 이력'}]};
-  return [ads,infl,tools,prop,comp]}
-function viewBody(){const v=A.view;return v==='mhome'&&typeof viewMHome==='function'?viewMHome():v==='recruit'?viewRecruit():v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='spool'&&typeof viewSpool==='function'?viewSpool():v==='sdata'&&typeof viewSdata==='function'?viewSdata():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
+  if(isMaster()&&!window.DEMO_KIND&&typeof viewDemoAdm==='function')comp.items.push({v:'demoadm',l:'체험판 관리',ic:'acct'});
+  const all=[ads,infl,tools,prop,comp];return window.DEMO_KIND&&typeof demoNav==='function'?demoNav(all):all}
+function viewBody(){const v=A.view;return v==='mhome'&&typeof viewMHome==='function'?viewMHome():v==='recruit'?viewRecruit():v==='proposals'?viewProposals():v==='guides'?viewGuides():v==='review'?viewReview():v==='aivideo'?viewAiVideo():v==='team'?viewTeam():v==='pool'?viewPool():v==='spool'&&typeof viewSpool==='function'?viewSpool():v==='sdata'&&typeof viewSdata==='function'?viewSdata():v==='campaign'?viewCampaign():v==='create'?viewCreate():v==='updates'?viewUpdates():v==='history'?viewHistory():v==='demoadm'&&typeof viewDemoAdm==='function'?viewDemoAdm():v==='cv'||v==='cvc'?viewClient():v==='acct'?viewMyAcct():viewList()}
 function homeView(k){return isClientView()?'cv':(!k&&typeof isMob==='function'&&isMob()&&isTeam()?'mhome':kindView(k||'seed'))}
 
 /* ---- 계정·클라이언트·업데이트 기능 (아래에서 다시 정의) ---- */
@@ -2212,7 +2214,7 @@ function comSchedule(c,rows){const td=today();const GB=isGB(c);const ev=[];
    ${L.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th></th><th>날짜</th><th>일정</th><th>인플루언서</th>${GB?'':'<th>플랫폼</th>'}<th>진행 상황</th><th>확인 필요</th></tr></thead><tbody>${L.map(e=>`<tr class="click" data-act="rowMenu" data-r="${e.r.id}"><td>${dl(e.d)}</td><td style="white-space:nowrap">${md(e.d)}${e.tm?' '+e.tm:''}</td><td class="bold">${e.t}</td><td>${esc(e.r.name)}<span class="small muted"> ${esc(e.r.acct||'')}</span></td>${GB?'':`<td class="small">${esc(e.p||'')}</td>`}<td><span class="pill ${isDone(e.r.stage)?'ok':'accent'}">${esc(e.r.stage||'-')}</span></td><td class="small" style="color:var(--crit)">${esc(alertOf(e.r,c))}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">가까운 일정이 없습니다. 인플루언서 관리의 「${GB?'공구 시작일·종료일':'방송 일시'}」 칸을 채우면 여기에 모입니다.</div>`}</section>`}
 
 /* ============ 공유 탭 ============ */
-function shareUrl(tk){return location.href.split('#')[0].split('?')[0]+'?r='+tk}
+function shareUrl(tk){return location.href.split('#')[0].split('?')[0]+'?r='+tk+(window.DEMO_KIND?'&demo='+window.DEMO_KIND:'')}
 function tabShare(c,rows){
   const sh=c.share||{};const on=!!sh.enabled&&!!sh.token;
   const tg=(k,l,d,defOff)=>`<label class="toggle"><input type="checkbox" id="sh_${k}" data-sh="${k}" ${(defOff?sh[k]===true:sh[k]!==false)?'checked':''} ${on?'':'disabled'}><div><b>${l}</b><span>${d}</span></div></label>`;
@@ -2253,7 +2255,7 @@ const TRK_PRESETS=['브랜드 홈페이지 확인하기','이벤트 참여하기
 const TRK_PARAM0='utm_source=ringcoms&utm_medium=influencer&utm_campaign={campaign}&utm_content={code}';
 const LSTAT={},LDAY={};const TRKS={};
 ['trkMode','trkAddBtn','trkDelBtn','trkUpBtn','trkParam','trkSave','trkGen','trkReport','trkToClicks'].forEach(k=>WRITE_ACTS.add(k));
-function trkBase(){return DB&&DB.mode==='demo'?location.origin+location.pathname.replace(/[^/]*$/,'')+'l.html?demo=1&c=':'https://ad.ringcoms.com/l/'}
+function trkBase(){return DB&&DB.mode==='demo'?location.origin+location.pathname.replace(/[^/]*$/,'')+'l.html?demo=1'+(window.DEMO_KIND?'&dk=ringcoms_demo_'+window.DEMO_KIND:'')+'&c=':'https://ad.ringcoms.com/l/'}
 function trkUrl(code){return trkBase()+code}
 function trkPrev(code){const u=trkUrl(code);return u+(u.includes('?')?'&':'?')+'preview=1'}
 function trkId(){return 'b'+token().slice(0,5)}
@@ -3435,14 +3437,15 @@ service cloud.firestore {
   }
 }
 </script>
-<script src="/tools.js?v=0.26"></script>
-<script src="/proposal-deck.js?v=0.26"></script>
-<script src="/proposal.js?v=0.26"></script>
-<script src="/recruit.js?v=0.26"></script>
-<script src="/stream.js?v=0.26"></script>
-<script src="/msign.js?v=0.26"></script>
-<script src="/hier.js?v=0.26"></script>
-<script src="/tree.js?v=0.26"></script>
-<script src="/mobile.js?v=0.26"></script>
+<script src="/tools.js?v=0.27"></script>
+<script src="/proposal-deck.js?v=0.27"></script>
+<script src="/proposal.js?v=0.27"></script>
+<script src="/recruit.js?v=0.27"></script>
+<script src="/stream.js?v=0.27"></script>
+<script src="/msign.js?v=0.27"></script>
+<script src="/hier.js?v=0.27"></script>
+<script src="/tree.js?v=0.27"></script>
+<script src="/mobile.js?v=0.27"></script>
+<script src="/demo-kit.js?v=0.27"></script>
 </body>
 </html>

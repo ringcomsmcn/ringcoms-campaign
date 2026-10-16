@@ -136,7 +136,7 @@ const rulesBanner=()=>`<div class="banner" style="margin:0"><b>보안 규칙 게
 /* ---- AI 연결 상태 ---- */
 async function aiStatus(force){if(A.aiSt&&!force)return;A.aiSt={loading:true};if(DB.mode==='demo'){A.aiSt={gemini:false,demo:true};return}
   try{A.aiSt=await aiFetch('/api/ai',{action:'status'})}catch(e){A.aiSt={err:e.message}}scheduleRender()}
-function aiPill(){const s=A.aiSt||{};if(s.demo)return '<span class="pill warn">데모: AI 결과는 예시</span>';if(s.loading)return '<span class="pill">AI 확인 중…</span>';if(s.err)return `<span class="pill crit" title="${esc(s.err)}">AI 연결 확인 실패</span>`;return s.gemini?`<span class="pill ok" title="모델: ${esc(s.model||'')}">Gemini 연결됨</span>`:'<span class="pill crit" title="Netlify 환경변수 GEMINI_API_KEY 필요">Gemini 키 미설정</span>'}
+function aiPill(){const s=A.aiSt||{};if(s.demo&&window.DEMO_KIND)return '';if(s.demo)return '<span class="pill warn">데모: AI 결과는 예시</span>';if(s.loading)return '<span class="pill">AI 확인 중…</span>';if(s.err)return `<span class="pill crit" title="${esc(s.err)}">AI 연결 확인 실패</span>`;return s.gemini?`<span class="pill ok" title="모델: ${esc(s.model||'')}">Gemini 연결됨</span>`:'<span class="pill crit" title="Netlify 환경변수 GEMINI_API_KEY 필요">Gemini 키 미설정</span>'}
 function aiIntPanel(){const s=A.aiSt||{};if(!A.aiSt)setTimeout(()=>aiStatus(),0);
   return `<section class="panel"><div class="panel-h"><div><h2>AI · 디자인 연동</h2><div class="sub">콘텐츠 가이드·영상 검수·AI 영상 제작에 쓰는 외부 서비스</div></div><button class="btn sm" data-act="aiRecheck">상태 다시 확인</button></div>
    <div class="tblwrap"><table class="tbl"><thead><tr><th>서비스</th><th>쓰는 곳</th><th>상태</th><th>설정 위치</th></tr></thead><tbody>
@@ -358,6 +358,7 @@ Object.assign(ACT,{
   gotoReview(){A.rvGid=A.gid;A.view='review';A.rvOpen='';render();window.scrollTo(0,0)},
   async guideAi(a){const g=curG();if(!g||A.gaiBusy||gAiRunning(g))return;const mode=a.dataset.m;const links=(g.links||[]).slice(0,3);if(!links.length&&!String(g.memo||'').trim())return toast('광고주 링크나 상품 정보를 먼저 넣어 주세요.','crit');
     const cn=+(($('#g-ain')||{}).value||2);A.gain=cn;const base={advertiser:g.advertiser,brand:g.brand,platform:g.platform,length:g.length,conceptN:cn,level:gLevel(g),productName:(g.product||{}).name||''};
+    if(window.DEMO_KIND)return toast(DEMO_BLOCK_MSG,'crit');
     if(DB.mode==='demo'){A.gaiBusy=true;render();await new Promise(r=>setTimeout(r,900));await gAiApply(A.gid,g,{guide:mockGuide(base),pages:links.map(u=>({url:u,ok:true}))},mode);A.gaiBusy=false;render();return}
     const job=uid();A.gaiBusy=true;render();
     try{await DB.update('guides/'+A.gid,{aiStatus:'진행 중',aiJob:job,aiMode:mode,aiAt:T_NOW(),aiError:DB.DEL,aiResult:DB.DEL});await aiFetch('/api/guide',{gid:A.gid,job,links,memo:g.memo||'',base});toast('AI가 가이드를 만드는 중입니다. 30초~2분 걸리고, 끝나면 자동으로 채워집니다.')}
@@ -641,7 +642,7 @@ function reviewDetail(id,r){watchRvFrames(id);const res=rvRes(r);const st=rvStal
    ${(res.checks||[]).length?`<section class="panel"><div class="panel-h"><h2>체크리스트</h2><span class="sub">필수 표현·자막·나레이션·표기·금지 표현·촬영 규칙</span></div><div class="tblwrap"><table class="tbl"><thead><tr><th>항목</th><th>판정</th><th>근거 (시간)</th></tr></thead><tbody>${res.checks.map(x=>`<tr><td>${esc(x.item||'')}</td><td>${pill(x.status)}</td><td class="small">${esc(x.evidence||'')}</td></tr>`).join('')}</tbody></table></div></section>`:''}
    <div class="grid2">${res.narration?`<section class="panel"><div class="panel-h"><h2>나레이션 (말한 내용)</h2></div><p class="small" style="white-space:pre-wrap;margin:0">${esc(res.narration)}</p></section>`:''}${res.subtitles?`<section class="panel"><div class="panel-h"><h2>자막 (화면 글자)</h2></div><p class="small" style="white-space:pre-wrap;margin:0">${esc(res.subtitles)}</p></section>`:''}</div>
    ${/lite/.test(r.model||'')?`<div class="banner" style="margin:0"><b>가벼운 AI 모델로 검수했어요.</b> 상위 모델이 붐벼서 정확도가 낮을 수 있어요. 결과가 이상하면 잠시 뒤 「다시 검수」를 눌러 주세요.</div>`:''}<p class="small muted" style="margin:0">AI 검수 결과는 참고용입니다. 캡션·해시태그는 영상만으로 확인할 수 없어, 업로드 후 게시물에서 한 번 더 확인해 주세요.</p></div>`:''}`}
-async function revStart(id,data){if(DB.mode==='demo'){DB.set('guideimg/rv_'+id,{frames:JSON.stringify(Array.from({length:10},(_,i)=>({t:'0:'+String(i*3+1).padStart(2,'0'),src:ringImg(['#7A1E2C','#2F5BEA','#157A3C'][i%3])})))});setTimeout(()=>DB.update('reviews/'+id,{status:'완료',doneAt:T_NOW(),resultJson:JSON.stringify(mockReview(data))}),1500);return}
+async function revStart(id,data){if(window.DEMO_KIND)throw new Error(DEMO_BLOCK_MSG);if(DB.mode==='demo'){DB.set('guideimg/rv_'+id,{frames:JSON.stringify(Array.from({length:10},(_,i)=>({t:'0:'+String(i*3+1).padStart(2,'0'),src:ringImg(['#7A1E2C','#2F5BEA','#157A3C'][i%3])})))});setTimeout(()=>DB.update('reviews/'+id,{status:'완료',doneAt:T_NOW(),resultJson:JSON.stringify(mockReview(data))}),1500);return}
   await aiFetch('/api/review',{id,...data})}
 function revPayload(g,ci){const G=clone(g);delete G.memo;delete G.links;return {guide:G,concept:ci===''?null:+ci}}
 function mockReview(d){return {verdict:'수정 필요',score:78,duration:'0:31',ratio:'9:16',summary:'전체 흐름과 제품 소개는 가이드대로 잘 나왔지만, 첫 3초 후킹이 약하고 필수 키워드 1개가 빠졌어요.',

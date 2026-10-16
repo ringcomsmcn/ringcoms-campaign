@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>샘플 콘텐츠</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+*{box-sizing:border-box}html,body{margin:0}
+body{min-height:100vh;display:grid;place-items:center;background:#0E1220;color:#F4F6FB;font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo",sans-serif;padding:24px 16px}
+.ph{width:min(320px,100%);border-radius:30px;background:#000;padding:10px;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.08)}
+.sc{position:relative;aspect-ratio:9/16;border-radius:22px;overflow:hidden;background:#222}
+.sc img{width:100%;height:100%;object-fit:cover;display:block}
+.ov{position:absolute;left:0;right:0;bottom:0;padding:16px 14px 18px;background:linear-gradient(transparent,rgba(0,0,0,.7));font-size:13px}
+.ov b{display:block;font-size:14px;margin-bottom:2px}
+.side{position:absolute;right:10px;bottom:90px;display:grid;gap:14px;text-align:center;font-size:11px;font-weight:700}
+.side span{display:block;width:34px;height:34px;margin:0 auto 3px;border-radius:50%;background:rgba(255,255,255,.18)}
+.info{width:min(320px,100%);margin-top:14px;font-size:12.5px;color:#9AA3B8;text-align:center;line-height:1.6}
+.info a{color:#C9D2FF}
+</style>
+</head>
+<body>
+<div>
+<div class="ph"><div class="sc" id="sc"><img id="im" alt=""><div class="side"><div><span></span><b id="lk">–</b></div><div><span></span><b id="cm">–</b></div><div><span></span><b id="sh">–</b></div></div><div class="ov"><b id="nm">샘플 콘텐츠</b><span id="ch"></span></div></div></div>
+<p class="info">체험판 캠페인의 샘플 콘텐츠 화면입니다.<br>실제 캠페인에서는 인플루언서의 게시물로 바로 연결됩니다.<br><a href="javascript:history.back()">← 돌아가기</a></p>
+</div>
+<script>
+(function(){var q=new URLSearchParams(location.search),k=q.get('k'),c=q.get('c'),r=q.get('r');if(!/^(inf|str)$/.test(k||''))return;
+  if(q.get('ch')){var P={soop:'SOOP',chzzk:'치지직',yt:'유튜브'}[q.get('p')]||'';document.getElementById('nm').textContent=q.get('ch');document.getElementById('ch').textContent=P+' 채널 · 체험판 가상 스트리머';document.getElementById('sc').style.background='linear-gradient(160deg,#4F63F5,#1B1F3B)';document.getElementById('im').style.display='none';document.querySelector('.info').innerHTML='체험판의 가상 스트리머 채널입니다.<br>실제 스트리머 풀에서는 채널로 바로 연결됩니다.<br><a href="javascript:history.back()">← 돌아가기</a>';document.title=q.get('ch')+' · 채널';return}
+  var d={};['','_edit'].some(function(s){try{var x=JSON.parse(localStorage.getItem('ringcoms_demo_'+k+s)||'{}');if(x['rows/'+c]){d=x;return true}}catch(e){}return false});
+  var row=((d['rows/'+c]||{}).rows||{})[r]||{},t=((d['thumbs/'+c]||{}).t||{})[r]||'';
+  var f=function(v){v=+v||0;return v>=1e4?(Math.round(v/1e3)/10)+'만':v.toLocaleString('ko-KR')};
+  if(t)document.getElementById('im').src=t;
+  document.getElementById('nm').textContent=row.name||'샘플 콘텐츠';
+  document.getElementById('ch').textContent=[row.acct,row.ctype,row.views?('조회 '+f(row.views)):''].filter(Boolean).join(' · ');
+  document.getElementById('lk').textContent=row.likes?f(row.likes):'–';document.getElementById('cm').textContent=row.cmts?f(row.cmts):'–';document.getElementById('sh').textContent=row.shares?f(row.shares):'–';
+  document.title=(row.name||'샘플')+' · 샘플 콘텐츠'})();
+</script>
+</body>
+</html>

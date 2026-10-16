@@ -86,6 +86,7 @@ function rqThIntPanel(){if(!canEdit())return '';if(!(A.th||{}).loaded)setTimeout
    ${A.rq.thHelp?`<div style="margin-top:12px">${rqThHelp()}</div>`:''}</section>`}
 /* 연결: 팝업 → threads.net 로그인·허용 → /threads-callback.html 이 code를 돌려줌 → 서버가 60일 토큰으로 바꿔 저장 */
 function rqThOpen(){
+  if(window.DEMO_KIND)return toast(DEMO_BLOCK_MSG,'crit');
   if(DB.mode==='demo'){DB.set('threads/'+A.user.email,{token:'demo',username:'ringcoms_mcn',exp:new Date(Date.now()+60*864e5).toISOString(),email:A.user.email}).then(()=>{toast('데모: 스레드 계정 @ringcoms_mcn 을 연결했습니다.');rqThStatus(true)});return}
   const t=A.th||{};if(!t.ready||!t.appId){toast('스레드 앱 연결 정보(THREADS_APP_ID·THREADS_APP_SECRET)가 아직 Netlify에 없습니다. 연결 방법은 아래 안내를 봐 주세요.','crit');A.rq.thHelp=true;render();return}
   const st=token().slice(0,16);try{sessionStorage.setItem('rc_th_state',st);localStorage.removeItem('rc_threads_cb')}catch(e){}
@@ -331,6 +332,7 @@ Object.assign(ACT,{
     if(!parts.length)return toast('게시할 본문이 없습니다.','crit');const over=parts.findIndex(x=>rqLen(x)>RQ_MAX);if(over>=0)return toast(`${over?`이어 쓰기 ${over}`:'본문'}이 ${RQ_MAX}자를 넘습니다 (${rqLen(parts[over])}자). 줄이거나 나눠 주세요.`,'crit');
     if(A.confirm!=='rqThPost'){A.confirm='rqThPost';render();if(parts.some(x=>x.includes(RQ_LINK)))toast('아직 신청 링크가 없어 글에 {링크} 가 그대로 올라갑니다. 구글폼을 먼저 만드는 것을 권장합니다.','crit');return}A.confirm=null;A.rq.busy='post';render();
     try{let root=null,prev=null;const reps=[];
+      if(window.DEMO_KIND)throw new Error(DEMO_BLOCK_MSG);
       for(let i=0;i<parts.length;i++){let j;if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,300));j={id:'demo'+Date.now()+i,permalink:'https://www.threads.net/@'+th.username}}else j=await aiFetch('/api/threads',{action:'post',text:parts[i],replyTo:prev||''});
         if(!i)root=j;else reps.push(j.id);prev=j.id}
       const up={threads:{id:root.id,permalink:root.permalink||'',username:th.username||'',at:T_NOW(),byEmail:A.user.email,replies:reps}};if((r.status||'작성 중')==='작성 중')up.status='모집 중';
@@ -403,6 +405,7 @@ function rqCtx(r){const c=r.cid?A.campaigns[r.cid]:null;const g=r.gid&&A.guides?
 async function rqAiRun(id){const r=A.recruits&&A.recruits[id];if(!r||!canEdit()||rqAiRunning(r))return;const s=r.src||{};const links=(s.links||[]).map(x=>String(x||'').trim()).filter(u=>/^https?:\/\//i.test(u));
   const ctx=rqCtx(r);if(!links.length&&!String(s.memo||'').trim()&&!String(s.srcText||'').trim()&&!ctx.guide&&!ctx.campaign)return toast('홈페이지·앱 링크, 상품소개서, 메모 중 하나는 넣어 주세요.','crit');
   const conf={...(r.conf||{}),round:r.round||1};
+  if(window.DEMO_KIND)return toast(DEMO_BLOCK_MSG,'crit');
   if(DB.mode==='demo'){await DB.update('recruits/'+id,{aiStatus:'진행 중',aiAt:T_NOW()});await new Promise(x=>setTimeout(x,900));await rqAiApply(id,{ai:rqMock(r)});return}
   const job=uid();try{await DB.update('recruits/'+id,{aiStatus:'진행 중',aiJob:job,aiAt:T_NOW(),aiError:DB.DEL,aiResult:DB.DEL});
     await aiFetch('/api/recruit',{rid:id,job,links,src:{memo:s.memo||'',srcText:String(s.srcText||'').slice(0,40000)},conf,ctx});toast('AI가 스레드 글과 폼 문항을 만드는 중입니다. 30초~2분 뒤 자동으로 채워집니다.')}
@@ -443,6 +446,7 @@ async function rqFormCreate(){const r=rqCur();if(!r||A.rq.busy)return;A.rq.gErr=
   A.rq.busy='form';render();const id=A.rcid;
   try{if(tokP)await tokP;
     let form,editUrl,qmap={},shared=0;
+    if(window.DEMO_KIND)throw new Error(DEMO_BLOCK_MSG);
     if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,700));const fid='demo'+uid();form={formId:fid,responderUri:'https://docs.google.com/forms/d/e/'+fid+'/viewform'};editUrl='https://docs.google.com/forms/d/'+fid+'/edit';qs.forEach((q,i)=>qmap['dq'+i]=q.key||'')}
     else{
       form=await rqG('POST','https://forms.googleapis.com/v1/forms',{info:{title,documentTitle:title}});
@@ -487,6 +491,7 @@ async function rqSyncApps(){const r=rqCur();if(!r||A.rq.busy)return;const f=r.fo
   if(DB.mode!=='demo'&&f.owner&&f.owner!==A.user.email)toast(`이 폼은 ${f.owner} 계정으로 만들었습니다. 같은 계정이 아니면 불러오지 못할 수 있습니다.`);
   let tokP=null;if(DB.mode!=='demo')tokP=rqGTok();A.rq.busy='sync';render();const id=A.rcid;
   try{if(tokP)await tokP;let list=[];const qmap={...(f.qmap||{})};let heads=[];let lsId='';
+    if(window.DEMO_KIND)throw new Error(DEMO_BLOCK_MSG);
     if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,600));list=rqDemoResps(f)}
     else{const fm=await rqG('GET',`https://forms.googleapis.com/v1/forms/${f.formId}`);lsId=fm.linkedSheetId||'';
       const items=(fm.items||[]).filter(it=>it.questionItem&&it.questionItem.question);

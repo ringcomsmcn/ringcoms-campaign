@@ -34,6 +34,8 @@
 | `netlify/lib/guide.mjs` | 광고주 페이지 읽기·가이드 프롬프트 공용 모듈 |
 | `netlify/functions/review.mjs` | 영상 검수 백그라운드 함수 (`/api/review`, 최대 15분): 영상 → Gemini → `reviews/{id}`에 결과 |
 | `netlify/lib/gemini.mjs` | Gemini 호출·파일 업로드·팀원 확인 공용 모듈 (함수 폴더 밖이라 단독 배포 안 됨) |
+| `public/demo-kit.js` | 체험판(광고주·대행사용 데모): `?demo=inf`(인플루언서 캠페인) · `?demo=str`(스트리머 광고) 메뉴·안내 띠·외부 연동 차단·마스터 편집/게시 · 운영 사이트 마스터 메뉴 「체험판 관리」 |
+| `public/demo/` | 체험판 첫 화면(`index.html`), 기본 체험판 데이터(`inf.json`·`str.json`, 가상 데이터), 샘플 콘텐츠 화면(`v.html`) |
 | `public/changelog.json` | 업데이트 이력 (버전별 변경 사항) — 배포할 때마다 맨 앞에 추가 |
 | `firestore.rules` | Firestore 보안 규칙 (Firebase 콘솔에 게시해야 적용) |
 | `netlify.toml` | Netlify 배포 설정 |
@@ -167,3 +169,10 @@
 - 스트리머 풀·데이터는 `streams` 컬렉션에 `type` 으로 구분해 저장합니다 (기존 규칙: 팀원 읽기 · 마스터/매니저 쓰기, 규칙 추가 없음).
 - 최고·평균 시청자와 채팅 수는 플랫폼 다시보기 데이터에 없습니다. 스트리머 데이터의 「실시간 기록」(화면을 열어 둔 동안 6분 간격)으로 쌓거나 직접 입력합니다.
 - SOOP·치지직은 공개 채널 데이터(`/api/stream` channel·vods), 유튜브는 YouTube Data API 키(브라우저)로 읽습니다.
+
+## 체험판 (광고주·대행사 데모)
+
+- 첫 화면: `https://ad.ringcoms.com/demo/` · 바로가기 `https://ad.ringcoms.com/demo/inf`(인플루언서 캠페인) · `/demo/str`(스트리머 광고)
+- 로그인 없이 열리고, 데이터는 방문자 브라우저(localStorage `ringcoms_demo_{inf|str}`)에만 저장됩니다. 서버 함수(`/api/*`)·YouTube API·AI·발송 기능은 막혀 있습니다.
+- 데이터는 모두 가상(가상 광고주·인플루언서·스트리머)이며, 열 때마다 날짜를 오늘 기준으로 옮겨 진행 중 캠페인처럼 보입니다.
+- 마스터 수정: 운영 사이트 「구성요소 관리 › 체험판 관리」 → 「체험판 내용 수정」(`?demo=inf&edit=1`) → 고친 뒤 「마스터 Google 로그인」 → 「체험판에 게시」. 게시본은 Firestore `public/demo_{inf|str}`(+ 조각 `_0…`)에 저장되고(기존 `public` 규칙: 누구나 읽기 · 마스터/매니저 쓰기, 규칙 변경 없음), 「게시 취소」하면 기본 데이터(`public/demo/*.json`)로 돌아갑니다.

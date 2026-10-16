@@ -294,6 +294,7 @@ async function avFetch(found){const all=GKEYS.flatMap(k=>found[k]||[]).filter(c=
 async function ppDiscover(auto){const P=curP();if(!P||!P.ai||A.ppDiscBusy)return;const plats=platsOf(P.info||{});if(!plats.length)return auto||toast('채널을 하나 이상 골라 주세요.','crit');
   const groups=GKEYS.map(k=>{const g=(P.ai.groups||[]).find(x=>x.key===k)||{};return {key:k,terms:discTerms(g)}}).filter(g=>g.terms.length);if(!groups.length)return;
   A.ppDiscBusy=true;render();const pid=A.pid;const errs=[];let yt={};
+  if(window.DEMO_KIND){A.ppDiscBusy=false;render();if(!auto)toast(DEMO_BLOCK_MSG,'crit');return}
   if(DB.mode==='demo'){await new Promise(r=>setTimeout(r,600));const raw={};groups.forEach(g=>raw[g.key]=[...Array(9)].map((_,i)=>({plat:['yt','tt','ig'][i%3],id:`${['yt','tt','ig'][i%3]}:demo${g.key}${i}`,acct:`demo_${g.key}${i}`,name:`${g.terms[0]} 크리에이터 ${i+1}`,url:'',followers:[250000,48000,9000][i%3]+i*1000,avatar:'',bio:`${g.terms[0]} 일상을 올리는 채널`,avg:[60000,21000,7000][i%3],er:0.03,basis:'최근 영상 조회 중앙값',ko:true})));
     await discApply(pid,P,raw,[]);A.ppDiscBusy=false;render();return}
   try{if(plats.includes('유튜브')){try{yt=await ytDiscover(groups)}catch(e){errs.push('유튜브: '+e.message)}}
@@ -584,6 +585,7 @@ Object.assign(ACT,{
     if(P.ai&&A.confirm!=='ppai'){A.confirm='ppai';toast('이미 만든 내용이 있습니다. 한 번 더 누르면 AI가 새로 씁니다 (② 탭에서 고친 문구는 바뀝니다).');setTimeout(()=>{if(A.confirm==='ppai')A.confirm=null},6000);return}A.confirm=null;
     const K=ppCalc(P);const plan={tiers:K.R,people:K.people,ad:K.ad,fee:K.fee,total:K.total};const info={...I,platform:platsOf(I).map(x=>PLAT_FMT[x]).join(' · '),srcText:String(I.srcText||'').slice(0,24000)};
     const pages=await Promise.all(pagesOf().slice(0,10).map(p=>shrinkTo(p.data,768,0.7)));
+    if(window.DEMO_KIND)return toast(DEMO_BLOCK_MSG,'crit');
     if(DB.mode==='demo'){A.ppBusy=true;render();await new Promise(r=>setTimeout(r,700));await pApply(A.pid,P,{ai:mockAi(I),model:'demo',research:{ok:false,sources:[]},vision:mockVision(pages.length)});A.ppBusy=false;render();return}
     const job=uid();A.ppBusy=true;render();
     try{await DB.update('guides/'+A.pid,{aiStatus:'진행 중',aiStep:'시장 조사 · 이미지 분석 중',aiJob:job,aiAt:new Date().toISOString(),aiError:DB.DEL,aiResult:DB.DEL});await aiFetch('/api/proposal',{pid:A.pid,job,info,plan,pages});toast('AI가 제안서를 쓰는 중입니다. 1~3분 걸리고, 끝나면 자동으로 채워집니다.')}

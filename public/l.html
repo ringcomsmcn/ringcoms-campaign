@@ -45,7 +45,7 @@ a.go{color:var(--c);font-weight:700}
   var DOCS='https://firestore.googleapis.com/v1/projects/'+P+'/databases/(default)/documents';
   var qs=new URLSearchParams(location.search);
   var code=(qs.get('c')||location.pathname.split('/').filter(Boolean).pop()||'').replace(/\.html$/,'').replace(/[^A-Za-z0-9]/g,'');
-  var DEMO=qs.get('demo')==='1',PREVIEW=qs.get('preview')==='1',DK='ringcoms_campaign_demo_v1';
+  var DEMO=qs.get('demo')==='1',PREVIEW=qs.get('preview')==='1',DK=/^ringcoms_demo_(inf|str)$/.test(qs.get('dk')||'')?qs.get('dk'):'ringcoms_campaign_demo_v1';
   var ua=navigator.userAgent||'';
   /* 링크 미리보기 수집기·검색 로봇은 세지 않음 (카카오톡 인앱 브라우저 KAKAOTALK 은 사람) */
   var BOT=/bot|crawl|spider|slurp|facebookexternalhit|kakaotalk-scrap|Slackbot|Twitterbot|TelegramBot|WhatsApp|Discordbot|Yeti|Daumoa|HeadlessChrome|Lighthouse|preview/i.test(ua)||navigator.webdriver;

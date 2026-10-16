@@ -30,3 +30,14 @@
   for = "/l.html"
   [headers.values]
     Cache-Control = "public, max-age=300"
+
+# 체험판(데모): ad.ringcoms.com/demo/inf · /demo/str → 바로 해당 체험판으로
+[[redirects]]
+  from = "/demo/inf"
+  to = "/?demo=inf"
+  status = 302
+
+[[redirects]]
+  from = "/demo/str"
+  to = "/?demo=str"
+  status = 302
