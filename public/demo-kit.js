@@ -47,6 +47,23 @@ if(window.DEMO_KIND){const of=window.fetch.bind(window);
     if(/^\/api\//.test(s)||/^https?:\/\/[^/]*ringcoms\.com\/api\//.test(s)||/googleapis\.com\/youtube\//.test(s))return Promise.reject(new Error(DEMO_BLOCK_MSG));
     return of(u,o)}}
 
+
+/* ---- 체험판 제한 기능: 실제 데이터 수집 · AI · 발송 · 연동 설정 버튼은 눌러도 실행하지 않고 안내만 ---- */
+const DEMO_LOCK={
+  data:['chFetch','ytFetch','skFetchAll','skFetchOne','spFetch','sdFetch','sdRec','rqSync','rqSheetCheck'],
+  ai:['guideAi','ppAi','ppDisc','rqAi','revRun','revRetry','canvaGo','ppCanva'],
+  send:['rqThPost','rqThConnect','rqForm','msSend','msRemind','msSyncBtn','inviteClient','addAdmin'],
+  set:['msSave','metaSave','saveYtKey','intCheck','metaRecheck','msRecheck','aiRecheck','updGo','opsRefresh']};
+const DEMO_LOCK_MSG={data:'성과 데이터 업데이트(조회수·방송 불러오기 등)는 체험판에서 실행되지 않습니다. 화면의 수치는 미리 넣어 둔 가상 데이터입니다.',
+  ai:'AI 생성·검수 기능은 체험판에서 실행되지 않습니다. 미리 만들어 둔 결과를 둘러보세요.',
+  send:'발송·게시·초대 기능은 체험판에서 실행되지 않습니다.',set:'연동 설정은 체험판에서 바꿀 수 없습니다.'};
+const DEMO_LOCK_OF={};for(const k in DEMO_LOCK)DEMO_LOCK[k].forEach(a=>DEMO_LOCK_OF[a]=k);
+if(window.DEMO_KIND){
+  window.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('[data-act]');if(!a)return;const k=DEMO_LOCK_OF[a.dataset.act];if(!k)return;
+    e.preventDefault();e.stopImmediatePropagation();toast(DEMO_LOCK_MSG[k])},true);
+  const st=document.createElement('style');st.textContent=Object.keys(DEMO_LOCK_OF).map(a=>`[data-act="${a}"]`).join(',')+`{opacity:.55;cursor:not-allowed!important}`+
+    Object.keys(DEMO_LOCK_OF).map(a=>`button[data-act="${a}"]::after`).join(',')+`{content:" 🔒";font-size:.85em}`;document.head.appendChild(st)}
+
 /* ---- 메뉴: 체험판 유형에 맞는 메뉴만 ---- */
 function demoNav(groups){const k=window.DEMO_KIND;
   const keep=k==='str'?new Set(['stream','spool','sdata','guides','proposals','team:accts']):new Set(['list','trial','gb','live','pool','recruit','guides','review','aivideo','proposals','team:accts']);
