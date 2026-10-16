@@ -14,7 +14,7 @@ function hierTabs(all,kind){hiCss();hiGsel(all);const t=A.ltab==='groups'?'group
   const b=(k,l,sel,act)=>`<button role="tab" class="${t===k?'on':''}" data-act="ltab" data-k="${k}">${HI_IC[k]}<span>${l}</span>${chip(sel,act)}</button>`;
   const gsub=A.gsel.size?`선택한 그룹 ${A.gsel.size}개`:A.csel.size?`선택한 캠페인 ${A.csel.size}개`:'전체 캠페인';
   return `<div class="hi-tabs" role="tablist">${b('camps','캠페인',A.csel.size,'cselClear')}${b('groups',A.csel.size?`광고 그룹 · 캠페인 ${A.csel.size}개`:'광고 그룹',A.gsel.size,'gselClear')}${b('ads',`${hiAdLabel(kind)}${t==='ads'?'':''}`,0,'')}</div>
-   <div class="hi-path small muted">${t==='camps'?'캠페인을 체크하면 광고 그룹 · '+hiAdLabel(kind)+' 탭이 선택한 캠페인으로 좁혀집니다':t==='groups'?`${A.csel.size?'선택한 캠페인 '+A.csel.size+'개':'모든 캠페인'}의 광고 그룹 · 그룹을 체크하면 ${hiAdLabel(kind)} 탭이 그 그룹으로 좁혀집니다`:`${gsub}의 ${hiAdLabel(kind)}`}</div>`}
+   ${t==='camps'?'':`<div class="hi-path small muted">${t==='groups'?`${A.csel.size?'선택한 캠페인 '+A.csel.size+'개':'모든 캠페인'}의 광고 그룹`:`${gsub}의 ${hiAdLabel(kind)}`}</div>`}`}
 function hiScope(all){return A.csel.size?all.filter(([id])=>A.csel.has(id)):all}
 /* 유형별 지표 정의: [라벨, (s 또는 r 요약)=>값 html, 정렬값] */
 function hiMetrics(kind){const T=kind==='trial',COM=kind==='gb'||kind==='live',ST=kind==='stream';
@@ -68,12 +68,12 @@ Object.assign(ACT,{
 /* 캠페인 탭의 「N개 캠페인 선택」 바 대신 탭 머리 칩을 씁니다 → 그룹 선택 해제도 같이 */
 (function(){const prev=ACT.cselClear;ACT.cselClear=function(){A.gsel.clear();return prev.apply(this,arguments)}})();
 function hiCss(){if(hiCss.done)return;hiCss.done=1;document.head.insertAdjacentHTML('beforeend',`<style id="hi-css">
-.hi-tabs{display:flex;gap:2px;border:1px solid var(--line);border-radius:12px 12px 0 0;background:var(--surface);padding:0 6px;overflow-x:auto;scrollbar-width:none}
+.hi-tabs{display:flex;gap:2px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:var(--surface);padding:0 6px;overflow-x:auto;scrollbar-width:none}
 .hi-tabs button{display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:3px solid transparent;padding:12px 16px 10px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;flex:none}
 .hi-tabs button svg{width:16px;height:16px;flex:none}.hi-tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}.hi-tabs button:hover{color:var(--ink)}
 .hi-sel{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;padding:2px 4px 2px 10px;border-radius:999px}
 .hi-sel i{font-style:normal;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer;font-size:13px;line-height:1}.hi-sel i:hover{background:rgba(255,255,255,.45)}
-.hi-path{border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;padding:8px 14px;margin-bottom:14px;background:var(--surface2)}
+.hi-path{padding:0 4px;margin:-6px 0 12px}
 .hi-tbl tr.sel td{background:var(--accent-soft)}.hi-tbl tr.hi-out td{opacity:.5}.hi-sort{cursor:pointer;user-select:none}.hi-sort:hover{color:var(--accent)}
 @media(max-width:760px){.hi-tabs button{padding:10px 10px 8px;gap:6px}.hi-path{font-size:12px}}
 </style>`)}

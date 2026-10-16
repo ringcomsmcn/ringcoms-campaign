@@ -154,12 +154,13 @@ const spArr=()=>Object.entries(A.spool||{}).map(([id,s])=>({id,...s}));
 function spFol(s){return ['soop','chzzk','yt'].reduce((t,k)=>t+n(((s.channels||{})[k]||{}).fol),0)}
 function viewSpool(){spWatch();skCss();const ed=canEdit();const q=skNorm(A.sk.spQ);const F=A.sk.spF;const all=spArr();const L=all.filter(s=>(!F||s.partner===F)&&(!q||skNorm([s.name,s.tags,...Object.values(s.channels||{}).map(c=>c.name||c.id)].join(' ')).includes(q))).sort((a,b)=>['링컴즈 소속','파트너','외부'].indexOf(a.partner)-['링컴즈 소속','파트너','외부'].indexOf(b.partner)||spFol(b)-spFol(a));
   const cnt=k=>all.filter(s=>s.partner===k).length;const ch=(s,k)=>{const c=(s.channels||{})[k];return c&&(c.url||c.id)?`<a class="sk-chip ${k}" href="${esc(c.url||'#')}" target="_blank" rel="noopener" title="${esc(c.name||'')}">${esc(SK_PLAT_L[k])}${c.fol?` <b>${compact(c.fol)}</b>`:''}</a>`:''};
-  return `<div class="page-h"><div><div class="eyebrow">Streamer Pool</div><h1>스트리머 풀</h1><div class="sub">링컴즈 소속 · 파트너 · 외부 스트리머의 SOOP · 치지직 · 유튜브 채널과 팔로워, 캠페인 이력을 관리합니다. 스트리머 광고에 추가한 스트리머는 여기에 자동으로 쌓입니다.</div></div>${ed?'<button class="btn primary" data-act="spNew">+ 스트리머 등록</button>':''}</div>
+  return `<div class="page-h"><div><div class="eyebrow">Streamer Pool</div><h1>스트리머 풀</h1><div class="sub">링컴즈 소속 · 파트너 · 외부 스트리머의 SOOP · 치지직 · 유튜브 채널과 팔로워, 캠페인 이력을 관리합니다. 스트리머 광고에 추가한 스트리머는 여기에 자동으로 쌓입니다.</div></div><div class="row" style="gap:6px">${ed?'<button class="btn" data-act="spImp">엑셀 업로드</button>':''}<button class="btn" data-act="spXlsx">엑셀 다운로드</button>${ed?'<button class="btn primary" data-act="spNew">+ 스트리머 등록</button>':''}</div></div>
+  ${A.sk.spImp?spImpPanel():''}
   ${A.spErr?'<div class="banner">스트리머 풀을 불러오지 못했습니다. 권한을 확인해 주세요.</div>':''}
   ${A.sk.spEdit?spForm():''}
   <div class="tiles" style="margin-bottom:14px"><div class="tile"><span class="l">전체 스트리머</span><span class="v">${fmt(all.length)}</span><span class="s">소속 ${cnt('링컴즈 소속')} · 파트너 ${cnt('파트너')} · 외부 ${cnt('외부')}</span></div><div class="tile"><span class="l">합산 팔로워</span><span class="v">${compact(all.reduce((t,s)=>t+spFol(s),0))}</span><span class="s">SOOP · 치지직 · 유튜브</span></div><div class="tile"><span class="l">캠페인 참여</span><span class="v">${fmt(all.reduce((t,s)=>t+Object.keys(s.camps||{}).length,0))}</span><span class="s">스트리머 광고 기준</span></div></div>
-  <div class="row" style="margin-bottom:12px;gap:8px"><div class="chips">${[['','전체',all.length],...STR_PARTNERS.map(k=>[k,k,cnt(k)])].map(([k,l,c])=>`<span class="chip ${F===k?'on':''}" data-act="spF" data-k="${esc(k)}">${l} <em>${c}</em></span>`).join('')}</div><input type="search" data-spq="1" value="${esc(A.sk.spQ)}" placeholder="이름 · 채널 · 태그 검색" style="max-width:240px"></div>
-  ${!A.spLoaded?'<div class="panel empty">불러오는 중…</div>':!L.length?'<div class="panel empty">스트리머가 없습니다.</div>':`<div class="sp-grid">${L.map(s=>{const img=Object.values(s.channels||{}).map(c=>c.img).find(Boolean);const camps=Object.values(s.camps||{});
+  <div class="row" style="margin-bottom:12px;gap:8px"><div class="chips">${[['','전체',all.length],...STR_PARTNERS.map(k=>[k,k,cnt(k)])].map(([k,l,c])=>`<span class="chip ${F===k?'on':''}" data-act="spF" data-k="${esc(k)}">${l} <em>${c}</em></span>`).join('')}</div><input type="search" data-spq="1" value="${esc(A.sk.spQ)}" placeholder="이름 · 채널 · 태그 검색" style="max-width:240px"><span class="grow"></span><div class="chips"><span class="chip ${A.sk.spView!=='card'?'on':''}" data-act="spView" data-k="table">표</span><span class="chip ${A.sk.spView==='card'?'on':''}" data-act="spView" data-k="card">카드</span></div></div>
+  ${!A.spLoaded?'<div class="panel empty">불러오는 중…</div>':!L.length?'<div class="panel empty">스트리머가 없습니다.</div>':A.sk.spView!=='card'?spTable(L,ed):`<div class="sp-grid">${L.map(s=>{const img=Object.values(s.channels||{}).map(c=>c.img).find(Boolean);const camps=Object.values(s.camps||{});
     return `<div class="sp-card"><div class="sp-h">${img?`<img src="${esc(img)}" alt="" referrerpolicy="no-referrer">`:`<span class="sp-av">${esc((s.name||'?').charAt(0))}</span>`}<div class="grow"><b>${esc(s.name||'')}</b><span class="small muted">${esc(s.tags||'')}</span></div><span class="pill ${s.partner==='링컴즈 소속'?'ok':s.partner==='파트너'?'accent':''}">${esc(s.partner||'미지정')}</span></div>
      <div class="sp-chs">${['soop','chzzk','yt'].map(k=>ch(s,k)).join('')||'<span class="small" style="color:var(--crit)">채널 URL을 넣어 주세요</span>'}</div>
      <div class="sp-st"><div><span>합산 팔로워</span><b>${spFol(s)?compact(spFol(s)):'–'}</b></div><div><span>캠페인</span><b>${camps.length}</b></div><div><span>광고 방송</span><b>${fmt(camps.reduce((t,x)=>t+n(x.airN),0))}</b></div></div>
@@ -268,6 +269,65 @@ async function sdTick(){if(!A.sk.rec||A.view!=='sdata')return;const id=A.sk.sdSe
 setInterval(()=>{sdTick()},6*60*1000);
 
 
+
+/* ============ 스트리머 풀: 표 편집 · 엑셀 업로드/다운로드 ============ */
+const SP_COLS=[['name','스트리머명',140],['partner','소속 구분',118],['tags','장르 · 태그',150],['soop','SOOP 방송국 URL',170],['chzzk','치지직 채널 URL',170],['yt','유튜브 채널 URL',170],['memo','메모',140]];
+function spCell(s,k){const C=s.channels||{};return ['soop','chzzk','yt'].includes(k)?((C[k]||{}).url||''):(s[k]||'')}
+function spTable(L,ed){const inp=(s,k,w)=>{const v=spCell(s,k);if(!ed)return k==='partner'?esc(v):['soop','chzzk','yt'].includes(k)&&v?`<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>`:esc(v);
+    if(k==='partner')return `<select data-spc="${s.id}" data-f="partner">${STR_PARTNERS.map(x=>`<option ${x===(s.partner||'외부')?'selected':''}>${x}</option>`).join('')}</select>`;
+    return `<input type="${['soop','chzzk','yt'].includes(k)?'url':'text'}" data-spc="${s.id}" data-f="${k}" value="${esc(v)}" placeholder="${k==='soop'?'sooplive.co.kr/station/…':k==='chzzk'?'chzzk.naver.com/…':k==='yt'?'youtube.com/@…':''}">`};
+  const fol=(s,k)=>{const c=(s.channels||{})[k];return c&&c.fol?compact(c.fol):'–'};
+  return `<div class="tblwrap sp-tbl-w"><table class="tbl sp-tbl"><thead><tr><th class="n">No</th>${SP_COLS.map(([k,l,w])=>`<th style="min-width:${w}px">${l}</th>`).join('')}<th class="n">SOOP</th><th class="n">치지직</th><th class="n">유튜브</th><th class="n">캠페인</th><th></th></tr></thead><tbody>
+   ${L.map((s,i)=>`<tr><td class="n muted">${i+1}</td>${SP_COLS.map(([k])=>`<td>${inp(s,k)}</td>`).join('')}<td class="n">${fol(s,'soop')}</td><td class="n">${fol(s,'chzzk')}</td><td class="n">${fol(s,'yt')}</td><td class="n">${Object.keys(s.camps||{}).length}</td>
+    <td style="white-space:nowrap">${ed?`<button class="btn sm" data-act="spFetch" data-id="${s.id}" ${A.sk.busy['sp'+s.id]?'disabled':''} title="채널 정보·팔로워 불러오기">${A.sk.busy['sp'+s.id]?'…':'↻'}</button> `:''}<button class="btn sm" data-act="sdOpen" data-id="${s.id}">데이터</button>${ed?` <button class="btn sm ghost" data-act="spDelRow" data-id="${s.id}" title="삭제">${A.confirm==='spDel'+s.id?'삭제?':'✕'}</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+  <p class="small muted" style="margin:6px 0 0">칸을 고치고 다른 칸으로 옮기면 바로 저장됩니다. 채널 URL을 바꾸면 ↻ 로 팔로워를 다시 불러오세요.</p>`}
+async function spCellSave(id,f,v){const s=(A.spool||{})[id];if(!s||!canEdit())return;v=String(v||'').trim();let up;
+  if(['soop','chzzk','yt'].includes(f)){const C={...(s.channels||{})};if(v)C[f]={...(C[f]||{}),url:v,...((C[f]||{}).url!==v?{fol:null,id:'',name:''}:{})};else delete C[f];up={channels:C}}
+  else{if(f==='name'&&!v){toast('스트리머명은 비울 수 없습니다.','crit');render();return}up={[f]:v}}
+  up.updatedAt=T_NOW();try{await DB.update('streams/'+id,up);Object.assign(s,up);scheduleRender()}catch(e){saveErr(e)}}
+/* 엑셀 업로드 */
+function spImpPanel(){const P=A.sk.spImpP;return `<section class="panel" style="margin-bottom:14px"><div class="panel-h"><div><h2>스트리머 풀 엑셀 업로드</h2><div class="sub">템플릿 열: 스트리머명 · 소속 구분(링컴즈 소속/파트너/외부) · 장르·태그 · SOOP URL · 치지직 URL · 유튜브 URL · 메모. 같은 이름(또는 같은 채널)의 스트리머는 새로 만들지 않고 빈 칸만 채웁니다.</div></div><button class="btn sm ghost" data-act="spImpX">닫기</button></div>
+  <div class="row" style="gap:8px"><button class="btn" data-act="spTpl">템플릿 받기</button><label class="btn primary" style="cursor:pointer">엑셀 파일 선택<input type="file" data-spfile="1" accept=".xlsx,.xls,.csv" hidden></label>${A.sk.spImpName?`<span class="small">${esc(A.sk.spImpName)}</span>`:''}</div>
+  <div class="small muted bold" style="margin:10px 0 4px">또는 엑셀에서 제목 줄까지 복사해 붙여넣기</div><textarea id="sp-paste" rows="4" placeholder="스트리머명	소속 구분	장르·태그	SOOP URL	치지직 URL	유튜브 URL	메모"></textarea>
+  <div class="row" style="margin-top:8px"><button class="btn" data-act="spImpParse">미리보기</button>${P&&P.err?`<span class="small" style="color:var(--crit)">${esc(P.err)}</span>`:''}${P&&P.rows?`<span class="small">${P.rows.length}명 인식 · 새로 ${P.rows.filter(r=>!r.ex).length} · 보완 ${P.rows.filter(r=>r.ex).length}</span>`:''}<span class="grow"></span><button class="btn primary" data-act="spImpGo" ${P&&P.rows&&P.rows.length?'':'disabled'}>가져오기</button></div>
+  ${P&&P.rows&&P.rows.length?`<div class="tblwrap" style="max-height:320px;margin-top:8px"><table class="tbl"><thead><tr><th></th>${SP_COLS.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${P.rows.slice(0,200).map(r=>`<tr><td><span class="pill ${r.ex?'':'ok'}">${r.ex?'보완':'신규'}</span></td>${SP_COLS.map(([k])=>`<td class="small">${esc(r[k]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:''}</section>`}
+const SP_HDR={name:/스트리머|이름|닉네임|name/i,partner:/소속|구분|partner/i,tags:/장르|태그|카테고리|tag/i,soop:/soop|숲|아프리카|afreeca/i,chzzk:/치지직|chzzk/i,yt:/유튜브|youtube/i,memo:/메모|비고|memo/i};
+function spParseMatrix(M){M=M.map(r=>r.map(x=>x==null?'':String(x).trim())).filter(r=>r.some(Boolean));if(!M.length)return {err:'내용이 없습니다.'};
+  let hi=M.findIndex(r=>r.some(x=>SP_HDR.name.test(x))&&r.some(x=>SP_HDR.soop.test(x)||SP_HDR.chzzk.test(x)||SP_HDR.yt.test(x)||SP_HDR.partner.test(x)));let map={};
+  if(hi>=0){M[hi].forEach((h,i)=>{for(const k in SP_HDR)if(map[k]==null&&SP_HDR[k].test(h)){if(k==='name'&&/url|링크/i.test(h))continue;map[k]=i;break}})}else{hi=-1;SP_COLS.forEach(([k],i)=>map[k]=i)}
+  const rows=[];const byName=new Map(spArr().map(s=>[skNorm(s.name),s.id]));const byUrl=new Map();spArr().forEach(s=>Object.values(s.channels||{}).forEach(c=>{if(c.url)byUrl.set(String(c.url).toLowerCase().replace(/\/$/,''),s.id)}));
+  M.slice(hi+1).forEach(r=>{const o={};for(const k in map)o[k]=r[map[k]]||'';if(/^\(?예시\)?/.test(o.name)||!o.name)return;
+    /* URL 칸이 섞여 있어도 주소로 플랫폼 판별 */
+    r.forEach(x=>{if(!/^https?:\/\/|sooplive|afreecatv|chzzk|youtu/i.test(x))return;const p=parseChLink(x);const k=p&&SK_PLAT[p.ch];if(k&&!o[k])o[k]=x});
+    o.partner=STR_PARTNERS.find(p=>String(o.partner||'').replace(/\s/g,'').includes(p.replace(/\s|스트리머/g,'').slice(0,2)))||(/소속|링컴즈/.test(o.partner)?'링컴즈 소속':/파트너/.test(o.partner)?'파트너':'외부');
+    o.ex=byName.get(skNorm(o.name))||['soop','chzzk','yt'].map(k=>o[k]&&byUrl.get(o[k].toLowerCase().replace(/\/$/,''))).find(Boolean)||'';rows.push(o)});
+  return rows.length?{rows}:{err:'스트리머명을 찾지 못했습니다. 첫 줄에 제목(스트리머명 · SOOP URL …)이 있는지 확인하세요.'}}
+async function spXlsxLib(){if(window.XLSX)return;if(typeof ensureXlsx==='function')return ensureXlsx();await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')}
+async function spTpl(){try{await spXlsxLib()}catch(e){return toast('엑셀 모듈을 불러오지 못했습니다.','crit')}const wb=XLSX.utils.book_new();const a=[SP_COLS.map(([,l])=>l.replace(' 방송국','').replace(' 채널','')),['(예시) 호미호','링컴즈 소속','서브컬쳐 게임','https://www.sooplive.co.kr/station/아이디','https://chzzk.naver.com/32자리채널ID','https://www.youtube.com/@핸들','단가·연락처 등']];
+  const ws=XLSX.utils.aoa_to_sheet(a);ws['!cols']=[16,12,16,40,46,34,24].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'스트리머 풀');XLSX.writeFile(wb,'RINGCOMS_스트리머풀_템플릿.xlsx')}
+async function spXlsx(){try{await spXlsxLib()}catch(e){return toast('엑셀 모듈을 불러오지 못했습니다.','crit')}const wb=XLSX.utils.book_new();const ch=(s,k)=>((s.channels||{})[k]||{});
+  const a=[['스트리머명','소속 구분','장르·태그','SOOP URL','SOOP 애청자','치지직 URL','치지직 팔로워','유튜브 URL','유튜브 구독자','합산 팔로워','캠페인 수','광고 방송 수','메모','채널 정보 갱신'],...spArr().map(s=>{const camps=Object.values(s.camps||{});return [s.name,s.partner||'',s.tags||'',ch(s,'soop').url||'',ch(s,'soop').fol||'',ch(s,'chzzk').url||'',ch(s,'chzzk').fol||'',ch(s,'yt').url||'',ch(s,'yt').fol||'',spFol(s)||'',camps.length,camps.reduce((t,x)=>t+n(x.airN),0),s.memo||'',s.fetchedAt?String(s.fetchedAt).slice(0,10):'']})];
+  const ws=XLSX.utils.aoa_to_sheet(a);ws['!cols']=[14,12,16,36,10,40,10,32,10,10,8,10,24,12].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'스트리머 풀');
+  const h=[['스트리머명','캠페인 · 그룹','광고주','진행 상황','광고 방송','누적 시청','출연료','기록일']];spArr().forEach(s=>Object.values(s.camps||{}).forEach(x=>h.push([s.name,x.campaign||'',x.advertiser||'',x.stage||'',x.airN||0,x.views||0,x.fee??'',x.at||''])));const w2=XLSX.utils.aoa_to_sheet(h);XLSX.utils.book_append_sheet(wb,w2,'캠페인 이력');
+  XLSX.writeFile(wb,`RINGCOMS_스트리머풀_${today()}.xlsx`)}
+async function spImpGo(){const P=A.sk.spImpP;if(!P||!P.rows)return;let add=0,upd=0;
+  for(const o of P.rows){const urls={};['soop','chzzk','yt'].forEach(k=>{if(o[k])urls[k]=o[k]});
+    try{if(o.ex){const s=A.spool[o.ex];const up={};['partner','tags','memo'].forEach(f=>{if(o[f]&&!s[f])up[f]=o[f]});const C={...(s.channels||{})};let chg=false;for(const k in urls)if(!(C[k]||{}).url){C[k]={url:urls[k]};chg=true}if(chg)up.channels=C;if(Object.keys(up).length){up.updatedAt=T_NOW();await DB.update('streams/'+o.ex,up);Object.assign(s,up);upd++}}
+      else{const id='sp_'+uid().slice(0,10);const d={type:'streamer',name:o.name,partner:o.partner||'외부',tags:o.tags||'',memo:o.memo||'',channels:Object.fromEntries(Object.entries(urls).map(([k,u])=>[k,{url:u}])),camps:{},createdAt:T_NOW(),by:A.user.email,imported:true};await DB.set('streams/'+id,d);A.spool[id]=d;add++}}catch(e){saveErr(e);break}}
+  A.sk.spImp=false;A.sk.spImpP=null;A.sk.spImpName='';render();toast(`${add}명 등록 · ${upd}명 정보 보완. 팔로워는 표의 ↻ 또는 카드의 「채널 정보 불러오기」로 불러오세요.`)}
+Object.assign(ACT,{
+  spView(a){A.sk.spView=a.dataset.k;render()},
+  spImp(){A.sk.spImp=true;A.sk.spImpP=null;A.sk.spImpName='';render();window.scrollTo(0,0)},
+  spImpX(){A.sk.spImp=false;A.sk.spImpP=null;render()},
+  spTpl(){spTpl()},spXlsx(){spXlsx()},
+  spImpParse(){const t=($('#sp-paste')||{}).value||'';A.sk.spImpP=spParseMatrix(t.replace(/\r/g,'').split('\n').map(l=>l.split('\t')));render()},
+  spImpGo(){spImpGo()},
+  async spDelRow(a){const id=a.dataset.id;if(A.confirm!=='spDel'+id){A.confirm='spDel'+id;render();return}A.confirm=null;try{await DB.del('streams/'+id);delete A.spool[id];render();toast('삭제했습니다.')}catch(e){saveErr(e)}}
+});
+document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset)return;
+  if(t.dataset.spc){spCellSave(t.dataset.spc,t.dataset.f,t.value);return}
+  if(t.dataset.spfile&&t.files&&t.files[0]){const f=t.files[0];try{await spXlsxLib();const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const M=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});A.sk.spImpP=spParseMatrix(M);A.sk.spImpName=f.name;render();if(A.sk.spImpP.rows)toast(`${A.sk.spImpP.rows.length}명을 읽었습니다. 미리보기를 확인하고 가져오기를 누르세요.`);else toast(A.sk.spImpP.err,'crit')}catch(err){toast('파일을 읽지 못했습니다. .xlsx 파일인지 확인하세요.','crit')}}});
+
 /* 연동 관리 표시 */
 function stIntRows(row){if(!canEdit())return '';if(!A.stInt&&!A.stIntBusy)setTimeout(()=>stIntCheck(),0);const s=A.stInt||{};
   const pill=x=>A.stIntBusy&&!A.stInt?'<span class="pill">확인 중…</span>':DB.mode==='demo'?'<span class="pill ok">데모</span>':x&&x.ok?'<span class="pill ok">연결됨 · 키 불필요</span>':x?'<span class="pill warn">응답 없음</span>':'<span class="pill">–</span>';
@@ -325,6 +385,7 @@ function skCss(){if(skCss.done)return;skCss.done=1;document.head.insertAdjacentH
 .sk-bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.sk-bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
 .sk-plats{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:12px}.sk-plats div{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}.sk-plats span{font-size:12px;opacity:.7}.sk-plats em{font-style:normal;font-size:18px;font-weight:700}
 .sk-soon{text-align:center;padding:36px 18px}.sk-soon-ic{font-size:40px}.sk-soon h2{margin:6px 0}.sk-soon p{color:var(--ink2);line-height:1.6}
+.sp-tbl td{padding:4px 6px;vertical-align:middle}.sp-tbl input,.sp-tbl select{width:100%;padding:5px 7px;font-size:13px;border:1px solid transparent;background:transparent;border-radius:6px}.sp-tbl input:hover,.sp-tbl select:hover{border-color:var(--line)}.sp-tbl input:focus,.sp-tbl select:focus{border-color:var(--accent);background:var(--surface)}.sp-tbl a{font-size:12px;word-break:break-all}
 .sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
 .sp-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .sp-h{display:flex;align-items:center;gap:10px}.sp-h img,.sp-av{width:44px;height:44px;border-radius:50%;object-fit:cover;flex:none}.sp-av{display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:18px}.sp-h .grow{display:flex;flex-direction:column;min-width:0}.sp-h b{font-size:15px}

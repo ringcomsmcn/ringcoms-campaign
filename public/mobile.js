@@ -10,7 +10,7 @@ A.mLast=A.mLast||{camp:'list',infl:'pool',tool:'guides'};
 
 const M_SEC={
   camp:{l:'캠페인',items:[['list','시딩'],['trial','체험단'],['gb','공동구매'],['live','라이브커머스'],['stream','스트리머']]},
-  infl:{l:'인플루언서',items:[['pool','인플루언서 풀'],['recruit','스레드 모집'],['spool','스트리머 풀'],['sdata','스트리머 데이터']]},
+  infl:{l:'인플루언서',items:[['pool','인플루언서 풀'],['recruit','인플루언서 모집'],['spool','스트리머 풀'],['sdata','스트리머 데이터']]},
   tool:{l:'도구',items:[['guides','콘텐츠 가이드'],['review','영상 검수'],['proposals','광고 제안서'],['aivideo','AI 영상']]}};
 const M_IC={
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></svg>',
@@ -20,7 +20,7 @@ const M_IC={
   more:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>'};
 /* 지금 화면이 어느 탭인지 */
 function mSecOf(){const v=A.view;if(v==='mhome')return 'home';if(['list','trial','gb','live','stream','campaign','create'].includes(v))return 'camp';if(['pool','recruit','spool','sdata'].includes(v))return 'infl';if(['guides','review','proposals','aivideo'].includes(v))return 'tool';return 'more'}
-function mCnt(v){const k=VIEW_KIND[v];return k?Object.values(A.campaigns||{}).filter(c=>kindOf(c)===k&&inAcctScope(c)).length:''}
+function mCnt(v){return ''}
 
 /* ---- 하단 탭 ---- */
 function mNav(){if(typeof isClientView==='function'&&isClientView())return null;const sec=mSecOf();
@@ -49,7 +49,7 @@ function viewMHome(){const camps=Object.entries(A.campaigns||{}).filter(([,c])=>
   return `${mCss()}<div class="mh-hello"><div class="small muted">${new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'})}</div><h1>${nm?esc(nm)+'님, ':''}안녕하세요</h1></div>
    <div class="mh-tiles"><button data-act="mGoRun"><span>진행 중 캠페인</span><b>${fmt(run.length)}</b></button><button data-act="mGoAlert" class="${alN?'crit':''}"><span>확인 필요</span><b>${fmt(alN)}</b></button></div>
    ${al.length?`<div class="mh-h">확인이 필요한 캠페인</div><div class="mh-list">${al.slice(0,4).map(([id,c])=>`<button class="mh-row" data-act="mOpenStatus" data-id="${id}"><b>${esc(c.name||'')}</b><span class="pill crit">${c.summary.alerts}</span></button>`).join('')}</div>`:''}
-   <div class="mh-h">바로가기</div><div class="mh-qs">${q('list','시딩 캠페인','📣')}${q('trial','체험단','🎁')}${q('pool','인플루언서 풀','👥')}${q('recruit','스레드 모집','🧵')}${q('review','영상 검수','🎬')}${q('stream','스트리머 광고','📺')}</div>
+   <div class="mh-h">바로가기</div><div class="mh-qs">${q('list','시딩 캠페인','📣')}${q('trial','체험단','🎁')}${q('pool','인플루언서 풀','👥')}${q('recruit','인플루언서 모집','🧵')}${q('review','영상 검수','🎬')}${q('stream','스트리머 광고','📺')}</div>
    <div class="mh-h">최근 캠페인</div><div class="mh-cards">${recent.map(card).join('')||'<div class="panel empty">아직 캠페인이 없습니다.</div>'}</div>`}
 
 /* ---- PC 전용 안내 ---- */

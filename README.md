@@ -13,7 +13,7 @@
 | `public/img/ringcoms-wide.png` | 가로형 RINGCOMS 로고 (흰색, 가이드 PPT·PDF 우상단 · 광고주 색으로 자동 변환) |
 | `netlify/functions/ai.mjs` | AI 연결 상태 확인·인사이트 코멘트 초안 (`/api/ai`, action `status`·`insight`) |
 | `public/proposal-deck.js` | 제안서 장표 빌더 (ringcoms-influencer-proposal 스킬 build.js 브라우저 이식 · 컬러 결정 · 이미지 자르기 · 배경/그래픽 생성 · HTML 미리보기) |
-| `public/recruit.js` | 스레드 모집: 스레드 글·구글폼·신청자 (`recruits/{id}`), 스레드 연결 `threads/{이메일}`(본인만) |
+| `public/recruit.js` | 인플루언서 모집(구 스레드 모집): 스레드 글·구글폼·신청자 (`recruits/{id}`), 스레드 연결 `threads/{이메일}`(본인만) |
 | `public/msign.js` | 모두싸인 API 연동 화면 (연동 관리 · 계약 관리 API 서명 요청 · 상태 반영) |
 | `netlify/functions/modusign.mjs` | 모두싸인 API 서버 함수 (`/api/modusign`: status·save·clear·templates·send·sync·remind, 키는 `secrets/modusign`) |
 | `public/tree.js` | 광고 그룹 설정 표의 끌어서 순서 변경 (왼쪽 트리 · 계층 보기는 v0.25에서 상단 탭으로 대체) |
@@ -152,7 +152,7 @@
 - `public/proposal-deck.js`의 `FONTS`(무료 30종, 웹폰트)와 `DL`(설치용 TTF·OTF 주소 + 폰트 파일 속 글꼴 이름)
 - PPT는 `DL`의 글꼴 이름으로 저장 → 「글꼴 받기」로 받은 파일을 설치하면 그대로 보임
 
-## 스레드 모집 (인플루언서 관리 → 스레드 모집)
+## 인플루언서 모집 (인플루언서 관리 → 인플루언서 모집, 구 스레드 모집)
 - 흐름: 정보·연결(캠페인·가이드·링크·소개서·조건) → 스레드 글(AI 초안·편집·복사·게시) → 구글폼·링크 → 신청자(불러오기·캠페인 추가)
 - 스레드 글은 1개 500자 제한 → 본문 + 이어 쓰기(답글)로 나눠 게시. 글 속 `{링크}`가 축약 링크로 바뀜
 - 스레드 연결: 팀원 로그인 계정마다 `threads/{이메일}`에 60일 토큰 저장(보안 규칙상 본인만 읽기·쓰기). 준비: Meta 앱 → 권한 `threads_basic`·`threads_content_publish` → 리디렉션 URL `https://ad.ringcoms.com/threads-callback.html` → Threads 테스터에 팀원 계정 추가·수락 → Netlify 환경변수 2개

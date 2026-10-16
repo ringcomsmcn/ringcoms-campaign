@@ -150,9 +150,9 @@ ACT.aiRecheck=()=>{A.aiSt=null;aiStatus(true);render()};
 function viewGuides(){ensureToolWatch();if(A.gid)return guideEditor();
   const L=Object.entries(A.guides||{}).sort((a,b)=>String(b[1].updatedAt||'').localeCompare(String(a[1].updatedAt||'')));const camps=Object.entries(A.campaigns).filter(([,c])=>inAcctScope(c)).sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
   return `<div class="page-h"><div><div class="eyebrow">Content Guide</div><h1>콘텐츠 가이드 생성</h1><div class="sub">광고주 홈페이지·상품 링크를 넣으면 AI가 표준 가이드를 채우고, 다듬어서 PPT·PDF로 인플루언서에게 보냅니다.</div></div>
-   <div class="row">${aiPill()}${canEdit()?`<select id="g-newc" style="width:auto"><option value="">캠페인 연결 안 함</option>${camps.map(([id,c])=>`<option value="${id}">${esc(c.name)}</option>`).join('')}</select><button class="btn primary" data-act="guideNew">+ 새 가이드</button>`:''}</div></div>
+   <div class="row">${aiPill()}${canEdit()?`<select id="g-newc" style="width:auto"><option value="">캠페인 연결 안 함</option>${camps.map(([id,c])=>`<option value="${id}">${esc(c.name)}</option>`).join('')}</select><div class="g-newlv" role="radiogroup" aria-label="새 가이드 유형">${[['light','Light'],['detail','Detail']].map(([k,l])=>`<button class="${(A.gnewLv||'detail')===k?'on':''}" data-act="gNewLv" data-k="${k}" title="${k==='light'?'핵심만 5장 이내':'항목별 상세 10장 안팎'}">${l}</button>`).join('')}</div><button class="btn primary" data-act="guideNew">+ 새 가이드</button>`:''}</div></div>
   ${A.guidesErr?rulesBanner():''}
-  ${L.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>가이드</th><th>광고주 · 브랜드</th><th>연결 캠페인</th><th>채널</th><th class="n">컨셉</th><th>상태</th><th>수정</th></tr></thead><tbody>${L.map(([id,g])=>`<tr class="click" data-act="guideOpen" data-g="${esc(id)}"><td class="bold">${esc(g.title||'제목 없음')}</td><td>${esc([g.advertiser,g.brand].filter(Boolean).join(' · '))}</td><td class="small">${g.cid&&A.campaigns[g.cid]?esc(A.campaigns[g.cid].name):'–'}</td><td class="small">${esc(g.platform||'')}</td><td class="n">${(g.concepts||[]).length}</td><td><span class="pill ${g.status==='완료'?'ok':'accent'}">${esc(g.status||'작성 중')}</span></td><td class="small">${md(String(g.updatedAt||'').slice(0,10))}</td></tr>`).join('')}</tbody></table></div>`
+  ${L.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>가이드</th><th>광고주 · 브랜드</th><th>연결 캠페인</th><th>채널</th><th class="n">컨셉</th><th>상태</th><th>수정</th></tr></thead><tbody>${L.map(([id,g])=>`<tr class="click" data-act="guideOpen" data-g="${esc(id)}"><td class="bold">${esc(g.title||'제목 없음')} <span class="pill ${gLevel(g)==='light'?'ok':''}" style="font-weight:600">${gLevel(g)==='light'?'Light':'Detail'}</span></td><td>${esc([g.advertiser,g.brand].filter(Boolean).join(' · '))}</td><td class="small">${g.cid&&A.campaigns[g.cid]?esc(A.campaigns[g.cid].name):'–'}</td><td class="small">${esc(g.platform||'')}</td><td class="n">${(g.concepts||[]).length}</td><td><span class="pill ${g.status==='완료'?'ok':'accent'}">${esc(g.status||'작성 중')}</span></td><td class="small">${md(String(g.updatedAt||'').slice(0,10))}</td></tr>`).join('')}</tbody></table></div>`
   :`<div class="panel empty">${A.guidesLoaded?'아직 만든 가이드가 없습니다. 「+ 새 가이드」로 시작하세요.':'불러오는 중…'}</div>`}`}
 
 /* ---- 화면: 가이드 편집 ---- */
@@ -176,7 +176,6 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
   const PARTS={ai:`<section class="panel ai-box"><div class="panel-h"><div><h2>① 광고주 정보 넣기 → AI로 가이드 채우기</h2><div class="sub">홈페이지·상품 상세 링크를 넣으면 AI가 ③ 꼭 지켜 주세요 · ④ 제품 정보 · ⑤ 컨셉·장면 · ⑥ 문구·해시태그 · ⑦ 금지 표현 · ⑧ 촬영 컷 · ⑨ 촬영·업로드 주의 · ⑩ 진행 순서까지 표준 형식으로 채웁니다.</div></div>${aiPill()}</div>
    <div class="fgrid">${tl('links','광고주 홈페이지 · 상품 링크',{rows:3,ph:'https://brand.com\nhttps://smartstore.naver.com/…',hint:'한 줄에 하나씩, 최대 3개. 네이버 스마트스토어처럼 내용을 읽기 어려운 페이지는 아래 칸에 상품 정보를 붙여넣어 주세요.'})}
    ${ta('memo','상품 정보 · 광고주 요청사항 붙여넣기 (선택)',{rows:4,ph:'상품 상세 문구, 광고주 브리프, 꼭 넣을 표현, 피해야 할 표현 등을 그대로 붙여넣어도 됩니다'})}
-   <label class="f">가이드 분량<select id="gd_level" data-gv="level">${Object.entries(G_LEVELS).map(([k,l])=>`<option value="${k}" ${gLevel(g)===k?'selected':''}>${l}</option>`).join('')}</select><span class="hint">${gLevel(g)==='light'?'핵심만 담아 PPT·PDF 5장 이내로 만듭니다 (컨셉 1개 권장)':'모든 항목을 장마다 자세히 담습니다 (10장 안팎)'}</span></label>
    <label class="f">컨셉 개수<select id="g-ain">${[1,2,3,4].map(x=>`<option ${x===(A.gain||(gLevel(g)==='light'?1:2))?'selected':''}>${x}</option>`).join('')}</select></label></div>
    <div class="row" style="margin-top:10px">${ed?`<button class="btn primary" data-act="guideAi" data-m="fill" ${busy?'disabled':''}>${busy||gAiRunning(g)?'AI가 가이드를 만드는 중… (30초~2분)':'AI로 빈 칸 채우기'}</button><button class="btn" data-act="guideAi" data-m="replace" ${busy?'disabled':''}>AI로 새로 만들기 (내용 덮어쓰기)</button>`:''}<span class="small muted">결과는 초안입니다. 광고주 확인이 필요한 수치·효능 표현은 꼭 검토하세요.</span></div></section>`,
     basic:`<section class="panel"><div class="panel-h"><h2>② 기본 정보</h2></div><div class="fgrid">
@@ -208,11 +207,19 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
     notes:`<section class="panel"><div class="panel-h"><h2>⑨ 촬영 · 업로드 주의사항</h2></div><div class="fgrid one">${tl('shoot','📷 촬영할 때',{rows:7})}${tl('upload','📤 업로드할 때',{rows:6})}</div></section>`,
     submit:`<section class="panel"><div class="panel-h"><h2>⑩ 제출 방법 · 일정</h2></div><div class="fgrid">${tx('submit.draftDue','초안 제출',{type:'date'})}${tx('submit.uploadDue','업로드 일정',{ph:'10/20 ~ 10/24'})}${tl('submit.how','진행 순서',{rows:5})}${tx('submit.form','제출 링크 (구글 폼 등)',{wide:true,ph:'https://'})}${ta('submit.extra','추가 안내 (할인 소구·2차 활용 등)',{rows:2})}</div></section>`};
   PARTS.design=gDesignForm(g,ed);
-  const sub=G_SUBS.find(x=>x[0]===A.gsub)||G_SUBS[0];setTimeout(()=>schedGPv(true),0);
+  const LT=gLevel(g)==='light';const SUBS=gSubsOf(g);
+  if(LT){const un=h=>h.replace(/<h2>[①-⑩] ?/g,'<h2>').replace(/<h2 style="([^"]*)">[①-⑩] ?/g,'<h2 style="$1">');
+    PARTS.lcheck=un(PARTS.summary+PARTS.product);
+    PARTS.lmust=un(PARTS.text+PARTS.words+PARTS.notes);
+    PARTS.concept=`<div class="banner info" style="margin:0">Light 가이드는 <b>첫 번째 컨셉의 장면 4개</b>까지 한 장에 담습니다. 컨셉을 여러 개 보여 주려면 위에서 Detail을 고르세요.</div>`+un(PARTS.concept);
+    ['basic','submit'].forEach(k=>PARTS[k]=un(PARTS[k]))}
+  const sub=SUBS.find(x=>x[0]===A.gsub)||SUBS[0];setTimeout(()=>schedGPv(true),0);
+  const lvBar=`<div class="g-level" role="radiogroup" aria-label="가이드 유형"><span class="g-level-l">가이드 유형</span>${[['light','Light','핵심만 5장 이내 · 컨셉 1개 · 장면 4개'],['detail','Detail','항목별 상세 10장 안팎 · 컨셉 여러 개 · 꼭 찍을 컷']].map(([k,t,d])=>`<button class="g-lv ${gLevel(g)===k?'on':''}" role="radio" aria-checked="${gLevel(g)===k}" ${ed?`data-act="gLevelSet" data-k="${k}"`:'disabled'}><b>${t}</b><span>${d}</span></button>`).join('')}</div>`;
   return `<div class="page-h"><div><button class="btn sm ghost" data-act="guideBack">← 가이드 목록</button><h1 style="margin-top:6px">${esc(g.title||'제목 없음')}</h1><div class="sub">${esc([g.advertiser,g.brand,g.platform].filter(Boolean).join(' · '))} · 마지막 수정 ${esc(String(g.updatedAt||'').slice(0,16).replace('T',' '))}</div></div>
-   <div class="row"><button class="btn" data-act="guidePpt">PPT 다운로드</button><button class="btn" data-act="guidePdf">PDF 다운로드</button><button class="btn" data-act="gotoReview">이 가이드로 영상 검수 →</button></div></div>
+   <div class="row"><button class="btn" data-act="guidePpt">${LT?'Light':'Detail'} PPT 다운로드</button><button class="btn" data-act="guidePdf">${LT?'Light':'Detail'} PDF 다운로드</button><button class="btn" data-act="gotoReview">이 가이드로 영상 검수 →</button></div></div>
   ${A.guidesErr?rulesBanner():''}
-  <div class="g-subtabs" role="tablist">${G_SUBS.map(([k,l])=>`<button class="chip ${sub[0]===k?'on':''}" data-act="gSub" data-k="${k}">${l}</button>`).join('')}</div>
+  ${lvBar}
+  <div class="g-subtabs" role="tablist">${SUBS.map(([k,l])=>`<button class="chip ${sub[0]===k?'on':''}" data-act="gSub" data-k="${k}">${l}</button>`).join('')}</div>
   ${sub[0]==='all'?`<section class="panel"><div class="panel-h"><div><h2>전체 미리보기</h2><div class="sub">PPT·PDF로 내보낼 장표 전체입니다 (${gLevel(g)==='light'?'Light · 5장 이내':'Detail'}). 장을 누르면 그 항목을 고치러 갑니다.</div></div></div><div class="g-pv all" data-gpv="all"><div class="empty small">미리보기를 만드는 중…</div></div></section>`
    :`<div class="g-split"><div class="stack gedit">${PARTS[sub[0]]||''}</div><aside class="g-live"><div class="g-live-h"><b>미리보기</b><span class="small muted">${esc(sub[1])} · 고치는 대로 바뀝니다</span></div><div class="g-pv" data-gpv="${sub[0]}"><div class="empty small">미리보기를 만드는 중…</div></div></aside></div>`}
   <div class="stack gedit" style="margin-top:16px">  <section class="panel"><div class="row"><span class="small muted grow">칸을 고치고 다른 칸으로 이동하면 바로 저장됩니다. PPT·PDF는 지금 내용 그대로 만들어집니다.</span>${ed?`<button class="btn sm" data-act="guideDup">복제</button><button class="btn sm danger" data-act="guideDel">${A.confirm==='gdel'?'한 번 더 누르면 삭제':'가이드 삭제'}</button>`:''}</div></section></div>`}
@@ -221,8 +228,11 @@ function guideEditor(){const g=curG();if(!g)return A.guidesLoaded?`<div class="p
 /* 제안서 디자인 도우미 (proposal-deck.js의 window.PPD) */
 function gPD(){const x=window.PPD;return typeof x==='function'?x():x||null}
 const G_SUBS=[['ai','① 광고주 정보 · AI'],['basic','② 기본 정보'],['summary','③ 꼭 지켜 주세요'],['product','④ 제품 정보'],['concept','⑤ 컨셉 · 장면'],['text','⑥ 문구 · 해시태그'],['words','⑦ 금지 표현'],['cuts','⑧ 꼭 찍을 컷'],['notes','⑨ 촬영 · 업로드 주의'],['submit','⑩ 제출 · 일정'],['design','디자인 · 이미지'],['all','전체 미리보기']];
+/* Light: 5장 이내 장표에 맞춰 항목을 묶은 메뉴 */
+const G_SUBS_L=[['ai','① 광고주 정보 · AI'],['basic','② 기본 정보'],['lcheck','③ 꼭 지켜 주세요 · 제품'],['concept','④ 장면 가이드'],['lmust','⑤ 문구 · 금지 표현 · 주의'],['submit','⑥ 제출 · 일정'],['design','디자인 · 이미지'],['all','전체 미리보기']];
+const gSubsOf=g=>gLevel(g)==='light'?G_SUBS_L:G_SUBS;
 /* 항목 → 미리보기 장 (장표 라벨) */
-const G_PVK={ai:/^(COVER|CHECK FIRST)$/,basic:/^COVER$/,summary:/^CHECK FIRST$/,product:/^(PRODUCT|CHECK FIRST)$/,concept:/^(CONCEPT|SCENE)/,text:/^(CAPTION|MUST · DO NOT)/,words:/^(DO NOT SAY|MUST · DO NOT)/,cuts:/^(MUST-HAVE|SCENE)/,notes:/^(CHECK LIST|MUST · DO NOT)/,submit:/^HOW TO SUBMIT/,design:/^(COVER|CHECK FIRST|EOD)$/};
+const G_PVK={lcheck:/^CHECK FIRST$/,lmust:/^MUST · DO NOT/,ai:/^(COVER|CHECK FIRST)$/,basic:/^COVER$/,summary:/^CHECK FIRST$/,product:/^(PRODUCT|CHECK FIRST)$/,concept:/^(CONCEPT|SCENE)/,text:/^(CAPTION|MUST · DO NOT)/,words:/^(DO NOT SAY|MUST · DO NOT)/,cuts:/^(MUST-HAVE|SCENE)/,notes:/^(CHECK LIST|MUST · DO NOT)/,submit:/^HOW TO SUBMIT/,design:/^(COVER|CHECK FIRST|EOD)$/};
 const G_KEYOF=[[/^COVER$/,'basic'],[/^CHECK FIRST$/,'summary'],[/^PRODUCT$/,'product'],[/^(CONCEPT|SCENE)/,'concept'],[/^MUST-HAVE/,'cuts'],[/^CAPTION/,'text'],[/^MUST · DO NOT/,'text'],[/^DO NOT SAY/,'words'],[/^CHECK LIST/,'notes'],[/^HOW TO SUBMIT/,'submit'],[/^EOD$/,'design']];
 const G_BG=[['ring','기본 (원형)'],['grad','그라데이션'],['wave','물결'],['dots','점 패턴'],['none','단색']];
 const G_BG_BODY=[['none','흰 배경'],['grad','그라데이션'],['wave','물결'],['dots','점 패턴'],['ring','링']];
@@ -255,13 +265,15 @@ async function buildGPv(){const g=curG();if(!g)return;const boxes=[...document.q
     const fam=P?P.fontOf(gFontId(g)).fam:'Pretendard';
     boxes.forEach(box=>{const k=box.dataset.gpv;const re=G_PVK[k];let L=deck.slides.map((s,i)=>({s,i}));if(k!=='all'&&re){const f=L.filter(x=>re.test(x.s.k||''));if(f.length)L=f}
       const one=new HtmlDeck();one.slides=L.map(x=>x.s);const pages=one.html().split('</section>').filter(x=>x.trim()).map(x=>x+'</section>');
-      box.innerHTML=pages.map((h,j)=>{const lk=L[j].s.k||'';const go=(G_KEYOF.find(([r])=>r.test(lk))||[])[1]||'';return `<div class="gpv-wrap"><div class="gpv-n">${L[j].i+1}장${lk?' · '+esc(lk==='EOD'?'마지막 장':lk==='COVER'?'표지':lk):''}${k==='all'&&go?` <button class="btn sm ghost" data-act="gSub" data-k="${go}">고치기</button>`:''}</div><div class="gpv-slide" style="--gf:'${fam}'">${h}</div></div>`}).join('')||'<div class="empty small">이 항목은 장표에 없습니다.</div>';
+      box.innerHTML=pages.map((h,j)=>{const lk=L[j].s.k||'';let go=(G_KEYOF.find(([r])=>r.test(lk))||[])[1]||'';if(gLevel(g)==='light')go=go==='summary'?'lcheck':go==='text'?'lmust':go;return `<div class="gpv-wrap"><div class="gpv-n">${L[j].i+1}장${lk?' · '+esc(lk==='EOD'?'마지막 장':lk==='COVER'?'표지':lk):''}${k==='all'&&go?` <button class="btn sm ghost" data-act="gSub" data-k="${go}">고치기</button>`:''}</div><div class="gpv-slide" style="--gf:'${fam}'">${h}</div></div>`}).join('')||'<div class="empty small">이 항목은 장표에 없습니다.</div>';
       gFitPv(box);HtmlDeck.fit(box)})}
   catch(e){console.error(e);boxes.forEach(b=>b.innerHTML=`<div class="empty small">미리보기를 만들지 못했습니다: ${esc(e.message||e)}</div>`)}}
 buildGPv.n=0;
 function gFitPv(root){(root||document).querySelectorAll('.gpv-slide').forEach(w=>{const k=w.clientWidth/1280;const pg=w.querySelector('.dk-page');if(pg)pg.style.transform=`scale(${k})`})}
 window.addEventListener('resize',()=>{clearTimeout(gFitPv.t);gFitPv.t=setTimeout(()=>gFitPv(),120)});
 function gPvCss(){if(document.getElementById('gpv-css'))return;const st=document.createElement('style');st.id='gpv-css';st.textContent=`
+.g-level{display:flex;gap:8px;align-items:stretch;margin:0 0 10px;flex-wrap:wrap}.g-level-l{align-self:center;font-weight:700;font-size:13px;color:var(--muted);margin-right:4px}.g-lv{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:9px 16px;cursor:pointer;font:inherit;min-width:220px}.g-lv b{font-size:15px}.g-lv span{font-size:12px;color:var(--muted)}.g-lv.on{border-color:var(--accent);background:var(--accent-soft)}.g-lv.on b{color:var(--accent)}.g-lv:disabled{cursor:default}
+.g-newlv{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--surface)}.g-newlv button{border:0;background:none;font:inherit;font-size:13px;font-weight:600;padding:5px 12px;border-radius:999px;color:var(--muted);cursor:pointer}.g-newlv button.on{background:var(--accent);color:#fff}
 .g-subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;position:sticky;top:56px;z-index:5;background:var(--bg);padding:6px 0}
 .g-split{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start}
 .g-live{position:sticky;top:110px;border:1px solid var(--line);border-radius:12px;background:var(--card,#fff);padding:12px;max-height:calc(100vh - 130px);overflow:auto}
@@ -298,6 +310,8 @@ function gDesignForm(g,ed){const d=gDz(g);const T=gTheme(g);const P=gPD();const 
     <div class="f wide"><b class="small">배경</b>${pick('closing','closing',G_BG)}</div>
     <div class="fgrid" style="margin-top:10px"><label class="f">큰 글자<input type="text" id="gd_dz_ct" data-gv="design.closeTitle" value="${esc(d.closeTitle||'')}" placeholder="E.O.D" ${ed?'':'disabled'}></label><label class="f wide">안내 문구<input type="text" id="gd_dz_cs" data-gv="design.closeSub" value="${esc(d.closeSub||'')}" placeholder="궁금한 점은 담당자에게 편하게 물어봐 주세요." ${ed?'':'disabled'}></label></div></section>`}
 Object.assign(ACT,{
+  gNewLv(a){A.gnewLv=a.dataset.k;render()},
+  async gLevelSet(a){const g=curG();if(!g||!canEdit())return;const k=a.dataset.k;if(gLevel(g)===k)return;g.level=k;if(!gSubsOf(g).some(x=>x[0]===A.gsub))A.gsub=k==='light'?(A.gsub==='summary'||A.gsub==='product'?'lcheck':['text','words','notes','cuts'].includes(A.gsub)?'lmust':'ai'):(A.gsub==='lcheck'?'summary':A.gsub==='lmust'?'text':'ai');render();try{await DB.update('guides/'+A.gid,{level:k,updatedAt:T_NOW(),by:A.user.email})}catch(e){saveErr(e)}toast(k==='light'?'Light 가이드로 바꿨습니다. PPT·PDF가 5장 이내로 만들어집니다.':'Detail 가이드로 바꿨습니다. 모든 항목이 장마다 들어갑니다.')},
   gSub(a){A.gsub=a.dataset.k;render();const el=document.querySelector('.g-subtabs');if(el&&el.getBoundingClientRect().top<0)el.scrollIntoView({block:'start'})},
   async gDz(a){const g=curG();if(!g||!canEdit())return;const p=a.dataset.p,v=a.dataset.v;g.design=g.design||{};if(v==='')delete g.design[p];else g.design[p]=v;
     if(p==='font'&&gPD())gPD().loadFontCss(v);await gSave('design',g);render()}
@@ -321,7 +335,7 @@ document.addEventListener('paste',e=>{if(A.view!=='guides'||!A.gid)return;const 
 ACT.gimgClip=async a=>{try{const its=await navigator.clipboard.read();for(const it of its){const ty=it.types.find(x=>/^image\//.test(x));if(ty){const bl=await it.getType(ty);return gimgPut(a.dataset.k,new File([bl],'paste.'+ty.split('/')[1],{type:ty}))}}toast('복사한 이미지가 없습니다. 이미지를 먼저 복사해 주세요.','crit')}catch(err){A.gpaste=a.dataset.k;render();toast('브라우저가 바로 붙여넣기를 막았어요. 장면 칸을 클릭한 뒤 Ctrl+V를 눌러 주세요.')}};
 document.addEventListener('change',async e=>{const t=e.target;if(!t.dataset||!t.dataset.gimg||!t.files||!t.files[0])return;const f=t.files[0];t.value='';if(!canEdit())return;const dz=t.dataset.gdz;await gimgPut(t.dataset.gimg,f);if(dz){const g=curG();if(g){g.design=g.design||{};g.design[dz]='up';await gSave('design',g);render()}}});
 Object.assign(ACT,{
-  async guideNew(){const cid=($('#g-newc')||{}).value||'';const c=cid?A.campaigns[cid]:null;const g=newGuide(c);if(c)g.cid=cid;const id=uid();try{await DB.set('guides/'+id,g);A.guides=A.guides||{};A.guides[id]=g;A.gid=id;render();window.scrollTo(0,0)}catch(e){saveErr(e)}},
+  async guideNew(){const cid=($('#g-newc')||{}).value||'';const c=cid?A.campaigns[cid]:null;const g=newGuide(c);if(c)g.cid=cid;g.level=A.gnewLv||'detail';A.gsub='ai';const id=uid();try{await DB.set('guides/'+id,g);A.guides=A.guides||{};A.guides[id]=g;A.gid=id;render();window.scrollTo(0,0)}catch(e){saveErr(e)}},
   guideOpen(a){A.gid=a.dataset.g;A.confirm=null;render();window.scrollTo(0,0)},
   guideBack(){A.gid='';render();window.scrollTo(0,0)},
   async guideDup(){const g=curG();if(!g)return;const id=uid();const d={...clone(g),title:(g.title||'')+' (복사본)',status:'작성 중',createdAt:today(),updatedAt:T_NOW(),by:A.user.email};try{await DB.set('guides/'+id,d);if(Object.keys(A.gimgs||{}).length)await DB.set('guideimg/'+id,{imgs:clone(A.gimgs),updatedAt:T_NOW()});A.gid=id;render();toast('가이드를 복제했습니다.')}catch(e){saveErr(e)}},

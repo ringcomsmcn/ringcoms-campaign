@@ -123,7 +123,7 @@ async function rqG(method,url,body){const tok=await rqGTok();
 const RQ_API=api=>`https://console.cloud.google.com/apis/library/${api}.googleapis.com?project=${encodeURIComponent((window.FIREBASE_CONFIG||{}).projectId||'ringcoms-campaign')}`;
 
 /* ============ 화면: 목록 (캠페인별 차수) ============ */
-function viewRecruit(){rqWatch();if(A.rcid)return rqEditor();
+function viewRecruit(){if(!A.rq||typeof A.rq!=='object'||!A.rq.F)A.rq={F:{st:'',cid:'',q:''},sel:new Set(),tab:'src',visits:{},...(A.rq&&typeof A.rq==='object'?A.rq:{}),F:(A.rq&&A.rq.F)||{st:'',cid:'',q:''}};rqWatch();if(A.rcid)return rqEditor();
   const all=Object.entries(A.recruits||{}).map(([id,r])=>({id,...r}));const F=A.rq.F;const q=(F.q||'').trim().toLowerCase();
   const L=all.filter(r=>(!F.st||(r.status||'작성 중')===F.st)&&(!F.cid||(F.cid==='none'?!r.cid:r.cid===F.cid))&&(!q||[r.title,rqCampName(r.cid),(r.conf||{}).benefit,(r.post||{}).main].join(' ').toLowerCase().includes(q)));
   const apps=all.reduce((t,r)=>t+Object.keys(r.apps||{}).length,0),added=all.reduce((t,r)=>t+Object.values(r.apps||{}).filter(a=>a.added).length,0);
@@ -132,7 +132,7 @@ function viewRecruit(){rqWatch();if(A.rcid)return rqEditor();
   const camps=Object.entries(A.campaigns).filter(([,c])=>inAcctScope(c)).sort((a,b)=>String(b[1].createdAt).localeCompare(String(a[1].createdAt)));
   const usedC=[...new Set(all.map(r=>r.cid).filter(c=>c&&A.campaigns[c]))];
   const stN=s=>all.filter(r=>(r.status||'작성 중')===s).length;
-  return `${rqCss()}<div class="page-h"><div><div class="eyebrow">Threads Recruit</div><h1>스레드 모집</h1><div class="sub">광고주 홈페이지·앱 정보·상품소개서를 올리면 AI가 스레드 모집 글과 신청 구글폼을 만들고, 신청자를 캠페인 인플루언서 관리와 인플루언서 풀로 바로 옮깁니다.</div></div>
+  return `${rqCss()}<div class="page-h"><div><div class="eyebrow">Threads Recruit</div><h1>인플루언서 모집</h1><div class="sub">광고주 홈페이지·앱 정보·상품소개서를 올리면 AI가 스레드 모집 글과 신청 구글폼을 만들고, 신청자를 캠페인 인플루언서 관리와 인플루언서 풀로 바로 옮깁니다.</div></div>
    <div class="row">${rqThChip()}${canEdit()?'<button class="btn primary" data-act="rqNew">+ 새 모집</button>':''}</div></div>
   ${A.recErr?`<div class="banner" style="margin-bottom:12px"><b>보안 규칙 게시가 필요합니다.</b> 모집 데이터(recruits·threads)를 쓰려면 Firebase 콘솔에서 새 보안 규칙을 게시해야 합니다.</div>`:''}
   ${A.th.wait?'<div class="banner info" style="margin-bottom:12px">스레드 연결 창에서 로그인하고 「허용」을 눌러 주세요. 끝나면 이 화면이 자동으로 바뀝니다.</div>':''}
