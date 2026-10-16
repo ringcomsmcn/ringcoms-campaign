@@ -27,7 +27,11 @@ const RQ_GSCOPE='https://www.googleapis.com/auth/drive.file';
 const RQ_CAT=['뷰티','패션','푸드','라이프스타일','육아','반려동물','여행','운동·건강','테크·IT','게임','교육','기타'];
 const rqKindOf=c=>{const k=c?kindOf(c):'';return k==='trial'?'체험단':k==='gb'?'공동구매':k==='live'?'라이브커머스':k==='seed'?'시딩(유료 협찬)':'체험단'};
 const rqTrial=k=>/체험|무상|협찬/.test(k||'')&&!/유료/.test(k||'');
-const rqLen=s=>[...String(s||'')].length;
+/* 스레드 글자 수: 이모지(그림 문자)는 UTF-8 바이트 수(3~4자), 나머지는 1자 — 스레드 API 기준 */
+const RQ_SEG=typeof Intl!=='undefined'&&Intl.Segmenter?new Intl.Segmenter('ko',{granularity:'grapheme'}):null;
+const RQ_EMO=/\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3|\uFE0F/u;
+const rqLen=s=>{s=String(s||'');const gs=RQ_SEG?[...RQ_SEG.segment(s)].map(x=>x.segment):[...s];let n=0;for(const g of gs)n+=RQ_EMO.test(g)?new TextEncoder().encode(g).length:1;return n};
+const rqLinks=s=>(String(s||'').match(/https?:\/\/\S+/g)||[]).length;
 const rqQ=(key,type,title,o={})=>({id:'q'+Math.random().toString(36).slice(2,8),key,type,title,desc:o.desc||'',opts:o.opts||[],req:!!o.req,...(o.ai?{ai:true}:{})});
 function rqDefaultQs(kind){const T=rqTrial(kind);return [
   rqQ('name','short','활동명 (채널 닉네임)',{req:true}),
@@ -238,7 +242,7 @@ function rqTabPost(r){const ed=canEdit();const p=r.post||{};const reps=p.replies
     ${!sh?`<div class="banner info" style="margin:0 0 12px">아직 신청 링크가 없습니다. 아래 「구글폼」에서 폼을 만들면 글 속 <b>{링크}</b> 가 축약 링크로 바뀝니다.</div>`:`<div class="linkbox" style="margin-bottom:12px"><span class="grow">신청 링크 ${esc(sh)}</span><button class="btn sm" data-act="rqCopyTxt" data-v="${esc(sh)}">복사</button></div>`}
     ${box('post.main',p.main,-1)}${reps.map((t,i)=>box('post.replies.'+i,t,i)).join('')}
     <div class="row" style="gap:8px;margin-top:10px">${ed&&reps.length<3?'<button class="btn sm" data-act="rqReplyAdd">+ 이어 쓰기 추가</button>':''}<span class="grow"></span><button class="btn" data-act="rqCopy" data-path="all" title="본문과 이어 쓰기를 한 번에 복사 (빈 줄로 구분)">전체 복사</button></div>
-    <p class="small muted" style="margin:8px 0 0">스레드 글은 1개에 500자까지입니다. 긴 내용은 이어 쓰기(내 글에 다는 답글)로 나눠 올라갑니다. 붙여넣기로 올릴 때는 본문을 먼저 올리고, 이어 쓰기를 내 글의 답글로 달아 주세요.</p>
+    <p class="small muted" style="margin:8px 0 0">스레드 글은 1개에 500자까지입니다 (이모지는 1개가 3~4자로 계산). 긴 내용은 이어 쓰기(내 글에 다는 답글)로 나눠 올라갑니다. 붙여넣기로 올릴 때는 본문을 먼저 올리고, 이어 쓰기를 내 글의 답글로 달아 주세요.</p>
     ${r.threads&&r.threads.id?`<div class="rq-posted"><b>✓ 스레드에 게시했습니다</b><span>@${esc(r.threads.username||'')} · ${esc(String(r.threads.at||'').slice(0,16).replace('T',' '))} · ${esc(r.threads.byEmail||'')}${(r.threads.replies||[]).length?` · 이어 쓰기 ${(r.threads.replies||[]).length}개`:''}</span>${r.threads.permalink?`<a class="btn sm" href="${esc(r.threads.permalink)}" target="_blank" rel="noopener">스레드에서 보기 ↗</a>`:''}</div>`:''}
    </div><div class="rq-col rq-pvcol"><div class="rq-pvh">미리보기</div><div class="rq-pv" id="rq-pv">${rqPreview(r)}</div>
     ${ed?`<div class="rq-pvact">${th.connected?`<button class="btn primary" data-act="rqThPost" ${p.main&&A.rq.busy!=='post'?'':'disabled'}>${A.rq.busy==='post'?'<span class="rq-spin"></span> 게시하는 중…':A.confirm==='rqThPost'?`@${esc(th.username)} 계정에 지금 게시할까요? 한 번 더 누르기`:`스레드에 바로 게시${reps.filter(x=>String(x).trim()).length?` (+이어 쓰기 ${reps.filter(x=>String(x).trim()).length})`:''}`}</button>`:'<button class="btn primary" data-act="rqThConnect">스레드 계정 연결하고 게시</button>'}${!sh?'<span class="small muted">구글폼을 먼저 만들면 {링크} 가 신청 링크로 바뀐 채 게시됩니다.</span>':''}</div>`:''}</div></div>`}
@@ -329,11 +333,11 @@ Object.assign(ACT,{
   async rqCopyTxt(a){await rqClip(a.dataset.v);toast('복사했습니다.')},
   async rqThPost(){const r=rqCur();if(!r)return;const p=r.post||{};const th=A.th||{};if(!th.connected)return rqThOpen();
     const parts=[p.main,...(p.replies||[])].map(x=>String(x||'').trim()).filter(Boolean).map(x=>rqFill(x,r));
-    if(!parts.length)return toast('게시할 본문이 없습니다.','crit');const over=parts.findIndex(x=>rqLen(x)>RQ_MAX);if(over>=0)return toast(`${over?`이어 쓰기 ${over}`:'본문'}이 ${RQ_MAX}자를 넘습니다 (${rqLen(parts[over])}자). 줄이거나 나눠 주세요.`,'crit');
+    if(!parts.length)return toast('게시할 본문이 없습니다.','crit');const over=parts.findIndex(x=>rqLen(x)>RQ_MAX);if(over>=0)return toast(`${over?`이어 쓰기 ${over}`:'본문'}이 스레드 기준 ${RQ_MAX}자를 넘습니다 (${rqLen(parts[over])}자 · 이모지는 1개가 3~4자로 계산됩니다). 이모지나 글을 줄이거나 이어 쓰기로 나눠 주세요.`,'crit');const lk=parts.findIndex(x=>rqLinks(x)>5);if(lk>=0)return toast(`${lk?`이어 쓰기 ${lk}`:'본문'}에 링크가 5개를 넘습니다. 스레드는 글 하나에 링크 5개까지만 올릴 수 있어요.`,'crit');
     if(A.confirm!=='rqThPost'){A.confirm='rqThPost';render();if(parts.some(x=>x.includes(RQ_LINK)))toast('아직 신청 링크가 없어 글에 {링크} 가 그대로 올라갑니다. 구글폼을 먼저 만드는 것을 권장합니다.','crit');return}A.confirm=null;A.rq.busy='post';render();
     try{let root=null,prev=null;const reps=[];
       if(window.DEMO_KIND)throw new Error(DEMO_BLOCK_MSG);
-      for(let i=0;i<parts.length;i++){let j;if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,300));j={id:'demo'+Date.now()+i,permalink:'https://www.threads.net/@'+th.username}}else j=await aiFetch('/api/threads',{action:'post',text:parts[i],replyTo:prev||''});
+      for(let i=0;i<parts.length;i++){let j;if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,300));j={id:'demo'+Date.now()+i,permalink:'https://www.threads.net/@'+th.username}}else j=await rqThPostOne(parts[i],prev,i,parts.length);
         if(!i)root=j;else reps.push(j.id);prev=j.id}
       const up={threads:{id:root.id,permalink:root.permalink||'',username:th.username||'',at:T_NOW(),byEmail:A.user.email,replies:reps}};if((r.status||'작성 중')==='작성 중')up.status='모집 중';
       await rqSave(A.rcid,up);toast(`스레드 @${th.username}에 게시했습니다${reps.length?` (이어 쓰기 ${reps.length}개)`:''}.`)}
@@ -402,6 +406,11 @@ function rqCtx(r){const c=r.cid?A.campaigns[r.cid]:null;const g=r.gid&&A.guides?
   const pr=(g&&g.product)||{},sm=(g&&g.summary)||{},tx=(g&&g.text)||{};
   const guide=g?[`가이드: ${g.title||''}`,pr.name?`제품명: ${pr.name}`:'',pr.intro?`소개: ${pr.intro}`:'',(pr.points||[]).filter(x=>x&&x.t).length?'특징: '+(pr.points||[]).filter(x=>x&&x.t).map(x=>x.t+(x.d?`(${x.d})`:'')).join(' / '):'',sm.one?`핵심 메시지: ${sm.one}`:'',(sm.must||[]).length?'꼭 할 것: '+sm.must.join(' / '):'',(g.concepts||[]).filter(x=>x&&x.name).length?'컨셉: '+g.concepts.filter(x=>x&&x.name).map(x=>x.name).join(', '):'',g.platform?`채널·형식: ${g.platform} ${g.length||''}`:'',(tx.tagsMust||[]).length?'필수 해시태그: '+tx.tagsMust.join(' '):'',(g.submit||{}).uploadDue?`업로드 기한: ${g.submit.uploadDue}`:''].filter(Boolean).join('\n'):'';
   return {campaign,guide}}
+/* 스레드 글 1개 게시: 준비(create) → 준비가 끝날 때까지 몇 초 간격으로 게시(publish) 재시도 (스레드 권장 대기 최대 약 40초) */
+async function rqThPostOne(text,replyTo,i,n){const c=await aiFetch('/api/threads',{action:'create',text,replyTo:replyTo||''});
+  for(let k=0;k<14;k++){await new Promise(x=>setTimeout(x,k?3000:1500));A.rq.busy='post';const el=document.querySelector('[data-act="rqThPost"]');if(el)el.innerHTML=`<span class="rq-spin"></span> 게시 중${n>1?` (${i+1}/${n})`:''}…`;
+    const j=await aiFetch('/api/threads',{action:'publish',creationId:c.creationId});if(!j.pending)return j}
+  throw new Error('스레드가 글을 준비하는 데 오래 걸리고 있습니다. 잠시 뒤 스레드 앱에서 게시됐는지 확인하고, 없으면 다시 눌러 주세요.')}
 async function rqAiRun(id){const r=A.recruits&&A.recruits[id];if(!r||!canEdit()||rqAiRunning(r))return;const s=r.src||{};const links=(s.links||[]).map(x=>String(x||'').trim()).filter(u=>/^https?:\/\//i.test(u));
   const ctx=rqCtx(r);if(!links.length&&!String(s.memo||'').trim()&&!String(s.srcText||'').trim()&&!ctx.guide&&!ctx.campaign)return toast('홈페이지·앱 링크, 상품소개서, 메모 중 하나는 넣어 주세요.','crit');
   const conf={...(r.conf||{}),round:r.round||1};
