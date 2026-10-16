@@ -95,7 +95,7 @@ function rqThOpen(){
   const t=A.th||{};if(!t.ready||!t.appId){toast('스레드 앱 연결 정보(THREADS_APP_ID·THREADS_APP_SECRET)가 아직 Netlify에 없습니다. 연결 방법은 아래 안내를 봐 주세요.','crit');A.rq.thHelp=true;render();return}
   const st=token().slice(0,16);try{sessionStorage.setItem('rc_th_state',st);localStorage.removeItem('rc_threads_cb')}catch(e){}
   const red=location.origin+'/threads-callback.html';
-  const u='https://threads.net/oauth/authorize?'+new URLSearchParams({client_id:t.appId,redirect_uri:red,scope:'threads_basic,threads_content_publish',response_type:'code',state:st});
+  const u='https://threads.net/oauth/authorize?'+new URLSearchParams({client_id:t.appId,redirect_uri:red,scope:'threads_basic,threads_content_publish,threads_manage_replies',response_type:'code',state:st});
   const w=window.open(u,'rc_threads','width=520,height=760');if(!w){toast('팝업이 막혔습니다. 브라우저 주소창의 팝업 허용 후 다시 눌러 주세요.','crit');return}
   A.th.wait=true;render();clearInterval(rqThOpen.t);rqThOpen.t=setInterval(()=>{let m=null;try{m=JSON.parse(localStorage.getItem('rc_threads_cb')||'null')}catch(e){}if(m)rqThGot(m);else if(w.closed){clearInterval(rqThOpen.t);setTimeout(()=>{if(A.th.wait){A.th.wait=false;render()}},1500)}},700)}
 window.addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.type==='rc-threads')rqThGot(e.data)});
@@ -335,13 +335,20 @@ Object.assign(ACT,{
     const parts=[p.main,...(p.replies||[])].map(x=>String(x||'').trim()).filter(Boolean).map(x=>rqFill(x,r));
     if(!parts.length)return toast('게시할 본문이 없습니다.','crit');const over=parts.findIndex(x=>rqLen(x)>RQ_MAX);if(over>=0)return toast(`${over?`이어 쓰기 ${over}`:'본문'}이 스레드 기준 ${RQ_MAX}자를 넘습니다 (${rqLen(parts[over])}자 · 이모지는 1개가 3~4자로 계산됩니다). 이모지나 글을 줄이거나 이어 쓰기로 나눠 주세요.`,'crit');const lk=parts.findIndex(x=>rqLinks(x)>5);if(lk>=0)return toast(`${lk?`이어 쓰기 ${lk}`:'본문'}에 링크가 5개를 넘습니다. 스레드는 글 하나에 링크 5개까지만 올릴 수 있어요.`,'crit');
     if(A.confirm!=='rqThPost'){A.confirm='rqThPost';render();if(parts.some(x=>x.includes(RQ_LINK)))toast('아직 신청 링크가 없어 글에 {링크} 가 그대로 올라갑니다. 구글폼을 먼저 만드는 것을 권장합니다.','crit');return}A.confirm=null;A.rq.busy='post';render();
-    try{let root=null,prev=null;const reps=[];
+    let root=null,prev=null;const reps=[];const pt=r.threads&&r.threads.partial&&r.threads.id?r.threads:null;
+    /* 지난번에 본문만 올라가고 이어 쓰기에서 멈췄다면, 본문을 다시 올리지 않고 남은 이어 쓰기부터 이어서 게시 */
+    if(pt){root={id:pt.id,permalink:pt.permalink||''};(pt.replies||[]).forEach(x=>reps.push(x));prev=reps.length?reps[reps.length-1]:pt.id}
+    try{
       if(window.DEMO_KIND)throw new Error(DEMO_BLOCK_MSG);
-      for(let i=0;i<parts.length;i++){let j;if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,300));j={id:'demo'+Date.now()+i,permalink:'https://www.threads.net/@'+th.username}}else j=await rqThPostOne(parts[i],prev,i,parts.length);
+      for(let i=pt?1+reps.length:0;i<parts.length;i++){let j;if(DB.mode==='demo'){await new Promise(x=>setTimeout(x,300));j={id:'demo'+Date.now()+i,permalink:'https://www.threads.net/@'+th.username}}else j=await rqThPostOne(parts[i],prev,i,parts.length);
         if(!i)root=j;else reps.push(j.id);prev=j.id}
       const up={threads:{id:root.id,permalink:root.permalink||'',username:th.username||'',at:T_NOW(),byEmail:A.user.email,replies:reps}};if((r.status||'작성 중')==='작성 중')up.status='모집 중';
       await rqSave(A.rcid,up);toast(`스레드 @${th.username}에 게시했습니다${reps.length?` (이어 쓰기 ${reps.length}개)`:''}.`)}
-    catch(e){toast('스레드 게시 실패: '+e.message,'crit');if(/만료|다시 연결/.test(e.message))rqThStatus(true)}finally{A.rq.busy='';render()}},
+    catch(e){
+      if(root&&root.id&&DB.mode!=='demo'){const up={threads:{id:root.id,permalink:root.permalink||'',username:th.username||'',at:T_NOW(),byEmail:A.user.email,replies:reps,partial:true}};if((r.status||'작성 중')==='작성 중')up.status='모집 중';await rqSave(A.rcid,up).catch(()=>{});
+        toast(`본문은 스레드에 게시됐고, 이어 쓰기${reps.length?` ${reps.length+1}번째`:''}에서 멈췄습니다: ${e.message} — 해결 후 다시 누르면 남은 이어 쓰기만 이어서 올립니다.`,'crit')}
+      else toast('스레드 게시 실패: '+e.message,'crit');
+      if(/만료|다시 연결/.test(e.message))rqThStatus(true)}finally{A.rq.busy='';render()}},
   rqQAdd(){rqQs(L=>{const i=L.findIndex(q=>q.key==='agree');L.splice(i<0?L.length:i,0,rqQ('','short','새 문항',{}))})},
   rqQDel(a){rqQs(L=>L.splice(+a.dataset.i,1))},
   rqQUp(a){const i=+a.dataset.i;if(!i)return;rqQs(L=>{const x=L[i];L[i]=L[i-1];L[i-1]=x})},

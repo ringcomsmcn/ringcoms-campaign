@@ -107,7 +107,9 @@ export default async (req) => {
   } catch (e) {
     console.error(action, e);
     const m = String(e.message || e);
-    const hint = e.code === 190 || /token|session/i.test(m) ? ' — 스레드 연결이 끊겼을 수 있습니다. 「다시 연결」을 눌러 주세요.' : '';
+    const perm = e.code === 10 || e.code === 200 || /does not have permission|permission/i.test(m);
+    const hint = perm ? ` — 스레드 앱 권한이 부족합니다. Meta 개발자 앱(Threads 사용 사례)에 ${b.replyTo ? 'threads_manage_replies(이어 쓰기)' : 'threads_content_publish(게시)'} 권한을 추가한 뒤, 플랫폼에서 스레드 「다시 연결」을 눌러 주세요.`
+      : e.code === 190 || /token|session/i.test(m) ? ' — 스레드 연결이 끊겼을 수 있습니다. 「다시 연결」을 눌러 주세요.' : '';
     return json({ error: m + hint }, 400);
   }
 };
